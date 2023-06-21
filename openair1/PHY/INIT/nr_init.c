@@ -245,6 +245,7 @@ void phy_free_nr_gNB(PHY_VARS_gNB *gNB)
   pthread_mutex_destroy(&gNB->UL_INFO.crc_rx_mutex);
 
   PHY_MEASUREMENTS_gNB *meas = &gNB->measurements;
+  free_and_zero(meas->ul_rx_power);
   free_and_zero(meas->n0_subband_power);
   free_and_zero(meas->n0_subband_power_dB);
 
