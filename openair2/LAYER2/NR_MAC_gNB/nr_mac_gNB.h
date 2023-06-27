@@ -737,6 +737,14 @@ typedef struct {
   uid_allocator_t uid_allocator;
 } NR_UEs_t;
 
+typedef struct {
+  /// list of allocated beams per period
+  int **beam_allocation;
+  int slots_in_beam_period;
+  int beams_per_period;
+  int beam_allocation_size;
+} NR_beam_info_t;
+
 #define UE_iterator(BaSe, VaR) NR_UE_info_t ** VaR##pptr=BaSe, *VaR; while ((VaR=*(VaR##pptr++)))
 
 typedef void (*nr_pp_impl_dl)(module_id_t mod_id,
@@ -834,8 +842,8 @@ typedef struct gNB_MAC_INST_s {
   time_stats_t rx_ulsch_sdu;  // include rlc_data_ind
   /// processing time of eNB PCH scheduler
   time_stats_t schedule_pch;
-  /// list of allocated beams per period
-  int16_t *tdd_beam_association;
+
+  NR_beam_info_t beam_info;
 
   /// bitmap of DLSCH slots, can hold up to 160 slots
   uint64_t dlsch_slot_bitmap[3];

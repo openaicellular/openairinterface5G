@@ -3093,6 +3093,34 @@ void UL_tti_req_ahead_initialization(gNB_MAC_INST *gNB, int n, int CCid, frame_t
   }
 }
 
+bool beam_allocation_procedure(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame)
+{
+  // if digital beamforming, no restriction
+  if(!beam_info->beam_allocation)
+    return true;
+  const int index = ((frame * slots_per_frame + slot) / beam_info->slots_in_beam_period) % beam_info->beam_allocation_size;
+  for (int i = 0; i < beam_info->beams_per_period; i++) {
+    if (beam_info->beam_allocation[i][index] == -1 ||
+        beam_info->beam_allocation[i][index] == beam_index) {
+      beam_info->beam_allocation[i][index] = beam_index;
+      return true;
+    }
+  }
+  return false;
+}
+
+void reset_beam_status(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame)
+{
+  // if digital beamforming, no restriction
+  if(!beam_info->beam_allocation)
+    return;
+  const int index = ((frame * slots_per_frame + slot) / beam_info->slots_in_beam_period) % beam_info->beam_allocation_size;
+  for (int i = 0; i < beam_info->beams_per_period; i++) {
+    if (beam_info->beam_allocation[i][index] == beam_index)
+      beam_info->beam_allocation[i][index] = -1;
+  }
+}
+
 void send_initial_ul_rrc_message(int rnti, const uint8_t *sdu, sdu_size_t sdu_len, void *data)
 {
   gNB_MAC_INST *mac = RC.nrmac[0];

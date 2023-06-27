@@ -70,6 +70,9 @@
 #define CONFIG_STRING_MACRLC_MIN_GRANT_PRB                 "min_grant_prb"
 #define CONFIG_STRING_MACRLC_MIN_GRANT_MCS                 "min_grant_mcs"
 #define CONFIG_STRING_MACRLC_IDENTITY_PM                   "identity_precoding_matrix"
+#define CONFIG_STRING_MACRLC_ANALOG_BEAMFORMING            "set_analog_beamforming"
+#define CONFIG_STRING_MACRLC_AB_PERIOD                     "beamforming_period"
+#define CONFIG_STRING_MACRLC_BEAMS_PERIOD                  "beams_per_period"
 
 #define HLP_MACRLC_UL_PRBBLACK "SNR threshold to decide whether a PRB will be blacklisted or not"
 #define HLP_MACRLC_DL_BLER_UP "Upper threshold of BLER to decrease DL MCS"
@@ -83,6 +86,9 @@
 #define HLP_MACRLC_MIN_GRANT_PRB "Minimal Periodic ULSCH Grant PRBs"
 #define HLP_MACRLC_MIN_GRANT_MCS "Minimal Periodic ULSCH Grant MCS"
 #define HLP_MACRLC_IDENTITY_PM "Flag to use only identity matrix in DL precoding"
+#define HLP_MACRLC_AB "Flag to enable analog beamforming"
+#define HLP_MACRLC_AB_PERIOD "number of consecutive slots for a given set of beams"
+#define HLP_MACRLC_BEAMS_PERIOD "set of beams that can be simultaneously allocated in a period"
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            MacRLC  configuration parameters                                                                           */
@@ -123,6 +129,9 @@
   {CONFIG_STRING_MACRLC_MIN_GRANT_MCS,               HLP_MACRLC_MIN_GRANT_MCS, 0, .u8ptr=NULL,  .defintval=9,               TYPE_UINT8,   0}, \
   {CONFIG_STRING_MACRLC_IDENTITY_PM,                 HLP_MACRLC_IDENTITY_PM,   PARAMFLAG_BOOL, .u8ptr=NULL, .defintval=0,   TYPE_UINT8,   0}, \
   {CONFIG_STRING_MACRLC_LOCAL_N_ADDRESS_F1U,         NULL,                     0, .strptr=NULL, .defstrval=NULL,            TYPE_STRING,  0}, \
+  {CONFIG_STRING_MACRLC_ANALOG_BEAMFORMING,          HLP_MACRLC_AB,            PARAMFLAG_BOOL, .u8ptr=NULL, .defintval=0,   TYPE_UINT8,   0}, \
+  {CONFIG_STRING_MACRLC_AB_PERIOD,                   HLP_MACRLC_AB_PERIOD,     0, .u8ptr=NULL,  .defintval=1,               TYPE_UINT8,   0}, \
+  {CONFIG_STRING_MACRLC_BEAMS_PERIOD,                HLP_MACRLC_BEAMS_PERIOD,  0, .u8ptr=NULL,  .defintval=1,               TYPE_UINT8,   0}, \
 }
 // clang-format off
 
@@ -159,6 +168,9 @@
 #define MACRLC_MIN_GRANT_MCS_IDX                               30
 #define MACRLC_IDENTITY_PM_IDX                                 31
 #define MACRLC_LOCAL_N_ADDRESS_F1U_IDX                         32
+#define MACRLC_ANALOG_BEAMFORMING_IDX                          33
+#define MACRLC_ANALOG_BEAMFORMING_PERIOD_IDX                   34
+#define MACRLC_ANALOG_BEAMS_PERIOD_IDX                         35
 
 #define MACRLCPARAMS_CHECK { \
   { .s5 = { NULL } }, \
@@ -192,7 +204,10 @@
   { .s2 = { config_check_intrange, {1, 8} } }, /* UL max HARQ rounds */ \
   { .s5 = { NULL } }, \
   { .s5 = { NULL } }, \
+  { .s5 = { NULL } }, \
   { .s2 = { NULL } }, \
+  { .s5 = { NULL } }, \
+  { .s5 = { NULL } }, \
   { .s5 = { NULL } }, \
 }
 

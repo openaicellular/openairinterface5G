@@ -555,7 +555,8 @@ static bool allocate_dl_retransmission(module_id_t module_id,
    * allocation after CCE alloc fail would be more complex) */
 
   int r_pucch = nr_get_pucch_resource(sched_ctrl->coreset, ul_bwp->pucch_Config, CCEIndex);
-  const int alloc = nr_acknack_scheduling(nr_mac, UE, frame, slot, r_pucch, 0);
+  // TODO properly set the beam index (currently only done for RA)
+  const int alloc = nr_acknack_scheduling(nr_mac, UE, frame, slot, 0, r_pucch, 0);
   if (alloc<0) {
     LOG_D(NR_MAC, "[UE %04x][%4d.%2d] could not find PUCCH for DL DCI retransmission\n",
           UE->rnti,
@@ -743,7 +744,8 @@ static void pf_dl(module_id_t module_id,
     * allocation after CCE alloc fail would be more complex) */
 
     int r_pucch = nr_get_pucch_resource(sched_ctrl->coreset, ul_bwp->pucch_Config, CCEIndex);
-    const int alloc = nr_acknack_scheduling(mac, iterator->UE, frame, slot, r_pucch, 0);
+    // TODO properly set the beam index (currently only done for RA)
+    const int alloc = nr_acknack_scheduling(mac, iterator->UE, frame, slot, 0, r_pucch, 0);
 
     if (alloc<0) {
       LOG_D(NR_MAC, "[UE %04x][%4d.%2d] could not find PUCCH for DL DCI\n",

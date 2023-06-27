@@ -146,6 +146,36 @@ void clear_nr_nfapi_information(gNB_MAC_INST *gNB,
   TX_req[CC_idP].Number_of_PDUs = 0;
 }
 
+void clear_beam_information(NR_beam_info_t *beam_info, int frame, int slot, int mu)
+{
+  // for now we use the same logic of UL_tti_req_ahead
+  // reset after 1 frame with the exception of 15kHz
+  if(!beam_info->beam_allocation)
+    return;
+  // initialization done only once
+  const int slots_per_frame = nr_slots_per_frame[mu];
+  if(beam_info->beam_allocation_size == -1) {
+    int size = mu == 0 ? slots_per_frame << 1 : slots_per_frame;
+    // slots in beam period gives the number of consecutive slots tied the the same beam
+    AssertFatal(size % beam_info->slots_in_beam_period == 0,
+                "Beam period %d should be divider of number of slots per frame %d\n",
+                beam_info->slots_in_beam_period, slots_per_frame);
+    beam_info->beam_allocation_size = size / beam_info->slots_in_beam_period;
+    for (int i = 0; i < beam_info->beams_per_period; i++) {
+      beam_info->beam_allocation[i] = malloc16(beam_info->beam_allocation_size * sizeof(int));
+      for (int j = 0; j < beam_info->beam_allocation_size; j++)
+        beam_info->beam_allocation[i][j] = -1;
+    }
+  }
+  int idx_to_clear = (frame * slots_per_frame + slot) / beam_info->slots_in_beam_period ;
+  idx_to_clear = (idx_to_clear + beam_info->beam_allocation_size - 1) % beam_info->beam_allocation_size;
+  if (slot % beam_info->slots_in_beam_period == 0) {
+    // resetting previous period allocation
+    for (int i = 0; i < beam_info->beams_per_period; i++)
+      beam_info->beam_allocation[i][idx_to_clear] = -1;
+  }
+}
+
 bool is_xlsch_in_slot(uint64_t bitmap, sub_frame_t slot) {
   return (bitmap >> (slot % 64)) & 0x01;
 }
@@ -195,19 +225,11 @@ void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, frame_t frame, sub_frame_
 
   gNB_MAC_INST *gNB = RC.nrmac[module_idP];
   NR_COMMON_channels_t *cc = gNB->common_channels;
-  NR_ServingCellConfigCommon_t        *scc     = cc->ServingCellConfigCommon;
+  NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
 
   NR_SCHED_LOCK(&gNB->sched_lock);
 
-  if (slot==0 && (*scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.array[0]>=257)) {
-    //FR2
-    const NR_TDD_UL_DL_Pattern_t *tdd = &scc->tdd_UL_DL_ConfigurationCommon->pattern1;
-    AssertFatal(tdd,"Dynamic TDD not handled yet\n");
-    const int nb_periods_per_frame = get_nb_periods_per_frame(tdd->dl_UL_TransmissionPeriodicity);
-    // re-initialization of tdd_beam_association at beginning of frame
-    for (int i=0; i<nb_periods_per_frame; i++)
-      gNB->tdd_beam_association[i] = -1;
-  }
+  clear_beam_information(&gNB->beam_info, frame, slot, *scc->ssbSubcarrierSpacing);
 
   gNB->frame = frame;
   start_meas(&gNB->eNB_scheduler);

@@ -1371,6 +1371,15 @@ void RCconfig_nr_macrlc(configmodule_interface_t *cfg)
       RC.nrmac[j]->identity_pm = *(MacRLC_ParamList.paramarray[j][MACRLC_IDENTITY_PM_IDX].u8ptr);
       RC.nrmac[j]->num_ulprbbl = num_prbbl;
       memcpy(RC.nrmac[j]->ulprbbl, prbbl, 275 * sizeof(prbbl[0]));
+      bool ab = *(MacRLC_ParamList.paramarray[j][MACRLC_ANALOG_BEAMFORMING_IDX].u8ptr);
+      if (ab) {
+        NR_beam_info_t *beam_info = &RC.nrmac[j]->beam_info;
+        int beams_per_period = *(MacRLC_ParamList.paramarray[j][MACRLC_ANALOG_BEAMS_PERIOD_IDX].u8ptr);
+        beam_info->beam_allocation = malloc16(beams_per_period * sizeof(int *));
+        beam_info->slots_in_beam_period = *(MacRLC_ParamList.paramarray[j][MACRLC_ANALOG_BEAMFORMING_PERIOD_IDX].u8ptr);
+        beam_info->beams_per_period = beams_per_period;
+        beam_info->beam_allocation_size = -1; // to be initialized once we have information on frame configuration
+      }
     } //  for (j=0;j<RC.nb_nr_macrlc_inst;j++)
 
     uint64_t gnb_du_id = 0;

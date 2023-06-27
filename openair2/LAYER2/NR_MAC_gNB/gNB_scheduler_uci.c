@@ -1235,6 +1235,7 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
                           NR_UE_info_t *UE,
                           frame_t frame,
                           sub_frame_t slot,
+                          int beam_index,
                           int r_pucch,
                           int is_common)
 {
@@ -1331,7 +1332,15 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
                                             bwp_start,
                                             bwp_size);
       if(!ret) {
-        LOG_D(NR_MAC, "DL %4d.%2d, UL_ACK %4d.%2d PRB resources for this occasion are already occupied, move to the following occasion\n",
+        LOG_D(NR_MAC,
+              "DL %4d.%2d, UL_ACK %4d.%2d PRB resources for this occasion are already occupied, move to the following occasion\n",
+              frame, slot, pucch_frame, pucch_slot);
+        continue;
+      }
+      ret = beam_allocation_procedure(&mac->beam_info, pucch_frame, pucch_slot, beam_index, n_slots_frame);
+      if (!ret) {
+        LOG_D(NR_MAC,
+              "DL %4d.%2d, UL_ACK %4d.%2d beam resources for this occasion are already occupied, move to the following occasion\n",
               frame, slot, pucch_frame, pucch_slot);
         continue;
       }
