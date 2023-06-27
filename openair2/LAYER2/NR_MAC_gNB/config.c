@@ -584,14 +584,6 @@ static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_Ant
                                               scc->tdd_UL_DL_ConfigurationCommon->pattern1.nrofUplinkSymbols);
 
     AssertFatal(periods_per_frame > 0, "TDD configuration cannot be configured\n");
-    if (frequency_range == FR2) {
-      LOG_I(NR_MAC, "Configuring TDD beam association to default\n");
-      nrmac->tdd_beam_association = malloc16(periods_per_frame * sizeof(int16_t));
-      for (int i = 0; i < periods_per_frame; ++i)
-        nrmac->tdd_beam_association[i] = -1; /* default: beams not configured */
-    } else {
-      nrmac->tdd_beam_association = NULL; /* default: no beams */
-    }
   }
 
   // precoding matrix configuration (to be improved)
