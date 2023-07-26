@@ -1770,8 +1770,8 @@ int get_nr_prach_info_from_index(uint8_t index,
                                  uint8_t *N_dur,
                                  uint16_t *RA_sfn_index,
                                  uint8_t *N_RA_slot,
-                                 uint8_t *config_period) {
-
+                                 uint8_t *config_period)
+{
   int x,y;
   int64_t s_map;
   uint8_t format2 = 0xff;
@@ -1783,20 +1783,20 @@ int get_nr_prach_info_from_index(uint8_t index,
     y = table_6_3_3_2_4_prachConfig_Index[index][3];
     y2 = table_6_3_3_2_4_prachConfig_Index[index][4];
     // checking n_sfn mod x = y
-    if ( (frame%x)==y || (frame%x)==y2 ) {
-      slot_60khz = slot >> (mu-2); // in table slots are numbered wrt 60kHz
+    if ((frame % x) == y || (frame % x) == y2) {
+      slot_60khz = slot >> (mu - 2); // in table slots are numbered wrt 60kHz
       s_map = table_6_3_3_2_4_prachConfig_Index[index][5];
-      if ((s_map >> slot_60khz) & 0x01 ) {
+      if ((s_map >> slot_60khz) & 0x01) {
         for(int i = 0; i <= slot_60khz ;i++) {
-          if ( (s_map >> i) & 0x01) {
+          if ((s_map >> i) & 0x01) {
             (*RA_sfn_index)++;
           }
         }
       }
-      if ( ((s_map>>slot_60khz)&0x01) ) {
+      if (((s_map >> slot_60khz) & 0x01)) {
         *N_RA_slot = table_6_3_3_2_4_prachConfig_Index[index][7]; // Number of RACH slots within a subframe
         if (mu == 3) {
-          if ( (*N_RA_slot == 1) && (slot%2 == 0) )
+          if ((*N_RA_slot == 1) && (slot % 2 == 0) )
             return 0; // no prach in even slots @ 120kHz for 1 prach per 60khz slot
         }
         if (start_symbol != NULL && N_t_slot != NULL && N_dur != NULL && format != NULL){
@@ -1833,23 +1833,23 @@ int get_nr_prach_info_from_index(uint8_t index,
     if (unpaired) {
       x = table_6_3_3_2_3_prachConfig_Index[index][2];
       y = table_6_3_3_2_3_prachConfig_Index[index][3];
-      if ( (frame%x)==y ) {
+      if ((frame % x) == y) {
         subframe = slot >> mu;
         s_map = table_6_3_3_2_3_prachConfig_Index[index][4];
-        if ((s_map >> subframe) & 0x01 ) {
+        if ((s_map >> subframe) & 0x01) {
           for(int i = 0; i <= subframe ;i++) {
-            if ( (s_map >> i) & 0x01) {
+            if ((s_map >> i) & 0x01) {
               (*RA_sfn_index)++;
             }
           }
         }
-        if ( (s_map>>subframe)&0x01 ) {
+        if ((s_map >> subframe) & 0x01 ) {
          *N_RA_slot = table_6_3_3_2_3_prachConfig_Index[index][6]; // Number of RACH slots within a subframe
           if (mu == 1 && index >= 67) {
-            if ( (*N_RA_slot <= 1) && (slot%2 == 0) )
+            if ((*N_RA_slot <= 1) && (slot % 2 == 0))
               return 0; // no prach in even slots @ 30kHz for 1 prach per subframe 
           } 
-          if (start_symbol != NULL && N_t_slot != NULL && N_dur != NULL && format != NULL){
+          if (start_symbol != NULL && N_t_slot != NULL && N_dur != NULL && format != NULL) {
             *config_period = x;
             *start_symbol = table_6_3_3_2_3_prachConfig_Index[index][5];
             *N_t_slot = table_6_3_3_2_3_prachConfig_Index[index][7];
@@ -1857,17 +1857,19 @@ int get_nr_prach_info_from_index(uint8_t index,
             if (table_6_3_3_2_3_prachConfig_Index[index][1] != -1)
               format2 = (uint8_t) table_6_3_3_2_3_prachConfig_Index[index][1];
             *format = ((uint8_t) table_6_3_3_2_3_prachConfig_Index[index][0]) | (format2<<8);
-            LOG_D(MAC,"Frame %d slot %d: Getting PRACH info from index %d (col 6 %lu) absoluteFrequencyPointA %u mu %u frame_type %u start_symbol %u N_t_slot %u N_dur %u N_RA_slot %u RA_sfn_index %u \n", frame,
-              slot,
-              index, table_6_3_3_2_3_prachConfig_Index[index][6],
-              pointa,
-              mu,
-              unpaired,
-              *start_symbol,
-              *N_t_slot,
-              *N_dur,
-              *N_RA_slot,
-              *RA_sfn_index);
+            LOG_D(MAC,"Frame %d slot %d: Getting PRACH info from index %d (col 6 %lu) absoluteFrequencyPointA %u mu %u frame_type %u start_symbol %u N_t_slot %u N_dur %u N_RA_slot %u RA_sfn_index %u \n",
+                  frame,
+                  slot,
+                  index,
+                  table_6_3_3_2_3_prachConfig_Index[index][6],
+                  pointa,
+                  mu,
+                  unpaired,
+                  *start_symbol,
+                  *N_t_slot,
+                  *N_dur,
+                  *N_RA_slot,
+                  *RA_sfn_index);
           }
           return 1;
         }
@@ -1880,10 +1882,10 @@ int get_nr_prach_info_from_index(uint8_t index,
     else { // FDD
       x = table_6_3_3_2_2_prachConfig_Index[index][2];
       y = table_6_3_3_2_2_prachConfig_Index[index][3];
-      if ( (frame%x)==y ) {
+      if ((frame % x) == y) {
         subframe = slot >> mu;
         s_map = table_6_3_3_2_2_prachConfig_Index[index][4];
-        if ( (s_map>>subframe)&0x01 ) {
+        if ((s_map>>subframe) & 0x01) {
           *N_RA_slot = table_6_3_3_2_2_prachConfig_Index[index][6]; // Number of RACH slots within a subframe
           if (mu == 1) {
             if ((*N_RA_slot <= 1) && (slot % 2 == 0)){
@@ -1891,7 +1893,7 @@ int get_nr_prach_info_from_index(uint8_t index,
             }
           }
           for(int i = 0; i <= subframe ; i++) {
-            if ( (s_map >> i) & 0x01) {
+            if ((s_map >> i) & 0x01) {
               (*RA_sfn_index)++;
             }
           }
