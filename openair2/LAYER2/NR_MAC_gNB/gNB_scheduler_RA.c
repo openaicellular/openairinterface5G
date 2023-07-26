@@ -115,13 +115,13 @@ static int16_t ssb_index_from_prach(module_id_t module_idP,
 			       &RA_sfn_index,
 			       &N_RA_slot,
 			       &config_period);
-  uint8_t index = 0,slot_index = 0;
-  for (slot_index = 0;slot_index < N_RA_slot; slot_index++) {
+  uint8_t index = 0, slot_index = 0;
+  for (slot_index = 0; slot_index < N_RA_slot; slot_index++) {
     if (N_RA_slot <= 1) { //1 PRACH slot in a subframe
        if((mu == 1) || (mu == 3))
          slot_index = 1;  //For scs = 30khz and 120khz
     }
-    for (int i=0; i< N_t_slot; i++) {
+    for (int i = 0; i < N_t_slot; i++) {
       temp_start_symbol = (start_symbol + i * N_dur + 14 * slot_index) % 14;
       if(symbol == temp_start_symbol) {
         start_symbol_index = i;
@@ -138,14 +138,14 @@ static int16_t ssb_index_from_prach(module_id_t module_idP,
   prach_occasion_id = (((frameP % (cc->max_association_period * config_period)) / config_period) * cc->total_prach_occasions_per_config_period) +
                       (RA_sfn_index + slot_index) * N_t_slot * fdm + start_symbol_index * fdm + freq_index; 
 
-  //one RO is shared by one or more SSB
-  if(num_ssb_per_RO <= 1 )
-    index = (int) (prach_occasion_id / (int)(1/num_ssb_per_RO)) % num_active_ssb;
   //one SSB have more than one continuous RO
-  else if ( num_ssb_per_RO > 1) {
-    index = (prach_occasion_id * (int)num_ssb_per_RO)% num_active_ssb ;
-    for(int j = 0;j < num_ssb_per_RO;j++) {
-      if(preamble_index <  (((j + 1) * total_RApreambles) / num_ssb_per_RO))
+  if(num_ssb_per_RO <= 1)
+    index = (int) (prach_occasion_id / (int)(1 / num_ssb_per_RO)) % num_active_ssb;
+  //one RO is shared by one or more SSB
+  else if (num_ssb_per_RO > 1) {
+    index = (prach_occasion_id * (int)num_ssb_per_RO) % num_active_ssb;
+    for(int j = 0; j < num_ssb_per_RO; j++) {
+      if(preamble_index <  ((j + 1) * cc->cb_preambles_per_ssb))
         index = index + j;
     }
   }
@@ -227,24 +227,24 @@ void find_SSB_and_RO_available(gNB_MAC_INST *nrmac)
   uint64_t L_ssb = (((uint64_t) cfg->ssb_table.ssb_mask_list[0].ssb_mask.value)<<32) | cfg->ssb_table.ssb_mask_list[1].ssb_mask.value ;
   uint32_t total_RA_occasions = N_RA_sfn * N_t_slot * N_RA_slot * fdm;
 
-  for(int i = 0;i < 64;i++) {
-    if ((L_ssb >> (63-i)) & 0x01) { // only if the bit of L_ssb at current ssb index is 1
+  for(int i = 0; i < 64; i++) {
+    if ((L_ssb >> (63 - i)) & 0x01) { // only if the bit of L_ssb at current ssb index is 1
       cc->ssb_index[num_active_ssb] = i; 
       num_active_ssb++;
     }
   }
 
   cc->total_prach_occasions_per_config_period = total_RA_occasions;
-  for(int i=1; (1 << (i-1)) <= max_association_period; i++) {
-    cc->max_association_period = (1 <<(i-1));
+  for(int i = 1; (1 << (i-1)) <= max_association_period; i++) {
+    cc->max_association_period = (1 << (i - 1));
     total_RA_occasions = total_RA_occasions * cc->max_association_period;
-    if(total_RA_occasions >= (int) (num_active_ssb/num_ssb_per_RO)) {
-      repetition = (uint16_t)((total_RA_occasions * num_ssb_per_RO )/num_active_ssb);
+    if(total_RA_occasions >= (int) (num_active_ssb / num_ssb_per_RO)) {
+      repetition = (uint16_t)((total_RA_occasions * num_ssb_per_RO) / num_active_ssb);
       break;
     }
   }
 
-  unused_RA_occasion = total_RA_occasions - (int)((num_active_ssb * repetition)/num_ssb_per_RO);
+  unused_RA_occasion = total_RA_occasions - (int)((num_active_ssb * repetition) / num_ssb_per_RO);
   cc->total_prach_occasions = total_RA_occasions - unused_RA_occasion;
   cc->num_active_ssb = num_active_ssb;
 
@@ -319,13 +319,30 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
       UL_tti_req->SFN = frameP;
       UL_tti_req->Slot = slotP;
       UL_tti_req->rach_present = 1;
+      int beam_idx = 0;
       for (int fdm_index = 0; fdm_index < fdm; fdm_index++) { // one structure per frequency domain occasion
         for (int td_index = 0; td_index < N_t_slot; td_index++) {
 
           prach_occasion_id = (((frameP % (cc->max_association_period * config_period))/config_period) * cc->total_prach_occasions_per_config_period) +
                               (RA_sfn_index + slot_index) * N_t_slot * fdm + td_index * fdm + fdm_index;
 
-          if((prach_occasion_id < cc->total_prach_occasions) && (td_index == 0)){
+          if (prach_occasion_id >= cc->total_prach_occasions) // to be confirmed: unused occasion?
+            continue;
+
+          float num_ssb_per_RO = ssb_per_rach_occasion[cfg->prach_config.ssb_per_rach.value];
+          if(num_ssb_per_RO <= 1) {
+            int ssb_index = (int) (prach_occasion_id / (int)(1 / num_ssb_per_RO)) % cc->num_active_ssb;
+            beam_idx = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, ssb_index, nr_slots_per_frame[mu]);
+            AssertFatal(beam_idx >= 0, "Cannot allocate PRACH corresponding to SSB %d in any available beam\n", ssb_index);
+          }
+          else {
+            int first_ssb_index = (prach_occasion_id * (int)num_ssb_per_RO) % cc->num_active_ssb;
+            for(int j = first_ssb_index; j < num_ssb_per_RO; j++) {
+              beam_idx = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, j, nr_slots_per_frame[mu]);
+              AssertFatal(beam_idx >= 0, "Cannot allocate PRACH corresponding to SSB %d in any available beam\n", j);
+            }
+          }
+          if(td_index == 0) {
             AssertFatal(UL_tti_req->n_pdus < sizeof(UL_tti_req->pdus_list) / sizeof(UL_tti_req->pdus_list[0]),
                         "Invalid UL_tti_req->n_pdus %d\n", UL_tti_req->n_pdus);
 
@@ -414,10 +431,7 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
       }
 
       // block resources in vrb_map_UL
-      // TODO properly allocate beam index for PRACH
-      int beam_idx = 0;
-      const uint8_t mu_pusch =
-          scc->uplinkConfigCommon->frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
+      const int mu_pusch = scc->uplinkConfigCommon->frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
       const int16_t n_ra_rb = get_N_RA_RB(cfg->prach_config.prach_sub_c_spacing.value, mu_pusch);
       index = ul_buffer_index(frameP, slotP, mu, gNB->vrb_map_UL_size);
       uint16_t *vrb_map_UL = &cc->vrb_map_UL[beam_idx][index * MAX_BWP_SIZE];
