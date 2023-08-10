@@ -600,7 +600,7 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     uint16_t *vrb_map_UL = &nr_mac->common_channels[CC_id].vrb_map_UL[buffer_index * MAX_BWP_SIZE];
 
     const int BWPSize = sc_info->initial_ul_BWPSize;
-    const int BWPStart = sc_info->initial_ul_BWPStart;
+    const int BWPStart = ul_bwp->BWPStart;
 
     int rbStart = 0;
     for (int i = 0; (i < ra->msg3_nb_rb) && (rbStart <= (BWPSize - ra->msg3_nb_rb)); i++) {
@@ -694,6 +694,7 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     dci_pdu_rel15_t uldci_payload={0};
 
     config_uldci(sc_info,
+                 ss,
                  pusch_pdu,
                  &uldci_payload,
                  NULL,

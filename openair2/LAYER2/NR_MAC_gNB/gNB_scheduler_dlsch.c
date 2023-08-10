@@ -393,7 +393,7 @@ void get_start_stop_allocation(gNB_MAC_INST *mac,
   *rbStop = dl_bwp->BWPSize - 1;
   *rbStart = 0; // start wrt BWPstart
   if (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common &&
-      dl_bwp->dci_format == NR_DL_DCI_FORMAT_1_0) {
+      ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0) {
     if (mac->cset0_bwp_size != 0) {
       *rbStart = mac->cset0_bwp_start;
       *rbStop = *rbStart + mac->cset0_bwp_size - 1;
