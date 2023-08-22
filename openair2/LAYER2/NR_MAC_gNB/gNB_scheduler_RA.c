@@ -1402,9 +1402,12 @@ static void nr_generate_Msg2(module_id_t module_idP,
   dci_pdu->powerControlOffsetSS = 1;
 
   dci_pdu_rel15_t dci_payload;
-  dci_payload.frequency_domain_assignment.val = PRBalloc_to_locationandbandwidth0(pdsch_pdu_rel15->rbSize,
-                                                                                  pdsch_pdu_rel15->rbStart - alloc_start,
-                                                                                  rbStop - alloc_start);
+  AssertFatal(pdsch_pdu_rel15->rbStart >= alloc_start,
+              "Start of allocated PRBs %d cannot be smaller than allowed allocation start %d\n",
+              pdsch_pdu_rel15->rbStart,
+              alloc_start);
+  dci_payload.frequency_domain_assignment.val =
+      PRBalloc_to_locationandbandwidth0(pdsch_pdu_rel15->rbSize, pdsch_pdu_rel15->rbStart - alloc_start, rbStop - alloc_start);
 
   LOG_D(NR_MAC, "Msg2 rbSize.rbStart.BWPsize %d.%d.%ld\n", pdsch_pdu_rel15->rbSize, pdsch_pdu_rel15->rbStart, BWPSize);
 
@@ -1566,7 +1569,7 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
   pdsch_pdu_rel15->pduBitmap = 0;
   pdsch_pdu_rel15->rnti = rnti;
   pdsch_pdu_rel15->pduIndex = pduindex;
-  pdsch_pdu_rel15->BWPSize  = dl_bwp->BWPSize;
+  pdsch_pdu_rel15->BWPSize = dl_bwp->BWPSize;
   pdsch_pdu_rel15->BWPStart = dl_bwp->BWPStart;
   pdsch_pdu_rel15->SubcarrierSpacing = dl_bwp->scs;
   pdsch_pdu_rel15->CyclicPrefix = 0;
@@ -1622,9 +1625,12 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
   int alloc_start = 0;
   int alloc_stop = 0;
   get_start_stop_allocation(nr_mac, &ra->sc_info, dl_bwp, ss, &alloc_start, &alloc_stop);
-  dci_payload.frequency_domain_assignment.val = PRBalloc_to_locationandbandwidth0(pdsch_pdu_rel15->rbSize,
-                                                                                  pdsch_pdu_rel15->rbStart - alloc_start,
-                                                                                  alloc_stop - alloc_start);
+  AssertFatal(pdsch_pdu_rel15->rbStart >= alloc_start,
+              "Start of allocated PRBs %d cannot be smaller than allowed allocation start %d\n",
+              pdsch_pdu_rel15->rbStart,
+              alloc_start);
+  dci_payload.frequency_domain_assignment.val =
+      PRBalloc_to_locationandbandwidth0(pdsch_pdu_rel15->rbSize, pdsch_pdu_rel15->rbStart - alloc_start, alloc_stop - alloc_start);
 
   dci_payload.format_indicator = 1;
   dci_payload.time_domain_assignment.val = time_domain_assignment;
@@ -1805,7 +1811,7 @@ static void nr_generate_Msg4(module_id_t module_idP,
 
     // increase PRBs until we get to max size or TBS is bigger than MAC PDU size
     do {
-      if(rbSize < (rbStop - rbStart))
+      if (rbSize < rbStop - rbStart)
         rbSize++;
       else
         mcsIndex++;

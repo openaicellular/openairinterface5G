@@ -392,8 +392,8 @@ void get_start_stop_allocation(gNB_MAC_INST *mac,
   // TS 38.214 Section 5.1.2.2.2
   *rbStop = dl_bwp->BWPSize - 1;
   *rbStart = 0; // start wrt BWPstart
-  if (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common &&
-      ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0) {
+  if (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common
+      && ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0) {
     if (mac->cset0_bwp_size != 0) {
       *rbStart = mac->cset0_bwp_start;
       *rbStop = *rbStart + mac->cset0_bwp_size - 1;
@@ -1178,6 +1178,10 @@ void nr_schedule_ue_spec(module_id_t module_id,
     int rbStop = 0;
     int rbStart = 0;
     get_start_stop_allocation(gNB_mac, &UE->sc_info, current_BWP, sched_ctrl->search_space, &rbStart, &rbStop);
+    AssertFatal(pdsch_pdu->rbStart >= rbStart,
+                "Start of allocated PRBs %d cannot be smaller than allowed allocation start %d\n",
+                pdsch_pdu->rbStart,
+                rbStart);
     dci_payload.frequency_domain_assignment.val = PRBalloc_to_locationandbandwidth0(pdsch_pdu->rbSize,
                                                                                     pdsch_pdu->rbStart - rbStart,
                                                                                     rbStop - rbStart + 1);

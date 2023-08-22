@@ -786,10 +786,10 @@ void config_uldci(const NR_UE_ServingCell_Info_t *sc_info,
   //  when DCI format 0_0 is used in any common search space
   // the size of the initial UL bandwidth part shall be used
   // 38.214 section 6.1.2.2.2
-  const uint16_t alloc_size = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common &&
-                              ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0) ?
-                              sc_info->initial_ul_BWPSize :
-                              ul_bwp->BWPSize;
+  const uint16_t alloc_size = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common
+                               && ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0)
+                                  ? sc_info->initial_ul_BWPSize
+                                  : ul_bwp->BWPSize;
   dci_pdu_rel15->frequency_domain_assignment.val =
       PRBalloc_to_locationandbandwidth0(pusch_pdu->rb_size, pusch_pdu->rb_start, alloc_size);
   dci_pdu_rel15->time_domain_assignment.val = time_domain_assignment;

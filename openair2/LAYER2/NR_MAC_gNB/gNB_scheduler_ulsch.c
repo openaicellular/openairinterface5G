@@ -1526,10 +1526,10 @@ static bool allocate_ul_retransmission(gNB_MAC_INST *nrmac,
   //  when DCI format 0_0 is used in any common search space
   // the size of the initial UL bandwidth part shall be used
   // 38.214 section 6.1.2.2.2
-  const uint16_t bwpSize = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common &&
-                           ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0) ?
-                           UE->sc_info.initial_ul_BWPSize :
-                           ul_bwp->BWPSize;
+  const uint16_t bwpSize = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common
+                            && ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0)
+                               ? UE->sc_info.initial_ul_BWPSize
+                               : ul_bwp->BWPSize;
   const uint8_t nrOfLayers = retInfo->nrOfLayers;
   LOG_D(NR_MAC,"retInfo->time_domain_allocation = %d, tda = %d\n", retInfo->time_domain_allocation, tda);
   LOG_D(NR_MAC,"tbs %d\n",retInfo->tb_size);
@@ -1696,10 +1696,10 @@ static void pf_ul(module_id_t module_id,
     // the size of the initial UL bandwidth part shall be used
     // 38.214 section 6.1.2.2.2
     NR_SearchSpace_t *ss = sched_ctrl->search_space;
-    const uint16_t bwpSize = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common &&
-                             ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0) ?
-                             UE->sc_info.initial_ul_BWPSize :
-                             current_BWP->BWPSize;
+    const uint16_t bwpSize = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common
+                              && ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0)
+                                 ? UE->sc_info.initial_ul_BWPSize
+                                 : current_BWP->BWPSize;
 
     NR_sched_pusch_t *sched_pusch = &sched_ctrl->sched_pusch;
     const NR_mac_dir_stats_t *stats = &UE->mac_stats.ul;
@@ -1767,7 +1767,9 @@ static void pf_ul(module_id_t module_id,
       /* if no data, pre-allocate 5RB */
       /* Find a free CCE */
       int CCEIndex = get_cce_index(nrmac,
-                                   CC_id, slot, UE->rnti,
+                                   CC_id,
+                                   slot,
+                                   UE->rnti,
                                    &sched_ctrl->aggregation_level,
                                    ss,
                                    sched_ctrl->coreset,
@@ -1865,7 +1867,9 @@ static void pf_ul(module_id_t module_id,
     NR_UE_sched_ctrl_t *sched_ctrl = &iterator->UE->UE_sched_ctrl;
     NR_SearchSpace_t *ss = sched_ctrl->search_space;
     int CCEIndex = get_cce_index(nrmac,
-                                 CC_id, slot, iterator->UE->rnti,
+                                 CC_id,
+                                 slot,
+                                 iterator->UE->rnti,
                                  &sched_ctrl->aggregation_level,
                                  ss,
                                  sched_ctrl->coreset,
@@ -1902,10 +1906,10 @@ static void pf_ul(module_id_t module_id,
     //  when DCI format 0_0 is used in any common search space
     // the size of the initial UL bandwidth part shall be used
     // 38.214 section 6.1.2.2.2
-    const uint16_t bwpSize = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common &&
-                             ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0) ?
-                             iterator->UE->sc_info.initial_ul_BWPSize :
-                             current_BWP->BWPSize;
+    const uint16_t bwpSize = (ss->searchSpaceType->present == NR_SearchSpace__searchSpaceType_PR_common
+                              && ss->searchSpaceType->choice.common->dci_Format0_0_AndFormat1_0)
+                                 ? iterator->UE->sc_info.initial_ul_BWPSize
+                                 : current_BWP->BWPSize;
     while (rbStart < bwpSize && (rballoc_mask[rbStart] & slbitmap) != slbitmap)
       rbStart++;
     sched_pusch->rbStart = rbStart;
