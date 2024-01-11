@@ -4,7 +4,7 @@
 // Comment for deactivating ws tpool
 #define TASK_MANAGER_DECODING
 #define TASK_MANAGER_DEMODULATION
-//#define TASK_MANAGER_CODING
+#define TASK_MANAGER_CODING
 //#define TASK_MANAGER_RU
 
 //#define TASK_MANAGER_UE

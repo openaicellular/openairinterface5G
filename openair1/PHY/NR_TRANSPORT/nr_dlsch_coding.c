@@ -44,6 +44,7 @@
 #include "common/utils/nr/nr_common.h"
 #include <syscall.h>
 #include <openair2/UTIL/OPT/opt.h>
+#include "common/utils/thread_pool/task_manager.h"
 
 //#define DEBUG_DLSCH_CODING
 //#define DEBUG_DLSCH_FREE 1
@@ -137,9 +138,13 @@ NR_gNB_DLSCH_t new_gNB_dlsch(NR_DL_FRAME_PARMS *frame_parms, uint16_t N_RB)
   return(dlsch);
 }
 
-void ldpc8blocks(void *p)
+void clean_gNB_dlsch(NR_gNB_DLSCH_t *dlsch) {
+  AssertFatal(dlsch!=NULL,"dlsch is null\n");
+  dlsch->active = 0;
+}
+
+static void ldpc8blocks(void *p)
 {
-//  assert(0!=0);
   encoder_implemparams_t *impp=(encoder_implemparams_t *) p;
   NR_DL_gNB_HARQ_t *harq = (NR_DL_gNB_HARQ_t *)impp->harq;
   nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15 = &harq->pdsch_pdu.pdsch_pdu_rel15;
@@ -253,6 +258,10 @@ void ldpc8blocks(void *p)
 #endif
     r_offset += E;
   }
+
+#ifdef TASK_MANAGER_CODING
+  completed_task_ans(impp->ans); 
+#endif
 }
 
 int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
@@ -382,15 +391,38 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
     notifiedFIFO_t nf = {0};
     initNotifiedFIFO(&nf);
     int nbJobs = 0;
+#ifdef TASK_MANAGER_CODING
+      size_t const sz = (impp.n_segments/8+((impp.n_segments&7)==0 ? 0 : 1));
+      encoder_implemparams_t arr[sz];
+      task_ans_t ans[sz];
+      memset(ans, 0, sz * sizeof(task_ans_t));
+ #endif
     for (int j = 0; j < (impp.n_segments / 8 + ((impp.n_segments & 7) == 0 ? 0 : 1)); j++) {
+#ifdef TASK_MANAGER_CODING
+      assert(nbJobs < sz);
+      encoder_implemparams_t* perJobImpp = &arr[nbJobs];
+#else
       notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(impp), j, &nf, ldpc8blocks);
       encoder_implemparams_t *perJobImpp = (encoder_implemparams_t *)NotifiedFifoData(req);
+#endif
       *perJobImpp = impp;
       perJobImpp->macro_num = j;
 
+#ifdef TASK_MANAGER_CODING
+      perJobImpp->ans = &ans[nbJobs];
+      task_t t = {.args = perJobImpp, .func = ldpc8blocks};
+      async_task_manager(&gNB->man, t); 
+#else
       pushTpool(&gNB->threadPool, req);
+#endif
+
       nbJobs++;
     }
+#ifdef TASK_MANAGER_CODING
+      if(nbJobs > 0) {
+        join_task_ans(ans, nbJobs);
+      }
+#else
     while (nbJobs) {
       notifiedFIFO_elt_t *req = pullNotifiedFIFO(&nf);
 
@@ -399,6 +431,7 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
       delNotifiedFIFO_elt(req);
       nbJobs--;
     }
+#endif
   }
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_gNB_DLSCH_ENCODING, VCD_FUNCTION_OUT);
   return 0;
