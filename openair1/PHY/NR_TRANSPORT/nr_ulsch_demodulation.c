@@ -1441,6 +1441,10 @@ static void nr_pusch_symbol_processing(void *arg)
     for (int i = 0; i < (nb_re_pusch * rel15_ul->qam_mod_order * rel15_ul->nrOfLayers); i++) 
       llr16[i] = llr_ptr[i] * rdata->s[i];
   }
+
+#ifdef TASK_MANAGER_DEMODULATION
+  completed_task_ans(rdata->ans);
+#endif
 }
 
 
@@ -1647,6 +1651,15 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
   start_meas(&gNB->rx_pusch_symbol_processing_stats);
   int numSymbols = gNB->num_pusch_symbols_per_thread;
 
+#ifdef TASK_MANAGER_DEMODULATION
+  int const loop_iter = rel15_ul->nr_of_symbols/numSymbols;
+  puschSymbolProc_t arr[loop_iter];
+  task_ans_t arr_ans[loop_iter];
+
+  memset(arr_ans, 0, loop_iter*sizeof(task_ans_t));
+  int sz_arr = 0;
+#endif
+
   for(uint8_t symbol = rel15_ul->start_symbol_index; 
       symbol < (rel15_ul->start_symbol_index + rel15_ul->nr_of_symbols); 
       symbol += numSymbols) 
@@ -1660,11 +1673,16 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
       total_res+=pusch_vars->ul_valid_re_per_slot[symbol+s];
     }
     if (total_res > 0) {
+#ifdef TASK_MANAGER_DEMODULATION
+      puschSymbolProc_t *rdata = &arr[sz_arr];
+      rdata->ans = &arr_ans[sz_arr];
+      ++sz_arr;
+#else
       union puschSymbolReqUnion id = {.s={ulsch_id,frame,slot,0}};
       id.p=1+symbol;
       notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(puschSymbolProc_t), id.p, &gNB->respPuschSymb, &nr_pusch_symbol_processing); // create a job for Tpool
       puschSymbolProc_t *rdata = (puschSymbolProc_t*)NotifiedFifoData(req); // data for the job
-
+#endif
       rdata->gNB = gNB;
       rdata->frame_parms = frame_parms;
       rdata->rel15_ul = rel15_ul;
@@ -1678,9 +1696,15 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
       rdata->nvar = nvar;
 
       if (rel15_ul->pdu_bit_map & PUSCH_PDU_BITMAP_PUSCH_PTRS) {
+       // Obvious memory leak when TASK_MANAGER not defined
         nr_pusch_symbol_processing(rdata);
       } else {
+#ifdef TASK_MANAGER_DEMODULATION
+        task_t t = { .args = rdata, .func = &nr_pusch_symbol_processing };
+        async_task_manager(&gNB->man , t);
+#else
         pushTpool(&gNB->threadPool, req);
+#endif
         gNB->nbSymb++;
       }
 
@@ -1688,12 +1712,17 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
     }
   } // symbol loop
 
+#ifdef TASK_MANAGER_DEMODULATION
+  if(gNB->nbSymb > 0){
+    join_task_ans(arr_ans, sz_arr);
+  }
+#else
   while (gNB->nbSymb > 0) {
     notifiedFIFO_elt_t *req = pullTpool(&gNB->respPuschSymb, &gNB->threadPool);
     gNB->nbSymb--;
     delNotifiedFIFO_elt(req);
   }
-
+#endif
   stop_meas(&gNB->rx_pusch_symbol_processing_stats);
   return 0;
 }
