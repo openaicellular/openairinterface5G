@@ -35,6 +35,7 @@
 
 #include "PHY/defs_gNB.h"
 #include "common/utils/threadPool/thread-pool.h"
+#include "common/utils/thread_pool/task_manager.h"
 
 #define NUMBER_FRAMES_PHY_UE_INACTIVE 10
 
@@ -62,7 +63,11 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
                       uint32_t frame,
                       uint8_t nr_tti_rx,
                       uint8_t harq_pid,
-                      uint32_t G);
+                      uint32_t G
+#ifdef TASK_MANAGER_DECODING
+                      ,  thread_info_tm_t* t_info
+#endif
+                      );
 
 /*! \brief Perform PUSCH unscrambling. TS 38.211 V15.4.0 subclause 6.3.1.1
   @param llr, Pointer to llr bits

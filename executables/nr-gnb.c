@@ -90,8 +90,7 @@
 #include <openair1/PHY/NR_TRANSPORT/nr_dlsch.h>
 #include <PHY/NR_ESTIMATION/nr_ul_estimation.h>
 
-// #define USRP_DEBUG 1
-//  Fix per CC openair rf/if device update
+#include "common/utils/thread_pool/task_manager.h"
 
 time_stats_t softmodem_stats_mt; // main thread
 time_stats_t softmodem_stats_hw; //  hw acquisition
@@ -363,8 +362,15 @@ void *nrL1_stats_thread(void *param) {
 }
 
 void init_gNB_Tpool(int inst) {
+
   PHY_VARS_gNB *gNB;
   gNB = RC.gNB[inst];
+
+#ifdef TASK_MANAGER_DECODING
+  int const num_threads = parse_num_threads(get_softmodem_params()->threadPoolConfig);
+  init_task_manager(&gNB->man, num_threads);
+#endif
+
   gNB_L1_proc_t *proc = &gNB->proc;
   // PUSCH symbols per thread need to be calculated by how many threads we have
   gNB->num_pusch_symbols_per_thread = 1;
@@ -403,7 +409,13 @@ void init_gNB_Tpool(int inst) {
 
 void term_gNB_Tpool(int inst) {
   PHY_VARS_gNB *gNB = RC.gNB[inst];
+ 
+#ifdef TASK_MANAGER_DECODING
+  void (*clean)(task_t*) = NULL;
+  free_task_manager(&gNB->man , clean);
+#else
   abortTpool(&gNB->threadPool);
+#endif
   abortNotifiedFIFO(&gNB->respDecode);
   abortNotifiedFIFO(&gNB->resp_L1);
   abortNotifiedFIFO(&gNB->L1_tx_free);

@@ -139,6 +139,7 @@ NR_gNB_DLSCH_t new_gNB_dlsch(NR_DL_FRAME_PARMS *frame_parms, uint16_t N_RB)
 
 void ldpc8blocks(void *p)
 {
+//  assert(0!=0);
   encoder_implemparams_t *impp=(encoder_implemparams_t *) p;
   NR_DL_gNB_HARQ_t *harq = (NR_DL_gNB_HARQ_t *)impp->harq;
   nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15 = &harq->pdsch_pdu.pdsch_pdu_rel15;
@@ -378,7 +379,7 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
       r_offset += impp.E;
     }
   } else {
-    notifiedFIFO_t nf;
+    notifiedFIFO_t nf = {0};
     initNotifiedFIFO(&nf);
     int nbJobs = 0;
     for (int j = 0; j < (impp.n_segments / 8 + ((impp.n_segments & 7) == 0 ? 0 : 1)); j++) {
@@ -386,11 +387,13 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
       encoder_implemparams_t *perJobImpp = (encoder_implemparams_t *)NotifiedFifoData(req);
       *perJobImpp = impp;
       perJobImpp->macro_num = j;
+
       pushTpool(&gNB->threadPool, req);
       nbJobs++;
     }
     while (nbJobs) {
-      notifiedFIFO_elt_t *req = pullTpool(&nf, &gNB->threadPool);
+      notifiedFIFO_elt_t *req = pullNotifiedFIFO(&nf);
+
       if (req == NULL)
         break; // Tpool has been stopped
       delNotifiedFIFO_elt(req);

@@ -50,6 +50,8 @@
 #include "executables/nr-uesoftmodem.h"
 #include "nfapi/oai_integration/vendor_ext.h"
 
+#include "common/utils/thread_pool/task_manager.h"
+
 //#define DEBUG_NR_ULSCHSIM
 
 THREAD_STRUCT thread_struct;
@@ -91,9 +93,15 @@ void deref_sched_response(int _)
   exit(1);
 }
 
+#ifdef TASK_MANAGER_DECODING 
+int nr_postDecode_sim(PHY_VARS_gNB *gNB, ldpcDecode_t *rdata , int *nb_ok)
+{
+#else
 int nr_postDecode_sim(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req, int *nb_ok)
 {
   ldpcDecode_t *rdata = (ldpcDecode_t*) NotifiedFifoData(req);
+#endif
+
   NR_UL_gNB_HARQ_t *ulsch_harq = rdata->ulsch_harq;
   int r = rdata->segment_r;
 
@@ -107,8 +115,16 @@ int nr_postDecode_sim(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req, int *nb_ok)
   }
 
   // if all segments are done
-  if (rdata->nbSegments == ulsch_harq->processedSegments)
+  if (rdata->nbSegments == ulsch_harq->processedSegments){
+#ifdef TASK_MANAGER_DECODING 
+    completed_task_ans(rdata->ans);
+#endif
     return *nb_ok == rdata->nbSegments;
+  }
+
+#ifdef TASK_MANAGER_DECODING 
+  completed_task_ans(rdata->ans);
+#endif
   return 0;
 }
 
@@ -407,7 +423,13 @@ int main(int argc, char **argv)
   gNB = RC.gNB[0];
   //gNB_config = &gNB->gNB_config;
 
+#ifdef TASK_MANAGER_DECODING
+  int const num_threads = parse_num_threads("n"); 
+  init_task_manager(&gNB->man, num_threads);
+#else
   initTpool("n", &gNB->threadPool, true);
+#endif
+
   initNotifiedFIFO(&gNB->respDecode);
   frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
   frame_parms->N_RB_DL = N_RB_DL;
@@ -588,8 +610,23 @@ int main(int argc, char **argv)
       exit(-1);
 #endif
 
+#ifdef TASK_MANAGER_DECODING
+     ldpcDecode_t arr[16] = {0};
+     task_ans_t ans[16] = {0};
+     thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .ans = ans };
+     int nbDecode = nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul, frame, subframe, harq_pid, G, &t_info);
+     assert(nbDecode > 0);
+#else
      int nbDecode = nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul, frame, subframe, harq_pid, G);
+#endif
      int nb_ok = 0;
+#ifdef TASK_MANAGER_DECODING
+     join_task_ans(t_info.ans, t_info.len);
+     for(size_t i = 0; i < nbDecode; ++i){
+       ret = nr_postDecode_sim(gNB, &arr[i], &nb_ok);
+     }
+     nbDecode = 0; 
+#else
      if (nbDecode > 0)
        while (nbDecode > 0) {
          notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
@@ -597,9 +634,9 @@ int main(int argc, char **argv)
          delNotifiedFIFO_elt(req);
          nbDecode--;
        }
-
-      if (ret)
-        n_errors++;
+#endif
+  if (ret)
+    n_errors++;
     }
     
     printf("*****************************************\n");
@@ -623,6 +660,11 @@ int main(int argc, char **argv)
   for (int i = 0; i < nb_slots_to_set; ++i)
     free(gNB->gNB_config.tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list);
   free(gNB->gNB_config.tdd_table.max_tdd_periodicity_list);
+
+#ifdef TASK_MANAGER_DECODING
+  void (*clean)(task_t* args) = NULL;
+  free_task_manager(&gNB->man, clean);
+#endif
 
   term_nr_ue_signal(UE, 1);
   free(UE);

@@ -43,6 +43,7 @@
 #include "PHY/CODING/nrLDPC_decoder/nrLDPC_types.h"
 #include "executables/rt_profiling.h"
 #include "nfapi_nr_interface_scf.h"
+#include "common/utils/thread_pool/task_manager.h"
 
 #define MAX_NUM_RU_PER_gNB 8
 #define MAX_PUCCH0_NID 8
@@ -715,7 +716,6 @@ typedef struct PHY_VARS_gNB_s {
   notifiedFIFO_t L1_tx_out;
   notifiedFIFO_t L1_rx_out;
   notifiedFIFO_t resp_RU_tx;
-  tpool_t threadPool;
   int nbSymb;
   int num_pusch_symbols_per_thread;
   pthread_t L1_rx_thread;
@@ -726,6 +726,14 @@ typedef struct PHY_VARS_gNB_s {
   void *scopeData;
   /// structure for analyzing high-level RT measurements
   rt_L1_profiling_t rt_L1_profiling; 
+#if defined(TASK_MANAGER_DECODING) && defined(TASK_MANAGER_CODING) && defined(TASK_MANAGER_DEMODULATION) && defined(TASK_MANAGER_RU) && defined(TASK_MANAGER_SIM)
+  task_manager_t man;
+#elif !defined(TASK_MANAGER_DECODING) ||  !defined(TASK_MANAGER_CODING) || !defined(TASK_MANAGER_DEMODULATION) || !defined(TASK_MANAGER_RU) || !defined(TASK_MANAGER_SIM) 
+  task_manager_t man;
+  tpool_t threadPool;
+#else
+  tpool_t threadPool;
+#endif
 } PHY_VARS_gNB;
 
 typedef struct puschSymbolProc_s {
@@ -774,6 +782,9 @@ typedef struct LDPCDecode_s {
   int offset;
   int decodeIterations;
   uint32_t tbslbrm;
+#ifdef TASK_MANAGER_DECODING
+ task_ans_t* ans;
+#endif
 } ldpcDecode_t;
 
 struct ldpcReqId {
