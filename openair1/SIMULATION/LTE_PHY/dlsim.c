@@ -56,6 +56,7 @@
 #include "dummy_functions.c"
 #include "executables/thread-common.h"
 #include "common/ran_context.h"
+#include "common/utils/thread_pool/task_manager.h"
 void feptx_ofdm(RU_t *ru, int frame, int subframe);
 void feptx_prec(RU_t *ru, int frame, int subframe);
 
@@ -589,6 +590,9 @@ int main(int argc, char **argv) {
   nfapi_tx_request_t TX_req;
   Sched_Rsp_t sched_resp;
   int pa=dB0;
+#ifdef TASK_MANAGER_LTE
+  task_manager_t man = {0};
+#endif
   cpu_freq_GHz = get_cpu_freq_GHz();
   printf("Detected cpu_freq %f GHz\n",cpu_freq_GHz);
   memset((void *)&sched_resp,0,sizeof(sched_resp));
@@ -1254,10 +1258,16 @@ int main(int argc, char **argv) {
   }
 
   L1_rxtx_proc_t *proc_eNB = &eNB->proc.L1_proc;
-  proc_eNB->threadPool = (tpool_t *)malloc(sizeof(tpool_t));
   proc_eNB->respDecode=(notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
-  initTpool("n", proc_eNB->threadPool, true);
   initNotifiedFIFO(proc_eNB->respDecode);
+#ifdef TASK_MANAGER_LTE
+  int const n_threads = parse_num_threads("n");
+  init_task_manager(&man, n_threads);
+  proc_eNB->man = &man;
+#else
+  proc_eNB->threadPool = (tpool_t *)malloc(sizeof(tpool_t));
+  initTpool("n", proc_eNB->threadPool, true);
+#endif
 
   proc_eNB->frame_tx=0;
 

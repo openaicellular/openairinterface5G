@@ -7,10 +7,9 @@
 #define TASK_MANAGER_CODING
 #define TASK_MANAGER_RU 
 
-//#define TASK_MANAGER_UE
 #define TASK_MANAGER_UE_DECODING
 #define TASK_MANAGER_SIM
-//#define TASK_MANAGER_LTE
+#define TASK_MANAGER_LTE
 
 #include "task.h"
 

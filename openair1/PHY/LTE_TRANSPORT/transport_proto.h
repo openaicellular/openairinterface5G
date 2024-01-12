@@ -36,6 +36,8 @@
 #include "nfapi_interface.h"
 #include "transport_common_proto.h"
 
+#include "common/utils/thread_pool/task_manager.h"
+
 // Functions below implement 36-211 and 36-212
 
 /** @addtogroup _PHY_TRANSPORT_
@@ -525,7 +527,11 @@ unsigned int  ulsch_decoding(PHY_VARS_eNB *phy_vars_eNB,
                              uint8_t UE_id,
                              uint8_t control_only_flag,
                              uint8_t Nbundled,
-                             uint8_t llr8_flag);
+                             uint8_t llr8_flag
+#ifdef TASK_MANAGER_LTE
+                             ,thread_info_tm_t* t_info
+#endif			     
+			     );
 
 void generate_phich_top(PHY_VARS_eNB *phy_vars_eNB,
                         L1_rxtx_proc_t *proc,

@@ -43,6 +43,7 @@
 #include "executables/lte-softmodem.h"
 #include <syscall.h>
 #include <common/utils/threadPool/thread-pool.h>
+#include "common/utils/thread_pool/task_manager.h"
 
 //#define DEBUG_DLSCH_CODING
 //#define DEBUG_DLSCH_FREE 1
@@ -280,6 +281,10 @@ static void TPencode(void * arg) {
 			  rdata->r,
 			  hadlsch->nb_rb);
     stop_meas(rdata->rm_stats);
+
+#ifdef TASK_MANAGER_LTE
+    completed_task_ans(rdata->ans);
+#endif
 }
 
 int dlsch_encoding(PHY_VARS_eNB *eNB,
@@ -345,13 +350,23 @@ int dlsch_encoding(PHY_VARS_eNB *eNB,
       return(-1);
   }
 
+#ifdef TASK_MANAGER_LTE
+  turboEncode_t arr[hadlsch->C];
+  task_ans_t ans[hadlsch->C];
+  memset(ans, 0, hadlsch->C * sizeof(task_ans_t));
+#endif
   notifiedFIFO_t respEncode;
   initNotifiedFIFO(&respEncode);
+
   for (int r=0, r_offset=0; r<hadlsch->C; r++) {
-    
+#ifdef TASK_MANAGER_LTE 
+  turboEncode_t* rdata = &arr[r];
+  rdata->ans = &ans[r];
+#else 
     union turboReqUnion id= {.s={dlsch->rnti,frame,subframe,r,0}};
     notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(turboEncode_t), id.p, &respEncode, TPencode);
     turboEncode_t * rdata=(turboEncode_t *) NotifiedFifoData(req);
+#endif
     rdata->input=hadlsch->c[r];
     rdata->Kr_bytes= ( r<hadlsch->Cminus ? hadlsch->Kminus : hadlsch->Kplus) >>3;
     rdata->filler=(r==0) ? hadlsch->F : 0;
@@ -364,8 +379,12 @@ int dlsch_encoding(PHY_VARS_eNB *eNB,
     rdata->round=hadlsch->round;
     rdata->r_offset=r_offset;
     rdata->G=G;
-
-    pushTpool(proc->threadPool, req);
+#ifdef TASK_MANAGER_LTE
+  task_t t = {.func =  TPencode, .args = rdata};
+  async_task_manager(proc->man, t);
+#else
+  pushTpool(proc->threadPool, req);
+#endif
     nbEncode++;
 
     int Qm=hadlsch->Qm;
@@ -378,6 +397,12 @@ int dlsch_encoding(PHY_VARS_eNB *eNB,
     else
       r_offset += Nl*Qm * ((GpmodC==0?0:1) + (Gp/C));
   }
+ 
+#ifdef TASK_MANAGER_LTE
+  if(nbEncode > 0){
+   join_task_ans(ans, hadlsch->C);
+  }
+#else
   // Wait all other threads finish to process
   while (nbEncode) {
     notifiedFIFO_elt_t *res = pullTpool(&respEncode, proc->threadPool);
@@ -386,6 +411,8 @@ int dlsch_encoding(PHY_VARS_eNB *eNB,
     delNotifiedFIFO_elt(res);
     nbEncode--;
   }
+#endif
+
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_ENB_DLSCH_ENCODING, VCD_FUNCTION_OUT);
   return(0);
 }
@@ -451,13 +478,23 @@ int dlsch_encoding_fembms_pmch(PHY_VARS_eNB *eNB,
       return(-1);
   }
   int nbEncode = 0;
+#ifdef TASK_MANAGER_LTE
+  turboEncode_t arr[hadlsch->C];
+  task_ans_t ans[hadlsch->C];
+  memset(ans, 0, hadlsch->C * sizeof(task_ans_t));
+#endif
   notifiedFIFO_t respEncode;
   initNotifiedFIFO(&respEncode);
+
   for (int r=0, r_offset=0; r<hadlsch->C; r++) {
-    
+#ifdef TASK_MANAGER_LTE    
+  turboEncode_t* rdata = &arr[r];
+  rdata->ans = &ans[r];
+#else 
     union turboReqUnion id= {.s={dlsch->rnti,frame,subframe,r,0}};
     notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(turboEncode_t), id.p, &respEncode, TPencode);
     turboEncode_t * rdata=(turboEncode_t *) NotifiedFifoData(req);
+#endif
     rdata->input=hadlsch->c[r];
     rdata->Kr_bytes= ( r<hadlsch->Cminus ? hadlsch->Kminus : hadlsch->Kplus) >>3;
     rdata->filler=(r==0) ? hadlsch->F : 0;
@@ -471,7 +508,12 @@ int dlsch_encoding_fembms_pmch(PHY_VARS_eNB *eNB,
     rdata->r_offset=r_offset;
     rdata->G=G;
 
+#ifdef TASK_MANAGER_LTE
+  task_t t = {.func = TPencode, .args = rdata};
+  async_task_manager(proc->man, t);
+#else
     pushTpool(proc->threadPool, req);
+#endif
     nbEncode++;
 
     int Qm=hadlsch->Qm;
@@ -484,6 +526,12 @@ int dlsch_encoding_fembms_pmch(PHY_VARS_eNB *eNB,
     else
       r_offset += Nl*Qm * ((GpmodC==0?0:1) + (Gp/C));
   }
+
+#ifdef TASK_MANAGER_LTE
+  if(nbEncode > 0){
+    join_task_ans(ans, hadlsch->C); 
+  }
+#else
   // Wait all other threads finish to process
   while (nbEncode) {
     notifiedFIFO_elt_t *res = pullTpool(&respEncode, proc->threadPool);
@@ -492,6 +540,7 @@ int dlsch_encoding_fembms_pmch(PHY_VARS_eNB *eNB,
     delNotifiedFIFO_elt(res);
     nbEncode--;
   }
+#endif
   return(0);
 }
 
