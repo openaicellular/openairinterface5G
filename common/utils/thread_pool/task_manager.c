@@ -500,7 +500,6 @@ void init_task_manager(task_manager_t* man, size_t num_threads)
 
     pthread_attr_t attr = {0};
     
-    /*
     int ret=pthread_attr_init(&attr);
     assert(ret == 0);
     ret=pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
@@ -510,10 +509,14 @@ void init_task_manager(task_manager_t* man, size_t num_threads)
     struct sched_param sparam={0};
     sparam.sched_priority = 94;
     ret=pthread_attr_setschedparam(&attr, &sparam);
-    */
 
     int rc = pthread_create(&man->t_arr[i], &attr, worker_thread, args);
-    assert(rc == 0 && "Error creating a thread");
+    if(rc != 0){
+      printf("[MIR]: %s \n", strerror(rc));
+      printf("[MIR]: Could not create the pthread with attributtes, trying without attributes\n" );
+      rc = pthread_create(&man->t_arr[i], NULL, worker_thread, args);
+      assert(rc == 0 && "Error creating a thread");
+    }
   }
 
   man->index = 0;

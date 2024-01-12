@@ -30,6 +30,8 @@
 #include "common/utils/nr/nr_common.h"
 #include "common/utils/var_array.h"
 #include "common/utils/LOG/log.h"
+#include "common/utils/thread_pool/task_manager.h"
+
 #include "LAYER2/NR_MAC_gNB/nr_mac_gNB.h"
 #include "LAYER2/NR_MAC_UE/mac_defs.h"
 #include "LAYER2/NR_MAC_UE/mac_extern.h"
@@ -854,9 +856,12 @@ int main(int argc, char **argv)
   unsigned char *test_input_bit;
   unsigned int errors_bit = 0;
 
+#ifdef TASK_MANAGER_SIM
+  init_task_manager(&nrUE_params.man, max(dlsch_threads, 1));
+#else
   initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
-
-  test_input_bit = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
+#endif
+  test_input_bit       = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
   estimated_output_bit = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
   
   // generate signal
@@ -883,7 +888,13 @@ int main(int argc, char **argv)
   //NR_COMMON_channels_t *cc = RC.nrmac[0]->common_channels;
   int n_errs = 0;
 
+#ifdef TASK_MANAGER_SIM
+  int const num_threads = parse_num_threads(gNBthreads); 
+  init_task_manager(&gNB->man, num_threads);
+#else
   initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
+#endif
+
   initNotifiedFIFO(&gNB->L1_tx_free);
   initNotifiedFIFO(&gNB->L1_tx_filled);
   initNotifiedFIFO(&gNB->L1_tx_out);
@@ -1291,6 +1302,12 @@ int main(int argc, char **argv)
     free(r_re[i]);
     free(r_im[i]);
   }
+
+#ifdef TASK_MANAGER_SIM
+  void (*clean)(task_t*) = NULL;
+  free_task_manager(&nrUE_params.man, clean);
+  free_task_manager(&gNB->man, clean);
+#endif
 
   free(s_re);
   free(s_im);

@@ -726,9 +726,7 @@ typedef struct PHY_VARS_gNB_s {
   void *scopeData;
   /// structure for analyzing high-level RT measurements
   rt_L1_profiling_t rt_L1_profiling; 
-#if defined(TASK_MANAGER_DECODING) && defined(TASK_MANAGER_CODING) && defined(TASK_MANAGER_DEMODULATION) && defined(TASK_MANAGER_RU) && defined(TASK_MANAGER_SIM)
-  task_manager_t man;
-#elif !defined(TASK_MANAGER_DECODING) ||  !defined(TASK_MANAGER_CODING) || !defined(TASK_MANAGER_DEMODULATION) || !defined(TASK_MANAGER_RU) || !defined(TASK_MANAGER_SIM) 
+#if defined(TASK_MANAGER_DECODING) || defined(TASK_MANAGER_CODING) || defined(TASK_MANAGER_DEMODULATION) || defined(TASK_MANAGER_RU) || !defined(TASK_MANAGER_SIM) 
   task_manager_t man;
   tpool_t threadPool;
 #else
