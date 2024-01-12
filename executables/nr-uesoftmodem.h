@@ -4,7 +4,7 @@
 #include <executables/softmodem-common.h>
 #include "PHY/defs_nr_UE.h"
 #include "SIMULATION/ETH_TRANSPORT/proto.h"
-
+#include "common/utils/thread_pool/task_manager.h"
 
 
 #define  CONFIG_HLP_IF_FREQ                "IF frequency for RF, if needed\n"
@@ -68,6 +68,9 @@ typedef struct {
   uint64_t       optmask;   //mask to store boolean config options
   uint32_t       ofdm_offset_divisor; // Divisor for sample offset computation for each OFDM symbol
   int            max_ldpc_iterations; // number of maximum LDPC iterations
+#ifdef TASK_MANAGER_UE_DECODING                                      
+  task_manager_t man; 
+#endif
   tpool_t        Tpool;             // thread pool 
   int            UE_scan_carrier;
   int UE_fo_compensation;
