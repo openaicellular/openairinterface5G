@@ -54,6 +54,8 @@
 
 #include <executables/softmodem-common.h>
 
+#include "common/utils/thread_pool/task_manager.h"
+
 #ifdef SMBV
 #include "PHY/TOOLS/smbv.h"
 unsigned short config_frames[4] = {2,9,11,13};
@@ -1879,6 +1881,9 @@ void init_NR_RU(configmodule_interface_t *cfg, char *rf_config_file)
          s_offset+=sprintf(pool+s_offset,",%d",ru->tpcores[icpu]);
       }
       LOG_I(PHY,"RU thread-pool core string %s\n",pool);
+#ifdef TASK_MANAGER_RU
+      init_task_manager(&ru->man, ru->num_tpcores); 
+#endif
       ru->threadPool = (tpool_t*)malloc(sizeof(tpool_t));
       initTpool(pool, ru->threadPool, cpumeas(CPUMEAS_GETSTATE));
       // FEP RX result FIFO

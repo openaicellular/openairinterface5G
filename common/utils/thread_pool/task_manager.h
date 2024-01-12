@@ -5,16 +5,12 @@
 #define TASK_MANAGER_DECODING
 #define TASK_MANAGER_DEMODULATION
 #define TASK_MANAGER_CODING
-//#define TASK_MANAGER_RU
+#define TASK_MANAGER_RU 
 
 //#define TASK_MANAGER_UE
 //#define TASK_MANAGER_UE_DECODING
 //#define TASK_MANAGER_SIM
 //#define TASK_MANAGER_LTE
-
-// LTE
-//#define TASK_MANAGER_LTE
-
 
 #include "task.h"
 
@@ -36,6 +32,7 @@
 #elif __aarch64__
   // This is not always true for ARM 
   // in linux, you can obtain the size at runtime using sysconf (_SC_LEVEL1_DCACHE_LINESIZE) 
+  // or from the bash with the command $ getconf LEVEL1_DCACHE_LINESIZE
   // in c++ using std::hardware_destructive_interference_size
   #define LEVEL1_DCACHE_LINESIZE 64
 #else
