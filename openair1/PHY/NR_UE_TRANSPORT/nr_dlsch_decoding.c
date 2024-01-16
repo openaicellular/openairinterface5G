@@ -422,10 +422,9 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
   set_abort(&harq_process->abort_decode, false);
 
 #ifdef TASK_MANAGER_UE_DECODING
-  assert(harq_process->C < 64 && "Increase values of the arrays that follow");
-  ldpcDecode_ue_t arr[64] = {0}; 
-  task_ans_t ans[64] = {0};
-  //memset(ans, 0, harq_process->C*sizeof(task_ans_t));
+  ldpcDecode_ue_t arr[harq_process->C]; 
+  task_ans_t ans[harq_process->C];
+  memset(ans, 0, harq_process->C*sizeof(task_ans_t));
 #endif
 
   for (r=0; r<harq_process->C; r++) {
@@ -478,8 +477,8 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
 #ifdef TASK_MANAGER_UE_DECODING
   if(nbDecode > 0){
     join_task_ans(ans, nbDecode); 
-    for(size_t i = 0; i < nbDecode; ++i){
-      nr_ue_postDecode(phy_vars_ue, &arr[i], nbDecode == 1, b_size, b, &num_seg_ok, proc);
+    for(size_t i = 0; i < nbDecode ; ++i){
+      nr_ue_postDecode(phy_vars_ue, &arr[i], i == nbDecode - 1, b_size, b, &num_seg_ok, proc);
     }
   }
 #else

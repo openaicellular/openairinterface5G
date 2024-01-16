@@ -74,6 +74,7 @@
 #include <executables/softmodem-common.h>
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include <executables/nr-uesoftmodem.h>
+#include "common/utils/thread_pool/task_manager.h"
 
 const char *__asan_default_options()
 {
@@ -856,8 +857,8 @@ int main(int argc, char **argv)
   unsigned char *test_input_bit;
   unsigned int errors_bit = 0;
 
-#ifdef TASK_MANAGER_SIM
-  init_task_manager(&nrUE_params.man, max(dlsch_threads, 1));
+#ifdef TASK_MANAGER_UE_DECODING
+  init_task_manager(&nrUE_params.man, max(1, dlsch_threads));
 #else
   initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
 #endif
@@ -888,13 +889,12 @@ int main(int argc, char **argv)
   //NR_COMMON_channels_t *cc = RC.nrmac[0]->common_channels;
   int n_errs = 0;
 
-#ifdef TASK_MANAGER_SIM
+#ifdef TASK_MANAGER_UE_DECODING
   int const num_threads = parse_num_threads(gNBthreads); 
   init_task_manager(&gNB->man, num_threads);
 #else
   initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
 #endif
-
   initNotifiedFIFO(&gNB->L1_tx_free);
   initNotifiedFIFO(&gNB->L1_tx_filled);
   initNotifiedFIFO(&gNB->L1_tx_out);
