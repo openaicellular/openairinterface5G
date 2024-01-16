@@ -492,7 +492,6 @@ int main(int argc, char **argv)
   int const num_threads = parse_num_threads(get_softmodem_params()->threadPoolConfig);
   init_task_manager(&nrUE_params.man, num_threads);
 #endif
-  initTpool(get_softmodem_params()->threadPoolConfig, &(nrUE_params.Tpool), cpumeas(CPUMEAS_GETSTATE));
   //randominit (0);
   set_taus_seed (0);
 

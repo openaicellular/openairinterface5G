@@ -66,6 +66,8 @@ typedef struct{
 
   _Atomic(uint64_t) num_task;
 
+  pthread_barrier_t barrier;
+
 } task_manager_t;
 
 void init_task_manager(task_manager_t* man, size_t num_threads);

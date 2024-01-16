@@ -379,8 +379,8 @@ int main(int argc, char **argv)
   init_task_manager(&gNB->man, num_threads);
   init_task_manager(&nrUE_params.man, max(dlsch_threads, 1));
 #endif
-  initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
-  initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
+  //initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
+  //initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
         //gNB_config = &gNB->gNB_config;
 	frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
 	frame_parms->nb_antennas_tx = n_tx;

@@ -63,8 +63,10 @@ void do_work(void* arg)
 
   naive_fibonnacci(23 + a->a);
  
+  usleep(rand()%1024);
   completed_task_ans(a->ans);
 
+  printf("Task completed\n");
   //int64_t stop = time_now_us();
 
   //char buffer[100] = {0};
@@ -89,6 +91,7 @@ int main()
   int64_t now = time_now_us();
 
   for(int i = 0; i < NUM_JOBS; ++i){
+      usleep(rand()%1024);
       pair_t* pa = &arr[i]; 
       pa->a = 0; //i%10;
       pa->time = 0;

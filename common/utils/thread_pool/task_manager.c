@@ -201,6 +201,7 @@ typedef struct {
   pthread_mutex_t mtx;
   pthread_cond_t cv;
   seq_ring_task_t r;
+  size_t t_id;
  // _Atomic int32_t* futex;
   //_Atomic bool* waiting;
   _Atomic int done;
@@ -213,9 +214,10 @@ typedef struct{
 
 
 static
-void init_not_q(not_q_t* q /*, _Atomic int32_t* futex , _Atomic bool* waiting */)
+void init_not_q(not_q_t* q, size_t t_id /*, _Atomic int32_t* futex , _Atomic bool* waiting */)
 {
   assert(q != NULL);
+  assert(t_id != 0 && "Invalid thread id");
 
   q->done = 0;
   //q->waiting = waiting;
@@ -232,6 +234,8 @@ void init_not_q(not_q_t* q /*, _Atomic int32_t* futex , _Atomic bool* waiting */
   pthread_condattr_t* c_attr = NULL; 
   rc = pthread_cond_init(&q->cv, c_attr);
   assert(rc == 0);
+
+  q->t_id = t_id;
 
   //q->futex = futex;
 }
@@ -259,15 +263,23 @@ bool try_push_not_q(not_q_t* q, task_t t)
   assert(t.func != NULL);
   assert(t.args != NULL);
 
+//  if(q->t_id == pthread_self() ){
+//    printf("[MIR]: Cycle detected. Thread from tpool calling itself. Reentrancy forbidden \n");
+//    return false;
+//  }
+
   if(pthread_mutex_trylock(&q->mtx ) != 0)
     return false;
 
   push_back_seq_ring_task(&q->r, t);
 
-  pthread_cond_signal(&q->cv);
+  const size_t sz = size_seq_ring_task(&q->r);
+  assert(sz > 0);
 
   int const rc = pthread_mutex_unlock(&q->mtx);
   assert(rc == 0);
+
+  pthread_cond_signal(&q->cv);
 
   return true;
 }
@@ -284,9 +296,11 @@ void push_not_q(not_q_t* q, task_t t)
 
   push_back_seq_ring_task(&q->r, t);
 
-  pthread_cond_signal(&q->cv);
+  assert(size_seq_ring_task(&q->r) > 0);
 
   pthread_mutex_unlock(&q->mtx);
+
+  pthread_cond_signal(&q->cv);
 }
 
 
@@ -334,34 +348,12 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
   assert(rc == 0);
   assert(q->done == 0 || q->done ==1);
 
-  while(size_seq_ring_task(&q->r) == 0 && q->done == 0)
+  while(size_seq_ring_task(&q->r) == 0 && q->done == 0){
     pthread_cond_wait(&q->cv , &q->mtx);
-
-  /*
-  // Let's be conservative and not use memory_order_relaxed
- // while (atomic_load_explicit(q->waiting, memory_order_seq_cst) == true){ //
-      // Issue X86 PAUSE or ARM YIELD instruction to reduce contention between
-      // hyper-threads
- //     pause_or_yield();
- //   }
-
-  pthread_mutex_lock(&q->mtx);
-
-  if(size_seq_ring_task(&q->r) == 0 && q->done == 0){
-    int rc = pthread_mutex_unlock(&q->mtx);
-    assert(rc == 0);
-
-    int val = atomic_load_explicit(q->futex, memory_order_acquire);
-    long r = syscall(SYS_futex, q->futex, FUTEX_WAIT_PRIVATE, val, NULL, 0);
-    assert(r != -1);
-    goto label;
   }
-*/
-  //printf("Waking %ld id %ld \n", time_now_us(), pthread_self());
 
   assert(q->done == 0 || q->done ==1);
   if(q->done == 1){
-    //printf("Done, returning \n");
     int rc = pthread_mutex_unlock(&q->mtx);
     assert(rc == 0);
     return false;
@@ -440,16 +432,19 @@ void* worker_thread(void* arg)
 
   not_q_t* q_arr = (not_q_t*)man->q_arr;
 
-  int acc_num_task = 0;
-  for(;;){
+  init_not_q(&q_arr[idx], pthread_self() );   
 
+  // Synchronize all threads
+  pthread_barrier_wait(&man->barrier);
+
+  size_t acc_num_task = 0;
+  for(;;){
     ret_try_t ret = {.success = false}; 
 
     for(uint32_t i = idx; i < num_it; ++i){
       ret = try_pop_not_q(&q_arr[i%len]);
-      if(ret.success == true){
+      if(ret.success == true)
         break;
-      } 
     }
 
     if(ret.success == false){
@@ -458,16 +453,15 @@ void* worker_thread(void* arg)
       if(pop_not_q(&q_arr[idx], &ret) == false)
         break;
     }
+    
     //int64_t now = time_now_us();
-    //printf("Calling fuinc \n");
+    //printf("Calling func \n");
     ret.t.func(ret.t.args); 
     //printf("Returning from func \n");
     //int64_t stop = time_now_us(); 
 
+    acc_num_task += 1; 
     //cnt_out++;
-    //printf("Tasks out %d %ld \n", cnt_out, time_now_us());
-
-    acc_num_task +=1;
   }
 
   free(args);
@@ -479,19 +473,19 @@ void init_task_manager(task_manager_t* man, size_t num_threads)
   assert(man != NULL);
   assert(num_threads > 0 && num_threads < 33 && "Do you have zero or more than 32 processors??");
   
-  printf("[MIR]: number of threads %ld \n", num_threads);
-
   man->q_arr = calloc(num_threads, sizeof(not_q_t));
   assert(man->q_arr != NULL && "Memory exhausted");
-
-  not_q_t* q_arr = (not_q_t*)man->q_arr;
-  for(size_t i = 0; i < num_threads; ++i){
-    init_not_q(&q_arr[i]);   
-  }
 
   man->t_arr = calloc(num_threads, sizeof(pthread_t));
   assert(man->t_arr != NULL && "Memory exhausted" );
   man->len_thr = num_threads;
+
+  man->index = 0;
+
+
+  const pthread_barrierattr_t * barrier_attr = NULL;
+  int rc = pthread_barrier_init(&man->barrier, barrier_attr, num_threads + 1);
+  assert(rc == 0);
 
   for(size_t i = 0; i < num_threads; ++i){
     task_thread_args_t* args = malloc(sizeof(task_thread_args_t) ); 
@@ -519,7 +513,11 @@ void init_task_manager(task_manager_t* man, size_t num_threads)
     }
   }
 
-  man->index = 0;
+  // Syncronize thread pool threads. All the threads started
+  pthread_barrier_wait(&man->barrier);
+
+  rc = pthread_barrier_destroy(&man->barrier);
+  assert(rc == 0);
 
   //pin_thread_to_core(3);
 }
@@ -545,6 +543,8 @@ void free_task_manager(task_manager_t* man, void (*clean)(task_t*))
   free(man->q_arr);
 
   free(man->t_arr);
+
+
 }
 
 void async_task_manager(task_manager_t* man, task_t t)
@@ -554,28 +554,29 @@ void async_task_manager(task_manager_t* man, task_t t)
   assert(t.func != NULL);
   //assert(t.args != NULL);
 
-  uint64_t const index = man->index++;
-  const uint32_t len_thr = man->len_thr;
+  size_t const index = man->index++;
+  size_t const len_thr = man->len_thr;
 
   not_q_t* q_arr = (not_q_t*)man->q_arr;
-  for(uint32_t i = 0; i < len_thr ; ++i){
+  //assert(pthread_self() != q_arr[index%len_thr].t_id);
+
+  for(size_t i = 0; i < len_thr ; ++i){
     if(try_push_not_q(&q_arr[(i+index) % len_thr], t)){
       man->num_task +=1;
-
-      // Debbugging purposes
+      //  Debbugging purposes
       //cnt_in++;
-      //printf("Tasks in %d %ld \n", cnt_in, time_now_us());
-
+      //printf(" async_task_manager t_id %ld Tasks in %d %ld num_task %ld idx %ld \n", pthread_self(), cnt_in, time_now_us(), man->num_task, (i+index) % len_thr );
       return;
     }
   }
 
   push_not_q(&q_arr[index%len_thr], t);
+
   man->num_task +=1;
 
   // Debbugging purposes
   //cnt_in++;
-  //printf("Tasks in %d %ld \n", cnt_in, time_now_us());
+  //printf("t_id %ld Tasks in %d %ld num_takss %ld idx %ld \n", pthread_self(), cnt_in, time_now_us(), man->num_task , index % len_thr );
 }
 
 void completed_task_ans(task_ans_t* task)
@@ -585,7 +586,8 @@ void completed_task_ans(task_ans_t* task)
   int const task_not_completed = 0;
   assert(atomic_load_explicit(&task->status, memory_order_acquire) == task_not_completed && "Task already finished?");
 
-  atomic_store_explicit(&task->status, 1, memory_order_release);
+  //atomic_store_explicit(&task->status, 1, memory_order_release);
+  atomic_store_explicit(&task->status, 1, memory_order_seq_cst);
 }
 
 
@@ -603,7 +605,8 @@ void join_task_ans(task_ans_t* arr, size_t len)
   for(; j != -1 ; i++){
     for(; j != -1; --j){
       int const task_completed = 1;
-      if(atomic_load_explicit(&arr[j].status, memory_order_acquire) != task_completed) 
+      //if(atomic_load_explicit(&arr[j].status, memory_order_acquire) != task_completed) 
+      if(atomic_load_explicit(&arr[j].status, memory_order_seq_cst) != task_completed) 
         break;
     }
     if(i % 8 == 0){

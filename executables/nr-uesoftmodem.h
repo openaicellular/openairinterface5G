@@ -71,7 +71,7 @@ typedef struct {
 #ifdef TASK_MANAGER_UE_DECODING                                      
   task_manager_t man; 
 #endif
-  tpool_t        Tpool;             // thread pool 
+//  tpool_t        Tpool;             // thread pool 
   int            UE_scan_carrier;
   int UE_fo_compensation;
   uint64_t       if_freq;

@@ -67,6 +67,7 @@
 #include "PHY/NR_REFSIG/ul_ref_seq_nr.h"
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "executables/nr-uesoftmodem.h"
+#include "common/utils/thread_pool/task_manager.h"
 //#define DEBUG_ULSIM
 
 const char *__asan_default_options()
@@ -555,7 +556,12 @@ int main(int argc, char *argv[])
   gNB->RU_list[0] = calloc(1, sizeof(**gNB->RU_list));
   gNB->RU_list[0]->rfdevice.openair0_cfg = openair0_cfg;
 
+#ifdef TASK_MANAGER_SIM
+  init_task_manager(&gNB->man, max(threadCnt, 1));
+#else
   initFloatingCoresTpool(threadCnt, &gNB->threadPool, false, "gNB-tpool");
+#endif
+
   initNotifiedFIFO(&gNB->respDecode);
 
   initNotifiedFIFO(&gNB->respPuschSymb);
