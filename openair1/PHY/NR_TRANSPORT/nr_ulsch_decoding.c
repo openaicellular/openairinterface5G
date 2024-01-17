@@ -186,9 +186,8 @@ static void nr_processULSegment(void *arg)
     LOG_E(PHY, "ulsch_decoding.c: Problem in rate_matching\n");
     rdata->decodeIterations = max_ldpc_iterations + 1;
 
-#ifdef TASK_MANAGER_DECODING
-  completed_task_ans(rdata->ans); 
-#endif
+    // Task completed
+    completed_task_ans(rdata->ans); 
     return;
   }
 
@@ -230,9 +229,8 @@ static void nr_processULSegment(void *arg)
   if (rdata->decodeIterations <= p_decoderParms->numMaxIter)
     memcpy(ulsch_harq->c[r],llrProcBuf,  Kr>>3);
 
-#ifdef TASK_MANAGER_DECODING
+  // Task completed
   completed_task_ans(rdata->ans); 
-#endif
 }
 
 int decode_offload(PHY_VARS_gNB *phy_vars_gNB,
@@ -337,11 +335,8 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
                         uint32_t frame,
                         uint8_t nr_tti_rx,
                         uint8_t harq_pid,
-                        uint32_t G
-#ifdef TASK_MANAGER_DECODING
-                        // This is a broken idea. But so is the code arquitecture
-                        , thread_info_tm_t* t_info
-#endif
+                        uint32_t G, 
+                        thread_info_tm_t* t_info
                         )
   {
     if (!ulsch_llr) {
@@ -451,16 +446,12 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
   set_abort(&harq_process->abort_decode, false);
   for (int r = 0; r < harq_process->C; r++) {
     int E = nr_get_E(G, harq_process->C, Qm, n_layers, r);
-#ifdef TASK_MANAGER_DECODING
-     ldpcDecode_t* rdata = &((ldpcDecode_t*)t_info->buf)[t_info->len]; 
-     assert(t_info->len < 16);
-     rdata->ans = &t_info->ans[t_info->len];
-     t_info->len += 1;
-#else
-    union ldpcReqUnion id = {.s = {ulsch->rnti, frame, nr_tti_rx, 0, 0}};
-    notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(ldpcDecode_t), id.p, &phy_vars_gNB->respDecode, &nr_processULSegment);
-    ldpcDecode_t *rdata = (ldpcDecode_t *)NotifiedFifoData(req);
-#endif
+
+    ldpcDecode_t* rdata = &((ldpcDecode_t*)t_info->buf)[t_info->len]; 
+    assert(t_info->len < 16);
+    rdata->ans = &t_info->ans[t_info->len];
+    t_info->len += 1;
+
     decParams.R = nr_get_R_ldpc_decoder(pusch_pdu->pusch_data.rv_index,
                                         E,
                                         decParams.BG,
@@ -485,12 +476,10 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
     rdata->ulsch = ulsch;
     rdata->ulsch_id = ULSCH_id;
     rdata->tbslbrm = pusch_pdu->maintenance_parms_v3.tbSizeLbrmBytes;
-#ifdef TASK_MANAGER_DECODING 
-      task_t t = { .args = rdata, .func =  &nr_processULSegment };
-      async_task_manager(&phy_vars_gNB->man, t);
-#else
-      pushTpool(&phy_vars_gNB->threadPool, req);
-#endif
+
+    task_t t = {.func = &nr_processULSegment, .args = rdata};
+    async_task_manager(&phy_vars_gNB->man, t);
+
     LOG_D(PHY, "Added a block to decode, in pipe: %d\n", r);
     r_offset += E;
     offset += ((harq_process->K >> 3) - (harq_process->F >> 3) - ((harq_process->C > 1) ? 3 : 0));

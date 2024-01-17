@@ -280,14 +280,8 @@ void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_gNB_TX + gNB->CC_id, 0);
 }
 
-#ifdef TASK_MANAGER_DECODING
 static void nr_postDecode(PHY_VARS_gNB *gNB, ldpcDecode_t *rdata)
 {
-#else
-static void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req)
-{
-  ldpcDecode_t *rdata = (ldpcDecode_t*) NotifiedFifoData(req);
-#endif
   NR_UL_gNB_HARQ_t *ulsch_harq = rdata->ulsch_harq;
   NR_gNB_ULSCH_t *ulsch = rdata->ulsch;
   int r = rdata->segment_r;
@@ -400,11 +394,7 @@ static void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req)
   }
 }
 
-#ifdef TASK_MANAGER_DECODING
 static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH_id, uint8_t harq_pid, thread_info_tm_t* t_info)
-#else
-static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH_id, uint8_t harq_pid)
-#endif
 {
   NR_DL_FRAME_PARMS *frame_parms = &gNB->frame_parms;
   nfapi_nr_pusch_pdu_t *pusch_pdu = &gNB->ulsch[ULSCH_id].harq_process->ulsch_pdu;
@@ -455,12 +445,7 @@ static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int
    * measurement per processed TB.*/
   if (gNB->max_nb_pusch == 1)
     start_meas(&gNB->ulsch_decoding_stats);
-#ifdef TASK_MANAGER_DECODING
   int const nbDecode = nr_ulsch_decoding(gNB, ULSCH_id, gNB->pusch_vars[ULSCH_id].llr, frame_parms, pusch_pdu, frame_rx, slot_rx, harq_pid, G, t_info);
-#else 
-  int const nbDecode = nr_ulsch_decoding(gNB, ULSCH_id, gNB->pusch_vars[ULSCH_id].llr, frame_parms, pusch_pdu, frame_rx, slot_rx, harq_pid, G);
-#endif
-
   return nbDecode;
 }
 
@@ -838,11 +823,9 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
     }
   }
 
-#ifdef TASK_MANAGER_DECODING
   ldpcDecode_t arr[16]; 
   task_ans_t ans[16] = {0};
   thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .ans = ans};
-#endif
 
   int64_t const t0 = time_now_ns();
   int totalDecode = 0;
@@ -942,50 +925,26 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
       // LOG_M("rxdataF_comp.m","rxF_comp",gNB->pusch_vars[0]->rxdataF_comp[0],6900,1,1);
       // LOG_M("rxdataF_ext.m","rxF_ext",gNB->pusch_vars[0]->rxdataF_ext[0],6900,1,1);
       VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_ULSCH_PROCEDURES_RX, 1);
-#ifdef TASK_MANAGER_DECODING
+
       int const tasks_added = nr_ulsch_procedures(gNB, frame_rx, slot_rx, ULSCH_id, ulsch->harq_pid, &t_info);
-#else                                                                                               
-      int const tasks_added = nr_ulsch_procedures(gNB, frame_rx, slot_rx, ULSCH_id, ulsch->harq_pid);
-#endif                                                                                      
-                                                                                            
       if (tasks_added > 0)
         totalDecode += tasks_added; 
       VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_ULSCH_PROCEDURES_RX, 0);
     }
   }
   
-    ++cnt;
-#ifdef TASK_MANAGER_DECODING
-  if (totalDecode > 0) {
-    assert(totalDecode == t_info.len);
+  assert(totalDecode == t_info.len);
 
-    join_task_ans(t_info.ans, t_info.len);
-    for(int i = 0; i < t_info.len; ++i){
-      nr_postDecode(gNB, &arr[i]); 
-    } 
-   if(cnt % 1024 == 0)
-    printf("Decoding time %ld \n", time_now_ns() - t0);
-  }
-#else
-    bool const loop = totalDecode > 0;
-    while (totalDecode > 0) {
-      notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
-      if (req == NULL)
-        break; // Tpool has been stopped
-      nr_postDecode(gNB, req);
-      delNotifiedFIFO_elt(req);
-      totalDecode--;
-    }
+  join_task_ans(t_info.ans, t_info.len);
+  for(int i = 0; i < t_info.len; ++i){
+     nr_postDecode(gNB, &arr[i]); 
+  } 
   /* Do ULSCH decoding time measurement only when number of PUSCH is limited to 1
    * (valid for unitary physical simulators). ULSCH processing loop is then executed
    * only once, which ensures exactly one start and stop of the ULSCH decoding time
    * measurement per processed TB.*/
   if (gNB->max_nb_pusch == 1)
     stop_meas(&gNB->ulsch_decoding_stats);
-
-   if(loop && (cnt % 1024 == 0))
-    printf("Decoding time %ld \n", time_now_ns() - t0);
-#endif
 
   for (int i = 0; i < gNB->max_nb_srs; i++) {
     NR_gNB_SRS_t *srs = &gNB->srs[i];

@@ -93,14 +93,8 @@ void deref_sched_response(int _)
   exit(1);
 }
 
-#ifdef TASK_MANAGER_DECODING 
 int nr_postDecode_sim(PHY_VARS_gNB *gNB, ldpcDecode_t *rdata , int *nb_ok)
 {
-#else
-int nr_postDecode_sim(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req, int *nb_ok)
-{
-  ldpcDecode_t *rdata = (ldpcDecode_t*) NotifiedFifoData(req);
-#endif
 
   NR_UL_gNB_HARQ_t *ulsch_harq = rdata->ulsch_harq;
   int r = rdata->segment_r;
@@ -417,12 +411,8 @@ int main(int argc, char **argv)
   gNB = RC.gNB[0];
   //gNB_config = &gNB->gNB_config;
 
-#ifdef TASK_MANAGER_DECODING
   int const num_threads = parse_num_threads("n"); 
   init_task_manager(&gNB->man, num_threads);
-#else
-  initTpool("n", &gNB->threadPool, true);
-#endif
 
   initNotifiedFIFO(&gNB->respDecode);
   frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
@@ -604,35 +594,22 @@ int main(int argc, char **argv)
       exit(-1);
 #endif
 
-#ifdef TASK_MANAGER_DECODING
      ldpcDecode_t arr[16] = {0};
      task_ans_t ans[16] = {0};
      thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .ans = ans };
      int nbDecode = nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul, frame, subframe, harq_pid, G, &t_info);
      assert(nbDecode > 0);
-#else
-     int nbDecode = nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul, frame, subframe, harq_pid, G);
-#endif
+
      int nb_ok = 0;
-#ifdef TASK_MANAGER_DECODING
      join_task_ans(t_info.ans, t_info.len);
      for(size_t i = 0; i < nbDecode; ++i){
        ret = nr_postDecode_sim(gNB, &arr[i], &nb_ok);
      }
-     nbDecode = 0; 
-#else
-     if (nbDecode > 0)
-       while (nbDecode > 0) {
-         notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
-         ret = nr_postDecode_sim(gNB, req, &nb_ok);
-         delNotifiedFIFO_elt(req);
-         nbDecode--;
-       }
-#endif
-  if (ret)
-    n_errors++;
+     nbDecode = 0;
+     if (ret)
+       n_errors++;
     }
-    
+
     printf("*****************************************\n");
     printf("SNR %f, BLER %f (false positive %f)\n", SNR,
            (float) n_errors / (float) n_trials,
@@ -655,10 +632,8 @@ int main(int argc, char **argv)
     free(gNB->gNB_config.tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list);
   free(gNB->gNB_config.tdd_table.max_tdd_periodicity_list);
 
-#ifdef TASK_MANAGER_DECODING
   void (*clean)(task_t* args) = NULL;
   free_task_manager(&gNB->man, clean);
-#endif
 
   term_nr_ue_signal(UE, 1);
   free(UE);

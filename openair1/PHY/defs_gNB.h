@@ -726,7 +726,7 @@ typedef struct PHY_VARS_gNB_s {
   void *scopeData;
   /// structure for analyzing high-level RT measurements
   rt_L1_profiling_t rt_L1_profiling; 
-#if defined(TASK_MANAGER_DECODING) || defined(TASK_MANAGER_CODING) || defined(TASK_MANAGER_DEMODULATION) || defined(TASK_MANAGER_RU) || !defined(TASK_MANAGER_SIM) 
+#if defined(TASK_MANAGER_CODING) || defined(TASK_MANAGER_DEMODULATION) || defined(TASK_MANAGER_RU) || !defined(TASK_MANAGER_SIM) 
   task_manager_t man;
   task_manager_t man_rx_tx_ru;
 #else
@@ -746,9 +746,7 @@ typedef struct puschSymbolProc_s {
   int16_t **llr_layers;
   int16_t *s;
   uint32_t nvar;
-#ifdef TASK_MANAGER_DECODING
  task_ans_t* ans;
-#endif
 } puschSymbolProc_t;
 
 struct puschSymbolReqId {
@@ -783,9 +781,7 @@ typedef struct LDPCDecode_s {
   int offset;
   int decodeIterations;
   uint32_t tbslbrm;
-#ifdef TASK_MANAGER_DECODING
- task_ans_t* ans;
-#endif
+  task_ans_t* ans;
 } ldpcDecode_t;
 
 struct ldpcReqId {

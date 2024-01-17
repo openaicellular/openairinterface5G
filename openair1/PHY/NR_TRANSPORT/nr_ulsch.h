@@ -63,10 +63,8 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
                       uint32_t frame,
                       uint8_t nr_tti_rx,
                       uint8_t harq_pid,
-                      uint32_t G
-#ifdef TASK_MANAGER_DECODING
-                      ,  thread_info_tm_t* t_info
-#endif
+                      uint32_t G,
+                      thread_info_tm_t* t_info
                       );
 
 /*! \brief Perform PUSCH unscrambling. TS 38.211 V15.4.0 subclause 6.3.1.1

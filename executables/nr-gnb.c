@@ -379,11 +379,10 @@ void init_gNB_Tpool(int inst) {
   gNB = RC.gNB[inst];
 
   // ULSCH decoding threadpool
-#ifdef TASK_MANAGER_DECODING
   int const num_threads = parse_num_threads(get_softmodem_params()->threadPoolConfig);
   init_task_manager(&gNB->man, num_threads);
+  // 2nd tpool needed to avoid current cycle and deadlock
   init_task_manager(&gNB->man_rx_tx_ru, 2);
-#endif
 
   gNB_L1_proc_t *proc = &gNB->proc;
   // PUSCH symbols per thread need to be calculated by how many threads we have
@@ -422,13 +421,9 @@ void init_gNB_Tpool(int inst) {
 void term_gNB_Tpool(int inst) {
   PHY_VARS_gNB *gNB = RC.gNB[inst];
  
-#ifdef TASK_MANAGER_DECODING
   void (*clean)(task_t*) = NULL;
   free_task_manager(&gNB->man , clean);
   free_task_manager(&gNB->man_rx_tx_ru , clean);
-#else
-  abortTpool(&gNB->threadPool);
-#endif
   abortNotifiedFIFO(&gNB->respDecode);
   abortNotifiedFIFO(&gNB->resp_L1);
   abortNotifiedFIFO(&gNB->L1_tx_free);
