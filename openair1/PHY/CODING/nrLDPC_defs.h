@@ -64,9 +64,7 @@ typedef struct {
   unsigned int G;
   // Redundancy version index
   uint8_t rv;
-#ifdef TASK_MANAGER_CODING
   task_ans_t* ans;
-#endif
 } encoder_implemparams_t;
 
 typedef int32_t(LDPC_initfunc_t)(void);

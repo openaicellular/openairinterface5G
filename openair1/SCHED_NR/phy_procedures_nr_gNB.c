@@ -827,7 +827,7 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
   task_ans_t ans[16] = {0};
   thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .ans = ans};
 
-  int64_t const t0 = time_now_ns();
+  //int64_t const t0 = time_now_ns();
   int totalDecode = 0;
   for (int ULSCH_id = 0; ULSCH_id < gNB->max_nb_pusch; ULSCH_id++) {
     NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ULSCH_id];

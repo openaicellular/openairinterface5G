@@ -259,9 +259,8 @@ static void ldpc8blocks(void *p)
     r_offset += E;
   }
 
-#ifdef TASK_MANAGER_CODING
+  // Task running in // completed
   completed_task_ans(impp->ans); 
-#endif
 }
 
 int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
@@ -388,50 +387,23 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
       r_offset += impp.E;
     }
   } else {
-    notifiedFIFO_t nf = {0};
-    initNotifiedFIFO(&nf);
-    int nbJobs = 0;
-#ifdef TASK_MANAGER_CODING
-      size_t const sz = (impp.n_segments/8+((impp.n_segments&7)==0 ? 0 : 1));
-      encoder_implemparams_t arr[sz];
-      task_ans_t ans[sz];
-      memset(ans, 0, sz * sizeof(task_ans_t));
- #endif
-    for (int j = 0; j < (impp.n_segments / 8 + ((impp.n_segments & 7) == 0 ? 0 : 1)); j++) {
-#ifdef TASK_MANAGER_CODING
-      assert(nbJobs < sz);
-      encoder_implemparams_t* perJobImpp = &arr[nbJobs];
-#else
-      notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(impp), j, &nf, ldpc8blocks);
-      encoder_implemparams_t *perJobImpp = (encoder_implemparams_t *)NotifiedFifoData(req);
-#endif
+    size_t const n_seg = (impp.n_segments/8+((impp.n_segments&7)==0 ? 0 : 1));
+
+    encoder_implemparams_t arr[n_seg];
+    task_ans_t ans[n_seg];
+    memset(ans, 0, n_seg * sizeof(task_ans_t));
+
+    for (int j = 0; j < n_seg; j++) {
+      encoder_implemparams_t* perJobImpp = &arr[j];
       *perJobImpp = impp;
       perJobImpp->macro_num = j;
+      perJobImpp->ans = &ans[j];
 
-#ifdef TASK_MANAGER_CODING
-      perJobImpp->ans = &ans[nbJobs];
-      task_t t = {.args = perJobImpp, .func = ldpc8blocks};
+      task_t t = {.func = ldpc8blocks, .args = perJobImpp};
       async_task_manager(&gNB->man, t); 
-#else
-      pushTpool(&gNB->threadPool, req);
-#endif
-
-      nbJobs++;
     }
-#ifdef TASK_MANAGER_CODING
-      if(nbJobs > 0) {
-        join_task_ans(ans, nbJobs);
-      }
-#else
-    while (nbJobs) {
-      notifiedFIFO_elt_t *req = pullNotifiedFIFO(&nf);
-
-      if (req == NULL)
-        break; // Tpool has been stopped
-      delNotifiedFIFO_elt(req);
-      nbJobs--;
-    }
-#endif
+    
+    join_task_ans(ans, n_seg);
   }
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_gNB_DLSCH_ENCODING, VCD_FUNCTION_OUT);
   return 0;

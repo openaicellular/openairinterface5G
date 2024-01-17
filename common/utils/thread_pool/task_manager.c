@@ -595,7 +595,7 @@ void completed_task_ans(task_ans_t* task)
 //
 void join_task_ans(task_ans_t* arr, size_t len)
 {
-  //assert(len > 0);
+  assert(len < INT_MAX);
   assert(arr != NULL);
 
   // We are believing Fedor
