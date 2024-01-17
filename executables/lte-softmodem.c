@@ -553,31 +553,18 @@ int main ( int argc, char **argv )
       L1_rxtx_proc_t *L1proctx= &RC.eNB[x][CC_id]->proc.L1_proc_tx;
       L1proc->respDecode=(notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
       if ( strlen(get_softmodem_params()->threadPoolConfig) > 0 ){
-#ifdef TASK_MANAGER_LTE
-      L1proc->man = calloc(1, sizeof(task_manager_t));
-      assert(L1proc->man != NULL && "Memory exhausted");
-      int const num_threads = parse_num_threads(get_softmodem_params()->threadPoolConfig);
-      init_task_manager(L1proc->man, num_threads);
-#else
-      initTpool(get_softmodem_params()->threadPoolConfig, L1proc->threadPool, true);
-#endif
+        L1proc->man = calloc(1, sizeof(task_manager_t));
+        assert(L1proc->man != NULL && "Memory exhausted");
+        int const num_threads = parse_num_threads(get_softmodem_params()->threadPoolConfig);
+        init_task_manager(L1proc->man, num_threads);
       }else {
-#ifdef TASK_MANAGER_LTE
-      L1proc->man = calloc(1, sizeof(task_manager_t));
-      assert(L1proc->man != NULL && "Memory exhausted");
-      int const num_threads = parse_num_threads("n");
-      init_task_manager(L1proc->man, num_threads);
-#else
-      initTpool("n", L1proc->threadPool, true);
-#endif
+        L1proc->man = calloc(1, sizeof(task_manager_t));
+        assert(L1proc->man != NULL && "Memory exhausted");
+        int const num_threads = parse_num_threads("n");
+        init_task_manager(L1proc->man, num_threads);
       }
       initNotifiedFIFO(L1proc->respDecode);
-#ifdef TASK_MANAGER_LTE
       L1proctx->man = L1proc->man;
-#else
-      L1proctx->threadPool = L1proc->threadPool;
-#endif
-
     }
 
   printf("wait_eNBs()\n");

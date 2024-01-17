@@ -789,15 +789,11 @@ int main(int argc, char **argv) {
   proc_rxtx_ue->subframe_tx = proc_rxtx->subframe_rx;
   proc_rxtx_ue->subframe_rx = (proc_rxtx->subframe_tx+6)%10;
  
-#ifdef TASK_MANAGER_LTE
   int const n_threads = parse_num_threads("n");
   proc_rxtx->man = calloc(1, sizeof(task_manager_t));
   assert(proc_rxtx->man != NULL && "Memory exhausted");
   init_task_manager(proc_rxtx->man, n_threads);
-#else
-  proc_rxtx->threadPool = (tpool_t *)malloc(sizeof(tpool_t));
-  initTpool("n", proc_rxtx->threadPool, true);
-#endif
+
   proc_rxtx->respDecode=(notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
   initNotifiedFIFO(proc_rxtx->respDecode);
 

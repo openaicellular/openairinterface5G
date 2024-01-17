@@ -1,8 +1,6 @@
 #ifndef TASK_MANAGER_WORKING_STEALING_H
 #define TASK_MANAGER_WORKING_STEALING_H 
 
-#define TASK_MANAGER_LTE
-
 #include "task.h"
 
 #ifndef __cplusplus

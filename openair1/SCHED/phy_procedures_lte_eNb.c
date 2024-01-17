@@ -1233,13 +1233,7 @@ uci_procedures(PHY_VARS_eNB *eNB,
   } // end loop for (int i = 0; i < NUMBER_OF_UCI_MAX; i++) {
 }
 
-#ifdef TASK_MANAGER_LTE
 void postDecode(L1_rxtx_proc_t *proc, turboDecode_t* rdata){
-#else
-void postDecode(L1_rxtx_proc_t *proc, notifiedFIFO_elt_t *req)
-{
-  turboDecode_t * rdata=(turboDecode_t *) NotifiedFifoData(req);
-#endif
   LTE_eNB_ULSCH_t *ulsch = rdata->eNB->ulsch[rdata->UEid];
   LTE_UL_eNB_HARQ_t *ulsch_harq = rdata->ulsch_harq;
   PHY_VARS_eNB *eNB=rdata->eNB;
@@ -1334,11 +1328,9 @@ void pusch_procedures(PHY_VARS_eNB *eNB,L1_rxtx_proc_t *proc) {
   const int frame    = proc->frame_rx;
   uint32_t harq_pid0 = subframe2harq_pid(&eNB->frame_parms,frame,subframe);
 
-#ifdef TASK_MANAGER_LTE
   turboDecode_t arr[64] = {0};
   task_ans_t ans[64] = {0};
   thread_info_tm_t t_info = { .ans = ans, .buf = (uint8_t*)arr };
-#endif
 
   for (i = 0; i < NUMBER_OF_ULSCH_MAX; i++) {
     ulsch = eNB->ulsch[i];
@@ -1398,9 +1390,7 @@ void pusch_procedures(PHY_VARS_eNB *eNB,L1_rxtx_proc_t *proc) {
                      0, // control_only_flag
                      ulsch_harq->V_UL_DAI,
                      ulsch_harq->nb_rb > 20 ? 1 : 0
-#ifdef TASK_MANAGER_LTE
 		     ,&t_info 
-#endif		     
 		     );
     }
     else if ((ulsch) &&
@@ -1418,7 +1408,6 @@ void pusch_procedures(PHY_VARS_eNB *eNB,L1_rxtx_proc_t *proc) {
   }   //   for (i=0; i<NUMBER_OF_ULSCH_MAX; i++)
 
   const bool decode = proc->nbDecode;
-#ifdef TASK_MANAGER_LTE
   assert(t_info.len == proc->nbDecode);
   if (proc->nbDecode > 0) {
      join_task_ans(t_info.ans, t_info.len);  
@@ -1426,17 +1415,6 @@ void pusch_procedures(PHY_VARS_eNB *eNB,L1_rxtx_proc_t *proc) {
        postDecode(proc, &arr[i]);
      }
   }
-#else
-  while (proc->nbDecode > 0) {
-    notifiedFIFO_elt_t *req=pullTpool(proc->respDecode, proc->threadPool);
-    if (req == NULL)
-      break; // Tpool has been stopped
-    postDecode(proc, req);
-    const time_stats_t ts = exec_time_stats_NotifiedFIFO(req);
-    merge_meas(&eNB->ulsch_turbo_decoding_stats, &ts);
-    delNotifiedFIFO_elt(req);
-  }
-#endif
   if (decode)
     stop_meas(&eNB->ulsch_decoding_stats);
 }

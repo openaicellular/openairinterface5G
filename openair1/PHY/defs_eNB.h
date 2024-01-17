@@ -252,11 +252,7 @@ typedef struct {
   pthread_cond_t cond_RUs;
   /// mutex for RXn-TXnp4 processing thread
   pthread_mutex_t mutex_RUs;
-#ifdef TASK_MANAGER_LTE
   task_manager_t* man; // non-owning ptr
-#else
-  tpool_t *threadPool;
-#endif
   int nbDecode;
   notifiedFIFO_t *respDecode;
   pthread_mutex_t mutex_emulateRF;
@@ -791,9 +787,7 @@ typedef struct TurboDecode_s {
     int offset;
     int maxIterations;
     int decodeIterations;
-#ifdef TASK_MANAGER_LTE
- task_ans_t* ans;
-#endif
+    task_ans_t* ans;
 } turboDecode_t;
 
 #define TURBO_SIMD_SOFTBITS   96+12+3+3*6144
@@ -810,9 +804,7 @@ typedef struct turboEncode_s {
   time_stats_t *rm_stats;
   time_stats_t *te_stats;
   time_stats_t *i_stats;
-#ifdef TASK_MANAGER_LTE
- task_ans_t* ans;
-#endif
+  task_ans_t* ans;
 } turboEncode_t;
 
 
