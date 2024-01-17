@@ -116,15 +116,9 @@ int nr_postDecode_sim(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req, int *nb_ok)
 
   // if all segments are done
   if (rdata->nbSegments == ulsch_harq->processedSegments){
-#ifdef TASK_MANAGER_DECODING 
-    completed_task_ans(rdata->ans);
-#endif
     return *nb_ok == rdata->nbSegments;
   }
 
-#ifdef TASK_MANAGER_DECODING 
-  completed_task_ans(rdata->ans);
-#endif
   return 0;
 }
 
