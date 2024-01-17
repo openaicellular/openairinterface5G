@@ -962,8 +962,8 @@ void *UE_thread(void *arg)
     curMsgTx->UE = UE;
     curMsgTx->tx_wait_for_dlsch = tx_wait_for_dlsch[curMsgTx->proc.nr_slot_tx];
     tx_wait_for_dlsch[curMsgTx->proc.nr_slot_tx] = 0;
-    curMsgTx->elt = newElt;
-    task_t t = {.func = processSlotTX, .args= curMsgTx};
+    curMsgTx->elt = newTx;
+    t = (task_t){.func = processSlotTX, .args= curMsgTx};
     async_task_manager(&(get_nrUE_params()->man), t);
 
     // Wait for TX slot processing to finish

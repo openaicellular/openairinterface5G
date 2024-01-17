@@ -79,7 +79,7 @@ static bool nr_ue_postDecode(PHY_VARS_NR_UE *phy_vars_ue,
                              int b_size,
                              uint8_t b[b_size],
                              int *num_seg_ok,
-                             UE_nr_rxtx_proc_t *proc)
+                             UE_nr_rxtx_proc_t const* proc)
 {
   NR_DL_UE_HARQ_t *harq_process = rdata->harq_process;
   NR_UE_DLSCH_t *dlsch = (NR_UE_DLSCH_t *) rdata->dlsch;
