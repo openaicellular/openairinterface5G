@@ -41,7 +41,7 @@
 #include <time.h>
 #include <stdint.h>
 
-
+/*
 static
 int64_t time_now_ns(void)
 {
@@ -52,7 +52,7 @@ int64_t time_now_ns(void)
   int64_t nanos = tms.tv_sec * 1000000000 + tms.tv_nsec;
   return nanos;
 }
-
+*/
 
 //#define DEBUG_RXDATA
 //#define SRS_IND_DEBUG

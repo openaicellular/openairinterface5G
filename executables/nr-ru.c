@@ -1875,17 +1875,15 @@ void init_NR_RU(configmodule_interface_t *cfg, char *rf_config_file)
       int threadCnt = ru->num_tpcores;
       if (threadCnt < 2) LOG_E(PHY,"Number of threads for gNB should be more than 1. Allocated only %d\n",threadCnt);
       else LOG_I(PHY,"RU Thread pool size %d\n",threadCnt);
-      char pool[80];
+      char pool[512] = {0};
       int s_offset = sprintf(pool,"%d",ru->tpcores[0]);
       for (int icpu=1; icpu<threadCnt; icpu++) {
          s_offset+=sprintf(pool+s_offset,",%d",ru->tpcores[icpu]);
       }
       LOG_I(PHY,"RU thread-pool core string %s\n",pool);
-#ifdef TASK_MANAGER_RU
-      init_task_manager(&ru->man, ru->num_tpcores); 
-#endif
-      ru->threadPool = (tpool_t*)malloc(sizeof(tpool_t));
-      initTpool(pool, ru->threadPool, cpumeas(CPUMEAS_GETSTATE));
+      int const num_threads = parse_num_threads(pool);
+      init_task_manager(&ru->man, num_threads); 
+
       // FEP RX result FIFO
       ru->respfeprx = (notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
       initNotifiedFIFO(ru->respfeprx);

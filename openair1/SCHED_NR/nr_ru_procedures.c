@@ -322,83 +322,55 @@ void nr_feptx(void *arg) {
       ////////////FEPTX////////////
   nr_feptx0(ru,slot,startSymbol,numSymbols,aa);
 
-#ifdef TASK_MANAGER_RU
+  // Task completed in //
   completed_task_ans(feptx->ans);
-#endif
 }
 
 // RU FEP TX using thread-pool
 void nr_feptx_tp(RU_t *ru, int frame_tx, int slot) {
 
   nfapi_nr_config_request_scf_t *cfg = &ru->gNB_list[0]->gNB_config;
-  int nbfeptx=0;
   if (nr_slot_select(cfg,frame_tx,slot) == NR_UPLINK_SLOT) return;
-//  for (int aa=0; aa<ru->nb_tx; aa++) memset(ru->common.txdataF[aa],0,ru->nr_frame_parms->samples_per_slot_wCP*sizeof(int32_t));
 
   if (ru->idx == 0) VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME( VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_RU_FEPTX_OFDM, 1 );
   start_meas(&ru->ofdm_total_stats);
 
-#ifdef TASK_MANAGER_RU
   size_t const sz = ru->nb_tx + (ru->half_slot_parallelization>0)*ru->nb_tx;
   feptx_cmd_t arr[sz]; 
   task_ans_t ans[sz];
   memset(ans, 0, sz*sizeof(task_ans_t));
-#endif
 
-  for (int aid=0;aid<ru->nb_tx;aid++) {
-#ifdef TASK_MANAGER_RU
+  int nbfeptx = 0;
+  for (int aid = 0; aid < ru->nb_tx; aid++) {
     feptx_cmd_t *feptx_cmd = &arr[nbfeptx];
     feptx_cmd->ans = &ans[nbfeptx]; 
-#else
-    notifiedFIFO_elt_t *req=newNotifiedFIFO_elt(sizeof(feptx_cmd_t), 2000 + aid,ru->respfeptx,nr_feptx);
-    feptx_cmd_t *feptx_cmd=(feptx_cmd_t*)NotifiedFifoData(req);       
-#endif
+
        feptx_cmd->aid          = aid;
        feptx_cmd->ru           = ru;
        feptx_cmd->slot         = slot;
        feptx_cmd->startSymbol  = 0;
        feptx_cmd->numSymbols   = (ru->half_slot_parallelization>0)?ru->nr_frame_parms->symbols_per_slot>>1:ru->nr_frame_parms->symbols_per_slot;
 
-#ifdef TASK_MANAGER_RU
        task_t t = {.func = nr_feptx, .args = feptx_cmd};
        async_task_manager(&ru->man, t);
-#else
-       pushTpool(ru->threadPool,req);
-#endif
        nbfeptx++;
        if (ru->half_slot_parallelization>0) {
-#ifdef TASK_MANAGER_RU
          feptx_cmd_t *feptx_cmd = &arr[nbfeptx];
          feptx_cmd->ans = &ans[nbfeptx]; 
-#else
-         notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(feptx_cmd_t), 2000 + aid + ru->nb_tx,ru->respfeptx,nr_feptx);
-         feptx_cmd_t *feptx_cmd=(feptx_cmd_t*)NotifiedFifoData(req);       
-#endif
+
          feptx_cmd->aid          = aid;
          feptx_cmd->ru           = ru;
          feptx_cmd->slot         = slot;
          feptx_cmd->startSymbol  = ru->nr_frame_parms->symbols_per_slot>>1;
          feptx_cmd->numSymbols   = ru->nr_frame_parms->symbols_per_slot>>1;
-#ifdef TASK_MANAGER_RU
+
          task_t t = {.func = nr_feptx, .args = feptx_cmd};
          async_task_manager(&ru->man, t);
-#else 
-         pushTpool(ru->threadPool,req);
-#endif     
          nbfeptx++;
        }
   }
 
-#ifdef TASK_MANAGER_RU
-  if(nbfeptx > 0)
-    join_task_ans(ans, nbfeptx);
-#else
-  while (nbfeptx>0) {
-    notifiedFIFO_elt_t *req=pullTpool(ru->respfeptx, ru->threadPool);
-    delNotifiedFIFO_elt(req);
-    nbfeptx--;
-  }
-#endif
+  join_task_ans(ans, nbfeptx);
 
   stop_meas(&ru->ofdm_total_stats);
   if (ru->idx == 0) VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME( VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_RU_FEPTX_OFDM, 0 );
@@ -430,9 +402,8 @@ void nr_fep(void* arg) {
                      ru->N_TA_offset);
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_RU_FEPRX+aid, 0);
 
-#ifdef TASK_MANAGER_RU
+  // Task completed in //
   completed_task_ans(feprx_cmd->ans);
-#endif
 }
 
 // RU RX FEP using thread-pool
@@ -442,67 +413,42 @@ void nr_fep_tp(RU_t *ru, int slot) {
   if (ru->idx == 0) VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME( VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_RU_FEPRX, 1 );
   start_meas(&ru->ofdm_demod_stats);
  
-#ifdef TASK_MANAGER_RU
   size_t const sz = ru->nb_rx + (ru->half_slot_parallelization>0)*ru->nb_rx;
   feprx_cmd_t arr[sz]; 
   task_ans_t ans[sz];
   memset(&ans, 0, sz * sizeof(task_ans_t));
-#endif
 
   for (int aid=0;aid<ru->nb_rx;aid++) {
-#ifdef TASK_MANAGER_RU
        feprx_cmd_t* feprx_cmd= &arr[nbfeprx];
        feprx_cmd->ans = &ans[nbfeprx];
-#else
-       notifiedFIFO_elt_t *req=newNotifiedFIFO_elt(sizeof(feprx_cmd_t), 1000 + aid,ru->respfeprx,nr_fep);
-       feprx_cmd_t *feprx_cmd=(feprx_cmd_t*)NotifiedFifoData(req);       
-#endif
+
        feprx_cmd->aid          = aid;
        feprx_cmd->ru           = ru;
        feprx_cmd->slot         = ru->proc.tti_rx;
        feprx_cmd->startSymbol  = 0;
        feprx_cmd->endSymbol    = (ru->half_slot_parallelization > 0)?(ru->nr_frame_parms->symbols_per_slot>>1)-1:(ru->nr_frame_parms->symbols_per_slot-1);
-#ifdef TASK_MANAGER_RU
+
        task_t t = {.func = nr_fep, .args = feprx_cmd};
        async_task_manager(&ru->man, t);
-#else
-       pushTpool(ru->threadPool,req);
-#endif
        nbfeprx++;
        if (ru->half_slot_parallelization>0) {
-
-#ifdef TASK_MANAGER_RU
        feprx_cmd_t* feprx_cmd= &arr[nbfeprx];
        feprx_cmd->ans = &ans[nbfeprx];
-#else
-         notifiedFIFO_elt_t *req=newNotifiedFIFO_elt(sizeof(feprx_cmd_t), 1000 + aid + ru->nb_rx,ru->respfeprx,nr_fep);
-         feprx_cmd_t *feprx_cmd=(feprx_cmd_t*)NotifiedFifoData(req);       
-#endif
-         feprx_cmd->aid          = aid;
-         feprx_cmd->ru           = ru;
-         feprx_cmd->slot         = ru->proc.tti_rx;
-	 feprx_cmd->startSymbol  = ru->nr_frame_parms->symbols_per_slot>>1;
-         feprx_cmd->endSymbol    = ru->nr_frame_parms->symbols_per_slot-1;
-#ifdef TASK_MANAGER_RU
+
+       feprx_cmd->aid          = aid;
+       feprx_cmd->ru           = ru;
+       feprx_cmd->slot         = ru->proc.tti_rx;
+	     feprx_cmd->startSymbol  = ru->nr_frame_parms->symbols_per_slot>>1;
+       feprx_cmd->endSymbol    = ru->nr_frame_parms->symbols_per_slot-1;
+
        task_t t = {.func = nr_fep, .args = feprx_cmd};
        async_task_manager(&ru->man, t);
-#else
-         pushTpool(ru->threadPool,req);
-#endif 
 
-         nbfeprx++;
+       nbfeprx++;
        }
   }
-#ifdef TASK_MANAGER_RU
-  if(nbfeprx > 0)
-    join_task_ans(ans, nbfeprx);
-#else
-  while (nbfeprx>0) {
-    notifiedFIFO_elt_t *req=pullTpool(ru->respfeprx, ru->threadPool);
-    delNotifiedFIFO_elt(req);
-    nbfeprx--;
-  }
-#endif  
+
+  join_task_ans(ans, nbfeprx);
 
   stop_meas(&ru->ofdm_demod_stats);
   if (ru->idx == 0) VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME( VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_RU_FEPRX, 0 );
