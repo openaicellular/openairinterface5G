@@ -73,7 +73,6 @@ void nr_dlsch_unscrambling(int16_t *llr, uint32_t size, uint8_t q, uint32_t Nid,
 
 
 
-#ifdef TASK_MANAGER_UE_DECODING
 static bool nr_ue_postDecode(PHY_VARS_NR_UE *phy_vars_ue,
                              ldpcDecode_ue_t *rdata,                         
                              bool last,
@@ -82,18 +81,6 @@ static bool nr_ue_postDecode(PHY_VARS_NR_UE *phy_vars_ue,
                              int *num_seg_ok,
                              UE_nr_rxtx_proc_t *proc)
 {
-#else
-static bool nr_ue_postDecode(PHY_VARS_NR_UE *phy_vars_ue,
-                             notifiedFIFO_elt_t *req,
-                             notifiedFIFO_t *nf_p,
-                             const bool last,
-                             int b_size,
-                             uint8_t b[b_size],
-                             int *num_seg_ok,
-                             const UE_nr_rxtx_proc_t *proc)
-{
-  ldpcDecode_ue_t *rdata = (ldpcDecode_ue_t*) NotifiedFifoData(req);
-#endif
   NR_DL_UE_HARQ_t *harq_process = rdata->harq_process;
   NR_UE_DLSCH_t *dlsch = (NR_UE_DLSCH_t *) rdata->dlsch;
   int r = rdata->segment_r;
@@ -235,9 +222,8 @@ static void nr_processDLSegment(void *arg)
     stop_meas(&rdata->ts_rate_unmatch);
     LOG_E(PHY,"dlsch_decoding.c: Problem in rate_matching\n");
 
-#ifdef TASK_MANAGER_UE_DECODING
+    // Task completed in parallel 
     completed_task_ans(rdata->ans);
-#endif
     return;
   }
   stop_meas(&rdata->ts_rate_unmatch);
@@ -279,9 +265,9 @@ static void nr_processDLSegment(void *arg)
       memcpy(harq_process->c[r], LDPCoutput, Kr >> 3);
     stop_meas(&rdata->ts_ldpc_decode);
   }
-#ifdef TASK_MANAGER_UE_DECODING
+
+    // Task completed in parallel 
     completed_task_ans(rdata->ans);
-#endif
 }
 
 uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
@@ -421,24 +407,17 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
   initNotifiedFIFO(&nf);
   set_abort(&harq_process->abort_decode, false);
 
-#ifdef TASK_MANAGER_UE_DECODING
   ldpcDecode_ue_t arr[harq_process->C]; 
   task_ans_t ans[harq_process->C];
   memset(ans, 0, harq_process->C*sizeof(task_ans_t));
-#endif
 
   for (r=0; r<harq_process->C; r++) {
     //printf("start rx segment %d\n",r);
     uint32_t E = nr_get_E(G, harq_process->C, dlsch->dlsch_config.qamModOrder, dlsch->Nl, r);
     decParams.R = nr_get_R_ldpc_decoder(dlsch->dlsch_config.rv, E, decParams.BG, decParams.Z, &harq_process->llrLen, harq_process->DLround);
-#ifdef TASK_MANAGER_UE_DECODING
-   ldpcDecode_ue_t* rdata = &arr[r];
-   rdata->ans = &ans[r];
-#else
-    union ldpcReqUnion id = {.s={dlsch->rnti,frame,nr_slot_rx,0,0}};
-    notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(ldpcDecode_ue_t), id.p, &nf, &nr_processDLSegment);
-    ldpcDecode_ue_t * rdata=(ldpcDecode_ue_t *) NotifiedFifoData(req);
-#endif
+    ldpcDecode_ue_t* rdata = &arr[r];
+    rdata->ans = &ans[r];
+
     rdata->phy_vars_ue = phy_vars_ue;
     rdata->harq_process = harq_process;
     rdata->decoderParms = decParams;
@@ -461,12 +440,9 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
     reset_meas(&rdata->ts_deinterleave);
     reset_meas(&rdata->ts_rate_unmatch);
     reset_meas(&rdata->ts_ldpc_decode);
-#ifdef TASK_MANAGER_UE_DECODING
+
     task_t t = {.args = rdata, .func = nr_processDLSegment };
     async_task_manager(&get_nrUE_params()->man, t);
-#else
-    pushTpool(&get_nrUE_params()->Tpool,req);
-#endif
     LOG_D(PHY, "Added a block to decode, in pipe: %d\n", r);
     r_offset += E;
     offset += (Kr_bytes - (harq_process->F>>3) - ((harq_process->C>1)?3:0));
@@ -474,23 +450,12 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
   }
   int num_seg_ok = 0;
   int nbDecode = harq_process->C;
-#ifdef TASK_MANAGER_UE_DECODING
   if(nbDecode > 0){
     join_task_ans(ans, nbDecode); 
     for(size_t i = 0; i < nbDecode ; ++i){
       nr_ue_postDecode(phy_vars_ue, &arr[i], i == nbDecode - 1, b_size, b, &num_seg_ok, proc);
     }
   }
-#else
-  while (nbDecode) {
-    notifiedFIFO_elt_t *req=pullTpool(&nf,  &get_nrUE_params()->Tpool);
-    if (req == NULL)
-      break; // Tpool has been stopped
-    nr_ue_postDecode(phy_vars_ue, req, &nf, nbDecode == 1, b_size, b, &num_seg_ok, proc);
-    delNotifiedFIFO_elt(req);
-    nbDecode--;
-  }
-#endif
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_COMBINE_SEG, VCD_FUNCTION_OUT);
   ret = dlsch->last_iteration_cnt;

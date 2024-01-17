@@ -670,9 +670,7 @@ typedef struct LDPCDecode_ue_s {
   time_stats_t ts_rate_unmatch;
   time_stats_t ts_ldpc_decode;
   UE_nr_rxtx_proc_t proc;
-#ifdef TASK_MANAGER_UE_DECODING
   task_ans_t* ans;
-#endif
 } ldpcDecode_ue_t;
 
 #include "SIMULATION/ETH_TRANSPORT/defs.h"

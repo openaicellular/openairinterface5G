@@ -488,10 +488,8 @@ int main(int argc, char **argv)
   T_Config_Init();
 #endif
 
-#if defined TASK_MANAGER_UE_DECODING 
   int const num_threads = parse_num_threads(get_softmodem_params()->threadPoolConfig);
   init_task_manager(&nrUE_params.man, num_threads);
-#endif
   //randominit (0);
   set_taus_seed (0);
 

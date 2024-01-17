@@ -726,10 +726,16 @@ typedef struct PHY_VARS_gNB_s {
   void *scopeData;
   /// structure for analyzing high-level RT measurements
   rt_L1_profiling_t rt_L1_profiling; 
-#if defined(TASK_MANAGER_RU) || defined(TASK_MANAGER_SIM) 
+
   task_manager_t man;
+  // Second tp needed to avoid a cycle at rx_func tx_func
+  // T0 -> waiting L1_tx_free -> fills L1_tx_filled (rx_func)
+  // T1 -> waiting join_task_ans -> fills L1_tx_out (tx_func)
+  // The task that let's join_task_ans continue is in the T1's queue 
+  // i.e., cycle/deadlock as waiting to a task that the same
+  // thread should work on
+  // T3 -> waiting L1_tx_out -> fills L1_tx_free
   task_manager_t man_rx_tx_ru;
-#endif
 } PHY_VARS_gNB;
 
 typedef struct puschSymbolProc_s {

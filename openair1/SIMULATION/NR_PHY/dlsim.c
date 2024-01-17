@@ -857,11 +857,8 @@ int main(int argc, char **argv)
   unsigned char *test_input_bit;
   unsigned int errors_bit = 0;
 
-#ifdef TASK_MANAGER_UE_DECODING
   init_task_manager(&nrUE_params.man, max(1, dlsch_threads));
-#else
-  initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
-#endif
+
   test_input_bit       = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
   estimated_output_bit = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
   
@@ -889,12 +886,9 @@ int main(int argc, char **argv)
   //NR_COMMON_channels_t *cc = RC.nrmac[0]->common_channels;
   int n_errs = 0;
 
-#ifdef TASK_MANAGER_UE_DECODING
   int const num_threads = parse_num_threads(gNBthreads); 
   init_task_manager(&gNB->man, num_threads);
-#else
-  initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
-#endif
+
   initNotifiedFIFO(&gNB->L1_tx_free);
   initNotifiedFIFO(&gNB->L1_tx_filled);
   initNotifiedFIFO(&gNB->L1_tx_out);
