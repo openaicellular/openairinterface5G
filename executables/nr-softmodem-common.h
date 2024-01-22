@@ -28,7 +28,7 @@
 #undef MALLOC
 #include "assertions.h"
 #include "PHY/types.h"
-#include <threadPool/thread-pool.h>
+#include <task_manager/threadPool/thread-pool.h>
 
 #include "s1ap_eNB.h"
 #include "SIMULATION/ETH_TRANSPORT/proto.h"

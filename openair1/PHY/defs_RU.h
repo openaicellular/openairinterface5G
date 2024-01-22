@@ -39,10 +39,8 @@
 #include "time_meas.h"
 #include "defs_common.h"
 #include "nfapi_nr_interface_scf.h"
-#include <common/utils/threadPool/thread-pool.h>
 #include <executables/rt_profiling.h>
-#include "common/utils/thread_pool/task_manager.h"
-
+#include "common/utils/task_manager/task_manager_gen.h"
 
 #define MAX_BANDS_PER_RRU 4
 #define MAX_RRU_CONFIG_SIZE 1024

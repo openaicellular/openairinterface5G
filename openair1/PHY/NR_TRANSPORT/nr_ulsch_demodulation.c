@@ -10,6 +10,7 @@
 #include "common/utils/nr/nr_common.h"
 #include <openair1/PHY/TOOLS/phy_scope_interface.h>
 #include "PHY/sse_intrin.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 #define INVALID_VALUE 255
 
@@ -1650,7 +1651,6 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
   start_meas(&gNB->rx_pusch_symbol_processing_stats);
   int numSymbols = gNB->num_pusch_symbols_per_thread;
 
-  
   int const loop_iter = rel15_ul->nr_of_symbols/numSymbols;
   puschSymbolProc_t arr[loop_iter];
   task_ans_t arr_ans[loop_iter];

@@ -50,7 +50,7 @@
 //#define DEBUG_ULSCH_DECODING
 //#define gNB_DEBUG_TRACE
 
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 #include <stdint.h>
 #include <time.h>
 #include <stdalign.h>
@@ -448,7 +448,7 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
     int E = nr_get_E(G, harq_process->C, Qm, n_layers, r);
 
     ldpcDecode_t* rdata = &((ldpcDecode_t*)t_info->buf)[t_info->len]; 
-    assert(t_info->len < 16);
+    assert(t_info->len < 64);
     rdata->ans = &t_info->ans[t_info->len];
     t_info->len += 1;
 

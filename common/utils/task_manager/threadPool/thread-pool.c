@@ -23,6 +23,7 @@
 
 
 #define _GNU_SOURCE
+#include <assert.h>
 #include <sched.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,7 +32,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/sysinfo.h>
-#include <threadPool/thread-pool.h>
+#include <task_manager/threadPool/thread-pool.h>
 
 void displayList(notifiedFIFO_t *nf) {
   int n=0;
@@ -83,7 +84,10 @@ void *one_thread(void *arg) {
 
     if (tp->measurePerf) elt->startProcessingTime=rdtsc_oai();
 
-    elt->processingFunc(NotifiedFifoData(elt));
+    //elt->processingFunc(NotifiedFifoData(elt));
+    elt->processingFunc(elt->processingArg);
+
+
 
     if (tp->measurePerf) elt->endProcessingTime=rdtsc_oai();
 
@@ -177,6 +181,50 @@ void initFloatingCoresTpool(int nbThreads,tpool_t *pool, bool performanceMeas, c
   threads[sizeof(threads)-1]=0;
   initNamedTpool(threads, pool, performanceMeas, name);
 }
+
+void init_sq_task_manager(tpool_t *pool, int* lst, size_t num_threads)
+{
+  assert(pool != NULL);
+  assert(lst != NULL);
+  assert(num_threads > 0);
+
+  char str[1024] = {0};
+  int it = 0;
+  for(int i = 0; i < num_threads - 1; ++i){
+    it += sprintf(&str[it], "%d,", lst[i]);
+    assert(it < 1024);
+  }
+  it += sprintf(&str[it], "%d", lst[num_threads - 1]);
+  assert(it < 1024);
+
+  bool performanceMeas = false;
+  char name[] = "single_queue_thread_pool";
+  initNamedTpool(str, pool, performanceMeas, name);
+}
+
+void async_sq_task_manager(tpool_t* pool, task_t t)
+{
+  assert(pool != NULL);
+
+  int size = sizeof(void*);
+  uint64_t const key = 1021;
+  notifiedFIFO_t* responseFifo = NULL;
+  void (*processingFunc)(void *) = t.func;
+  notifiedFIFO_elt_t *elm = newNotifiedFIFO_elt(size, key, responseFifo, processingFunc);
+  elm->processingArg = t.args;
+
+  pushTpool(pool, elm);
+}
+
+
+
+void free_sq_task_manager(tpool_t* pool, void (*clean)(task_t*))
+{
+  assert(pool != NULL);
+  abortTpool(pool);
+}
+
+
 
 #ifdef TEST_THREAD_POOL
 int oai_exit = 0;
@@ -294,4 +342,5 @@ int main() {
 	*/
   return 0;
 }
+
 #endif

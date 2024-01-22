@@ -34,8 +34,8 @@
 #define NR_ULSCH_H_
 
 #include "PHY/defs_gNB.h"
-#include "common/utils/threadPool/thread-pool.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/threadPool/thread-pool.h"
+#include "common/utils/task_manager/thread_pool/task_manager.h"
 
 #define NUMBER_FRAMES_PHY_UE_INACTIVE 10
 

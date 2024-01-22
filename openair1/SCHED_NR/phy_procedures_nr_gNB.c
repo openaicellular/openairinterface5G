@@ -41,19 +41,6 @@
 #include <time.h>
 #include <stdint.h>
 
-/*
-static
-int64_t time_now_ns(void)
-{
-  struct timespec tms;
-  if (clock_gettime(CLOCK_MONOTONIC_RAW, &tms)) {
-    return -1;
-  }
-  int64_t nanos = tms.tv_sec * 1000000000 + tms.tv_nsec;
-  return nanos;
-}
-*/
-
 //#define DEBUG_RXDATA
 //#define SRS_IND_DEBUG
 
@@ -280,6 +267,7 @@ void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_gNB_TX + gNB->CC_id, 0);
 }
 
+
 static void nr_postDecode(PHY_VARS_gNB *gNB, ldpcDecode_t *rdata)
 {
   NR_UL_gNB_HARQ_t *ulsch_harq = rdata->ulsch_harq;
@@ -352,7 +340,8 @@ static void nr_postDecode(PHY_VARS_gNB *gNB, ldpcDecode_t *rdata)
       //      dumpsig=1;
     }
     ulsch->last_iteration_cnt = rdata->decodeIterations;
-    /*
+    
+    /* 
         if (ulsch_harq->ulsch_pdu.mcs_index == 0 && dumpsig==1) {
           int off = ((ulsch_harq->ulsch_pdu.rb_size&1) == 1)? 4:0;
 
@@ -389,10 +378,13 @@ static void nr_postDecode(PHY_VARS_gNB *gNB, ldpcDecode_t *rdata)
 
         }
     */
+   
+    
     ulsch->last_iteration_cnt = rdata->decodeIterations;
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_gNB_ULSCH_DECODING,0);
   }
 }
+
 
 static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH_id, uint8_t harq_pid, thread_info_tm_t* t_info)
 {
@@ -823,8 +815,8 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
     }
   }
 
-  ldpcDecode_t arr[16]; 
-  task_ans_t ans[16] = {0};
+  ldpcDecode_t arr[64]; 
+  task_ans_t ans[64] = {0};
   thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .ans = ans};
 
   //int64_t const t0 = time_now_ns();
@@ -925,7 +917,6 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
       // LOG_M("rxdataF_comp.m","rxF_comp",gNB->pusch_vars[0]->rxdataF_comp[0],6900,1,1);
       // LOG_M("rxdataF_ext.m","rxF_ext",gNB->pusch_vars[0]->rxdataF_ext[0],6900,1,1);
       VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_ULSCH_PROCEDURES_RX, 1);
-
       int const tasks_added = nr_ulsch_procedures(gNB, frame_rx, slot_rx, ULSCH_id, ulsch->harq_pid, &t_info);
       if (tasks_added > 0)
         totalDecode += tasks_added; 

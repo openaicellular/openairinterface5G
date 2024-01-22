@@ -44,7 +44,7 @@
 #include "common/utils/nr/nr_common.h"
 #include "openair1/PHY/TOOLS/phy_scope_interface.h"
 #include "nfapi/open-nFAPI/nfapi/public_inc/nfapi_nr_interface.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 
 //#define ENABLE_PHY_PAYLOAD_DEBUG 1

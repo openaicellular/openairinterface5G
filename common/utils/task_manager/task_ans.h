@@ -1,7 +1,9 @@
-#ifndef TASK_MANAGER_WORKING_STEALING_H
-#define TASK_MANAGER_WORKING_STEALING_H 
+#ifndef TASK_ANSWER_THREAD_POOL_H
+#define TASK_ANSWER_THREAD_POOL_H  
 
-#include "task.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef __cplusplus
 #include <stdalign.h>
@@ -12,8 +14,7 @@
 #define _Alignas(X) alignas(X) 
 #endif
 
-#include <pthread.h>
-#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #if defined (__i386__) || defined(__x86_64__)
@@ -37,37 +38,8 @@ void join_task_ans(task_ans_t* arr, size_t len);
 
 void completed_task_ans(task_ans_t* task); 
 
-
-
-typedef struct{
-  uint8_t* buf;
-  size_t len;
-  task_ans_t* ans;
-} thread_info_tm_t;
-
-typedef struct{
-
-  pthread_t* t_arr;
-  size_t len_thr;
-  
-  _Atomic(uint64_t) index;
-
-  void* q_arr;
-
-  _Atomic(uint64_t) num_task;
-
-  pthread_barrier_t barrier;
-
-} task_manager_t;
-
-void init_task_manager(task_manager_t* man, size_t num_threads);
-
-void free_task_manager(task_manager_t* man, void (*clean)(task_t* args) );
-
-void async_task_manager(task_manager_t* man, task_t t);
-
-// Compatibility with previous TPool
-int parse_num_threads(char const* params);
-
+#ifdef __cplusplus
+}
 #endif
 
+#endif

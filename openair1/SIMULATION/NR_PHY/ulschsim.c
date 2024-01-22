@@ -45,12 +45,11 @@
 #include "openair1/SIMULATION/TOOLS/sim.h"
 #include "openair1/SIMULATION/RF/rf.h"
 #include "openair1/SIMULATION/NR_PHY/nr_unitary_defs.h"
-#include "common/utils/threadPool/thread-pool.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 #include "openair2/LAYER2/NR_MAC_COMMON/nr_mac_common.h"
 #include "executables/nr-uesoftmodem.h"
 #include "nfapi/oai_integration/vendor_ext.h"
-
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 //#define DEBUG_NR_ULSCHSIM
 
@@ -411,8 +410,8 @@ int main(int argc, char **argv)
   gNB = RC.gNB[0];
   //gNB_config = &gNB->gNB_config;
 
-  int const num_threads = parse_num_threads("n"); 
-  init_task_manager(&gNB->man, num_threads);
+  int lst_core_id = -1;
+  init_task_manager(&gNB->man, &lst_core_id, 1);
 
   initNotifiedFIFO(&gNB->respDecode);
   frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)

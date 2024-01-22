@@ -36,6 +36,7 @@
 #include "LAYER2/nr_pdcp/nr_pdcp_oai_api.h"
 #include "LAYER2/nr_rlc/nr_rlc_oai_api.h"
 #include "RRC/NR/MESSAGES/asn1_msg.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 /*
  *  NR SLOT PROCESSING SEQUENCE

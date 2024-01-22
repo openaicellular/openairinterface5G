@@ -49,8 +49,7 @@
 #include "openair2/LAYER2/NR_MAC_COMMON/nr_mac_common.h"
 #include "executables/nr-uesoftmodem.h"
 #include "nfapi/oai_integration/vendor_ext.h"
-
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 //#define DEBUG_NR_DLSCHSIM
 
@@ -375,11 +374,16 @@ int main(int argc, char **argv)
 	RC.gNB[0] = calloc(1, sizeof(PHY_VARS_gNB));
 	gNB = RC.gNB[0];
 
-  int const num_threads = parse_num_threads(gNBthreads); 
-  init_task_manager(&gNB->man, num_threads);
-  init_task_manager(&nrUE_params.man, max(dlsch_threads, 1));
+  int core_id[128] = {0};
+  span_core_id_t out = {.cap = 128, .core_id = core_id};
+  parse_num_threads(gNBthreads, &out);
+  init_task_manager(&gNB->man, out.core_id, out.sz);
 
-	frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
+  int lst_core_id[8] = {-1,-1,-1,-1,-1,-1,-1,-1 };
+  assert(dlsch_threads < 8);
+  init_task_manager(&nrUE_params.man, lst_core_id, max(dlsch_threads, 1));
+
+  frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
 	frame_parms->nb_antennas_tx = n_tx;
 	frame_parms->nb_antennas_rx = n_rx;
 	frame_parms->N_RB_DL = N_RB_DL;

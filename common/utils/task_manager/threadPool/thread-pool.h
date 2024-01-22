@@ -24,6 +24,9 @@
 
 #ifndef THREAD_POOL_H
 #define THREAD_POOL_H
+
+#include "../task.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <malloc.h>
@@ -31,7 +34,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/syscall.h>
-#include "assertions.h"
+#include "common/utils/assertions.h"
 #include "common/utils/time_meas.h"
 #include "common/utils/system.h"
 
@@ -61,6 +64,7 @@ typedef struct notifiedFIFO_elt_s {
   uint64_t key; //To filter out elements
   struct notifiedFIFO_s *reponseFifo;
   void (*processingFunc)(void *);
+  void* processingArg;
   bool malloced;
   oai_cputime_t creationTime;
   oai_cputime_t startProcessingTime;
@@ -341,6 +345,12 @@ static inline int abortTpool(tpool_t *t) {
 
   return nbRemoved;
 }
+
+void init_sq_task_manager(tpool_t *pool, int* lst, size_t num_threads);
+void async_sq_task_manager(tpool_t* pool, task_t t);
+void free_sq_task_manager(tpool_t* pool, void (*clean)(task_t*));
+
+
 void initNamedTpool(char *params,tpool_t *pool, bool performanceMeas, char *name);
 void initFloatingCoresTpool(int nbThreads,tpool_t *pool, bool performanceMeas, char *name);
 #define  initTpool(PARAMPTR,TPOOLPTR, MEASURFLAG) initNamedTpool(PARAMPTR,TPOOLPTR, MEASURFLAG, NULL)

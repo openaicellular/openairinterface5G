@@ -42,8 +42,7 @@
 #include "common/utils/LOG/log.h"
 #include "executables/lte-softmodem.h"
 #include <syscall.h>
-#include <common/utils/threadPool/thread-pool.h>
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 //#define DEBUG_DLSCH_CODING
 //#define DEBUG_DLSCH_FREE 1

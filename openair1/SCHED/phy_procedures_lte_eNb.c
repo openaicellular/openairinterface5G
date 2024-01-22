@@ -41,7 +41,7 @@
 #include <common/utils/system.h>
 #include "common/utils/LOG/vcd_signal_dumper.h"
 #include <nfapi/oai_integration/nfapi_pnf.h>
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 #include "assertions.h"
 

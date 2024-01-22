@@ -56,7 +56,7 @@
 #include "openair2/RRC/NR/nr_rrc_config.h"
 #include "openair2/LAYER2/NR_MAC_UE/mac_proto.h"
 #include "openair2/LAYER2/NR_MAC_gNB/mac_proto.h"
-#include "common/utils/threadPool/thread-pool.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 #include "PHY/NR_REFSIG/ptrs_nr.h"
 #define inMicroS(a) (((double)(a))/(get_cpu_freq_GHz()*1000.0))
 #include "SIMULATION/LTE_PHY/common_sim.h"
@@ -67,7 +67,7 @@
 #include "PHY/NR_REFSIG/ul_ref_seq_nr.h"
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "executables/nr-uesoftmodem.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 //#define DEBUG_ULSIM
 
 const char *__asan_default_options()
@@ -556,7 +556,9 @@ int main(int argc, char *argv[])
   gNB->RU_list[0] = calloc(1, sizeof(**gNB->RU_list));
   gNB->RU_list[0]->rfdevice.openair0_cfg = openair0_cfg;
 
-  init_task_manager(&gNB->man, max(threadCnt, 1));
+  int lst_core_id[32] = {-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1};
+  assert(threadCnt < 33);
+  init_task_manager(&gNB->man, lst_core_id, max(threadCnt, 1));
 
   initNotifiedFIFO(&gNB->respDecode);
 

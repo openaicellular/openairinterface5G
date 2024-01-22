@@ -49,7 +49,7 @@
 #include "common_lib.h"
 #include "fapi_nr_ue_interface.h"
 #include "assertions.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/thread_pool/task_manager.h"
 
 #ifdef MEX
   #define msg mexPrintf

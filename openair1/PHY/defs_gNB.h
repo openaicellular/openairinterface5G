@@ -43,7 +43,7 @@
 #include "PHY/CODING/nrLDPC_decoder/nrLDPC_types.h"
 #include "executables/rt_profiling.h"
 #include "nfapi_nr_interface_scf.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/thread_pool/task_manager.h"
 
 #define MAX_NUM_RU_PER_gNB 8
 #define MAX_PUCCH0_NID 8

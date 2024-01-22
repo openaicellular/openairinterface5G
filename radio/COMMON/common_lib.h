@@ -37,7 +37,7 @@
 #include <sys/types.h>
 #include <openair1/PHY/TOOLS/tools_defs.h>
 #include "record_player.h"
-#include <common/utils/threadPool/thread-pool.h>
+#include <common/utils/task_manager/threadPool/thread-pool.h>
 
 /* default name of shared library implementing the radio front end */
 #define OAI_RF_LIBNAME        "oai_device"

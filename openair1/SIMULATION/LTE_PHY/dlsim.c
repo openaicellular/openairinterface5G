@@ -56,7 +56,7 @@
 #include "dummy_functions.c"
 #include "executables/thread-common.h"
 #include "common/ran_context.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 void feptx_ofdm(RU_t *ru, int frame, int subframe);
 void feptx_prec(RU_t *ru, int frame, int subframe);
 
@@ -1259,8 +1259,8 @@ int main(int argc, char **argv) {
   proc_eNB->respDecode=(notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
   initNotifiedFIFO(proc_eNB->respDecode);
   
-  int const n_threads = parse_num_threads("n");
-  init_task_manager(&man, n_threads);
+  int lst_core_id = -1;
+  init_task_manager(&man, &lst_core_id, 1);
   proc_eNB->man = &man;
 
   proc_eNB->frame_tx=0;

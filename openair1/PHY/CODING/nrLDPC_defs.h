@@ -24,7 +24,7 @@
 #define __NRLDPC_DEFS__H__
 #include <openair1/PHY/defs_nr_common.h>
 #include "openair1/PHY/CODING/nrLDPC_decoder/nrLDPC_types.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/thread_pool/task_manager.h"
 
 /**
    \brief LDPC encoder

@@ -66,7 +66,7 @@
 #include "PHY/LTE_TRANSPORT/transport_eNB.h"
 #include "openair2/PHY_INTERFACE/IF_Module.h"
 #include "common/openairinterface5g_limits.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 #define PBCH_A 24
 #define MAX_NUM_RU_PER_eNB 64

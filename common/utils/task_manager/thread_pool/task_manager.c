@@ -31,7 +31,6 @@
     static_assert(0!=0, "Unknown CPU architecture");
 #endif
 
-
 /*
 static
 int64_t time_now_us(void)
@@ -48,6 +47,7 @@ int64_t time_now_us(void)
   }
   return micros;
 }
+*/
 
 static
 void pin_thread_to_core(int core_num)
@@ -59,7 +59,6 @@ void pin_thread_to_core(int core_num)
   assert(ret != -1); 
   printf("Pining into core %d id %ld \n", core_num, pthread_self());
 }
-*/
 
 //////////////////////////////
 //////////////////////////////
@@ -202,6 +201,7 @@ typedef struct {
   pthread_cond_t cv;
   seq_ring_task_t r;
   size_t t_id;
+  size_t idx; // for debugginf
  // _Atomic int32_t* futex;
   //_Atomic bool* waiting;
   _Atomic int done;
@@ -214,10 +214,12 @@ typedef struct{
 
 
 static
-void init_not_q(not_q_t* q, size_t t_id /*, _Atomic int32_t* futex , _Atomic bool* waiting */)
+void init_not_q(not_q_t* q, size_t idx, size_t t_id /*, _Atomic int32_t* futex , _Atomic bool* waiting */)
 {
   assert(q != NULL);
   assert(t_id != 0 && "Invalid thread id");
+
+  q->idx = idx;
 
   q->done = 0;
   //q->waiting = waiting;
@@ -352,6 +354,8 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
     pthread_cond_wait(&q->cv , &q->mtx);
   }
 
+  //printf("Waking idx %ld %ld \n", q->idx, time_now_us());
+
   assert(q->done == 0 || q->done ==1);
   if(q->done == 1){
     int rc = pthread_mutex_unlock(&q->mtx);
@@ -400,8 +404,9 @@ void done_not_q(not_q_t* q)
 //static int marker_fd;
 
 typedef struct{
-  task_manager_t* man;
+  ws_task_manager_t* man;
   int idx;
+  int core_id; 
 } task_thread_args_t;
 
 
@@ -420,19 +425,20 @@ void* worker_thread(void* arg)
   task_thread_args_t* args = (task_thread_args_t*)arg; 
   int const idx = args->idx;
 
-  //int const log_cores = get_nprocs_conf();
-  //assert(log_cores > 0);
-  // Assuming: 2 x Physical cores = Logical cores
-  //pin_thread_to_core(idx+log_cores/2);
-
-  task_manager_t* man = args->man;
+  ws_task_manager_t* man = args->man;
 
   uint32_t const len = man->len_thr;
   uint32_t const num_it = 2*(man->len_thr + idx); 
 
   not_q_t* q_arr = (not_q_t*)man->q_arr;
 
-  init_not_q(&q_arr[idx], pthread_self() );   
+  init_not_q(&q_arr[idx], idx, pthread_self() );   
+
+  int const logical_cores = get_nprocs_conf();
+  assert(logical_cores > 0);
+  assert(args->core_id > -2 && args->core_id < logical_cores);
+  if(args->core_id != -1)
+    pin_thread_to_core(args->core_id);
 
   // Synchronize all threads
   pthread_barrier_wait(&man->barrier);
@@ -468,7 +474,7 @@ void* worker_thread(void* arg)
   return NULL;
 }
 
-void init_task_manager(task_manager_t* man, size_t num_threads)
+void init_ws_task_manager(ws_task_manager_t* man, int* core_id, size_t num_threads)
 {
   assert(man != NULL);
   assert(num_threads > 0 && num_threads < 33 && "Do you have zero or more than 32 processors??");
@@ -482,27 +488,28 @@ void init_task_manager(task_manager_t* man, size_t num_threads)
 
   man->index = 0;
 
-
   const pthread_barrierattr_t * barrier_attr = NULL;
   int rc = pthread_barrier_init(&man->barrier, barrier_attr, num_threads + 1);
   assert(rc == 0);
 
   for(size_t i = 0; i < num_threads; ++i){
     task_thread_args_t* args = malloc(sizeof(task_thread_args_t) ); 
+    assert(args != NULL && "Memory exhausted");
     args->idx = i;
     args->man = man;
+    args->core_id = core_id[i];
 
     pthread_attr_t attr = {0};
-    
-    int ret=pthread_attr_init(&attr);
+
+    int ret = pthread_attr_init(&attr);
     assert(ret == 0);
-    ret=pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+    ret = pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
     assert(ret == 0);
-    ret=pthread_attr_setschedpolicy(&attr, SCHED_RR);
+    ret = pthread_attr_setschedpolicy(&attr, SCHED_RR);
     assert(ret == 0);
-    struct sched_param sparam={0};
-    sparam.sched_priority = 94;
-    ret=pthread_attr_setschedparam(&attr, &sparam);
+    struct sched_param sparam = {0};
+    sparam.sched_priority = 99;
+    ret = pthread_attr_setschedparam(&attr, &sparam);
 
     int rc = pthread_create(&man->t_arr[i], &attr, worker_thread, args);
     if(rc != 0){
@@ -522,7 +529,7 @@ void init_task_manager(task_manager_t* man, size_t num_threads)
   //pin_thread_to_core(3);
 }
 
-void free_task_manager(task_manager_t* man, void (*clean)(task_t*))
+void free_ws_task_manager(ws_task_manager_t* man, void (*clean)(task_t*))
 {
   not_q_t* q_arr = (not_q_t*)man->q_arr;
   //atomic_store(&man->waiting, false);
@@ -547,7 +554,7 @@ void free_task_manager(task_manager_t* man, void (*clean)(task_t*))
 
 }
 
-void async_task_manager(task_manager_t* man, task_t t)
+void async_ws_task_manager(ws_task_manager_t* man, task_t t)
 {
   assert(man != NULL);
   assert(man->len_thr > 0);
@@ -563,6 +570,9 @@ void async_task_manager(task_manager_t* man, task_t t)
   for(size_t i = 0; i < len_thr ; ++i){
     if(try_push_not_q(&q_arr[(i+index) % len_thr], t)){
       man->num_task +=1;
+
+      //printf("Pushing idx %ld %ld \n",(i+index) % len_thr, time_now_us());
+
       //  Debbugging purposes
       //cnt_in++;
       //printf(" async_task_manager t_id %ld Tasks in %d %ld num_task %ld idx %ld \n", pthread_self(), cnt_in, time_now_us(), man->num_task, (i+index) % len_thr );
@@ -572,83 +582,13 @@ void async_task_manager(task_manager_t* man, task_t t)
 
   push_not_q(&q_arr[index%len_thr], t);
 
+  //printf("Pushing idx %ld %ld \n", index % len_thr, time_now_us());
+
   man->num_task +=1;
 
   // Debbugging purposes
   //cnt_in++;
   //printf("t_id %ld Tasks in %d %ld num_takss %ld idx %ld \n", pthread_self(), cnt_in, time_now_us(), man->num_task , index % len_thr );
-}
-
-void completed_task_ans(task_ans_t* task)
-{
-  assert(task != NULL);
-
-  int const task_not_completed = 0;
-  assert(atomic_load_explicit(&task->status, memory_order_acquire) == task_not_completed && "Task already finished?");
-
-  //atomic_store_explicit(&task->status, 1, memory_order_release);
-  atomic_store_explicit(&task->status, 1, memory_order_seq_cst);
-}
-
-
-// This function does not belong here logically
-//
-void join_task_ans(task_ans_t* arr, size_t len)
-{
-  assert(len < INT_MAX);
-  assert(arr != NULL);
-
-  // We are believing Fedor
-  const struct timespec ns = {0,1};
-  uint64_t i = 0;
-  int j = len -1;
-  for(; j != -1 ; i++){
-    for(; j != -1; --j){
-      int const task_completed = 1;
-      //if(atomic_load_explicit(&arr[j].status, memory_order_acquire) != task_completed) 
-      if(atomic_load_explicit(&arr[j].status, memory_order_seq_cst) != task_completed) 
-        break;
-    }
-    if(i % 8 == 0){
-      nanosleep(&ns, NULL);
-    }
-    //sched_yield();
-   // pause_or_yield(); 
-  }
-}
-
-// Compatibility with previous TPool
-int parse_num_threads(char const* params)
-{
-  assert(params != NULL);
-
-  char *saveptr = NULL;
-  char* params_cpy = strdup(params);
-  char* curptr = strtok_r(params_cpy, ",", &saveptr);
-  
-  int nbThreads = 0;
-  while (curptr != NULL) {
-    int const c = toupper(curptr[0]);
-
-    switch (c) {
-      case 'N': {
-        // pool->activated=false;
-        free(params_cpy);
-        return 1;
-        break;
-      }
-
-      default: {
-        int const core_id = atoi(curptr);
-        printf("[MIR]: Ask to create a thread for core %d ignoring request\n", core_id);
-        nbThreads++;
-      }
-    }
-    curptr = strtok_r(NULL, ",", &saveptr);
-  }
-
-  free(params_cpy);
-  return nbThreads;
 }
 
 #undef pause_or_yield

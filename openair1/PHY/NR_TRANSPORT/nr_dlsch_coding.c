@@ -44,7 +44,7 @@
 #include "common/utils/nr/nr_common.h"
 #include <syscall.h>
 #include <openair2/UTIL/OPT/opt.h>
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 //#define DEBUG_DLSCH_CODING
 //#define DEBUG_DLSCH_FREE 1

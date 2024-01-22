@@ -55,7 +55,7 @@
 #include "PHY/LTE_ESTIMATION/lte_estimation.h"
 #include "openair1/PHY/LTE_TRANSPORT/dlsch_tbs_full.h"
 #include "PHY/phy_extern.h"
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 const char *__asan_default_options()
 {
@@ -789,10 +789,10 @@ int main(int argc, char **argv) {
   proc_rxtx_ue->subframe_tx = proc_rxtx->subframe_rx;
   proc_rxtx_ue->subframe_rx = (proc_rxtx->subframe_tx+6)%10;
  
-  int const n_threads = parse_num_threads("n");
-  proc_rxtx->man = calloc(1, sizeof(task_manager_t));
+  int lst_core_id = -1;
+  proc_rxtx->man = calloc(1, sizeof(ws_task_manager_t));
   assert(proc_rxtx->man != NULL && "Memory exhausted");
-  init_task_manager(proc_rxtx->man, n_threads);
+  init_task_manager(proc_rxtx->man, &lst_core_id, 1);
 
   proc_rxtx->respDecode=(notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
   initNotifiedFIFO(proc_rxtx->respDecode);

@@ -90,7 +90,7 @@
 #include <openair1/PHY/NR_TRANSPORT/nr_dlsch.h>
 #include <PHY/NR_ESTIMATION/nr_ul_estimation.h>
 
-#include "common/utils/thread_pool/task_manager.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 time_stats_t softmodem_stats_mt; // main thread
 time_stats_t softmodem_stats_hw; //  hw acquisition
@@ -379,10 +379,13 @@ void init_gNB_Tpool(int inst) {
   gNB = RC.gNB[inst];
 
   // ULSCH decoding threadpool
-  int const num_threads = parse_num_threads(get_softmodem_params()->threadPoolConfig);
-  init_task_manager(&gNB->man, num_threads);
+  int core_id[128] = {0}; 
+  span_core_id_t out = {.cap = 128, .core_id = core_id, .sz = 0};
+  parse_num_threads(get_softmodem_params()->threadPoolConfig, &out);
+  init_task_manager(&gNB->man, out.core_id, out.sz);
   // 2nd tpool needed to avoid current cycle and deadlock
-  init_task_manager(&gNB->man_rx_tx_ru, 2);
+  int lst_cores[] = {-1, -1};
+  init_task_manager(&gNB->man_rx_tx_ru, lst_cores, 2);
 
   gNB_L1_proc_t *proc = &gNB->proc;
   // PUSCH symbols per thread need to be calculated by how many threads we have
@@ -421,15 +424,16 @@ void init_gNB_Tpool(int inst) {
 void term_gNB_Tpool(int inst) {
   PHY_VARS_gNB *gNB = RC.gNB[inst];
  
-  void (*clean)(task_t*) = NULL;
-  free_task_manager(&gNB->man , clean);
-  free_task_manager(&gNB->man_rx_tx_ru , clean);
   abortNotifiedFIFO(&gNB->respDecode);
   abortNotifiedFIFO(&gNB->resp_L1);
   abortNotifiedFIFO(&gNB->L1_tx_free);
   abortNotifiedFIFO(&gNB->L1_tx_filled);
   abortNotifiedFIFO(&gNB->L1_tx_out);
   abortNotifiedFIFO(&gNB->L1_rx_out);
+
+  void (*clean)(task_t*) = NULL;
+  free_task_manager(&gNB->man , clean);
+  free_task_manager(&gNB->man_rx_tx_ru , clean);
 
   gNB_L1_proc_t *proc = &gNB->proc;
   if (!get_softmodem_params()->emulate_l1)
