@@ -817,7 +817,7 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
 
   ldpcDecode_t arr[64]; 
   task_ans_t ans[64] = {0};
-  thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .ans = ans};
+  thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .cap = 64, .ans = ans};
 
   //int64_t const t0 = time_now_ns();
   int totalDecode = 0;

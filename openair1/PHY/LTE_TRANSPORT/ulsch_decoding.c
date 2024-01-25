@@ -339,7 +339,7 @@ static int ulsch_decoding_data(PHY_VARS_eNB *eNB, L1_rxtx_proc_t *proc, int UE_i
       E = ulsch_harq->Qm * ((GpmodC==0?0:1) + (Gp/ulsch_harq->C));
 
     turboDecode_t* rdata = &((turboDecode_t*)t_info->buf)[t_info->len];
-    assert(t_info->len < 64);
+    assert(t_info->len < t_info->cap);
     rdata->ans = &t_info->ans[t_info->len];
     t_info->len += 1;
 

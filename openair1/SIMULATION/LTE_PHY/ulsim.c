@@ -790,7 +790,7 @@ int main(int argc, char **argv) {
   proc_rxtx_ue->subframe_rx = (proc_rxtx->subframe_tx+6)%10;
  
   int lst_core_id = -1;
-  proc_rxtx->man = calloc(1, sizeof(ws_task_manager_t));
+  proc_rxtx->man = calloc(1, sizeof(task_manager_t));
   assert(proc_rxtx->man != NULL && "Memory exhausted");
   init_task_manager(proc_rxtx->man, &lst_core_id, 1);
 

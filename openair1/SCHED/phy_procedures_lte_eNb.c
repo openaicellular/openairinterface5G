@@ -1330,7 +1330,7 @@ void pusch_procedures(PHY_VARS_eNB *eNB,L1_rxtx_proc_t *proc) {
 
   turboDecode_t arr[64] = {0};
   task_ans_t ans[64] = {0};
-  thread_info_tm_t t_info = { .ans = ans, .buf = (uint8_t*)arr };
+  thread_info_tm_t t_info = { .ans = ans, .cap = 64, .len = 0, .buf = (uint8_t*)arr };
 
   for (i = 0; i < NUMBER_OF_ULSCH_MAX; i++) {
     ulsch = eNB->ulsch[i];

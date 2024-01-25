@@ -448,7 +448,7 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
     int E = nr_get_E(G, harq_process->C, Qm, n_layers, r);
 
     ldpcDecode_t* rdata = &((ldpcDecode_t*)t_info->buf)[t_info->len]; 
-    assert(t_info->len < 64);
+    assert(t_info->len < t_info->cap);
     rdata->ans = &t_info->ans[t_info->len];
     t_info->len += 1;
 

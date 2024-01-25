@@ -68,7 +68,7 @@ typedef struct {
   uint64_t       optmask;   //mask to store boolean config options
   uint32_t       ofdm_offset_divisor; // Divisor for sample offset computation for each OFDM symbol
   int            max_ldpc_iterations; // number of maximum LDPC iterations
-  ws_task_manager_t man; 
+  task_manager_t man; 
   int            UE_scan_carrier;
   int UE_fo_compensation;
   uint64_t       if_freq;

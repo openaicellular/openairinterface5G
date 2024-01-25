@@ -553,7 +553,7 @@ int main ( int argc, char **argv )
       L1_rxtx_proc_t *L1proctx= &RC.eNB[x][CC_id]->proc.L1_proc_tx;
       L1proc->respDecode=(notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
       if ( strlen(get_softmodem_params()->threadPoolConfig) > 0 ){
-        L1proc->man = calloc(1, sizeof(ws_task_manager_t));
+        L1proc->man = calloc(1, sizeof(task_manager_t));
         assert(L1proc->man != NULL && "Memory exhausted");
         
         int core_id[128] = {0};
@@ -561,7 +561,7 @@ int main ( int argc, char **argv )
         parse_num_threads(get_softmodem_params()->threadPoolConfig, &out);
         init_task_manager(L1proc->man, out.core_id, out.sz);
       }else {
-        L1proc->man = calloc(1, sizeof(ws_task_manager_t));
+        L1proc->man = calloc(1, sizeof(task_manager_t));
         assert(L1proc->man != NULL && "Memory exhausted");
         int lst_core_id = -1;
         init_task_manager(L1proc->man, &lst_core_id, 1);

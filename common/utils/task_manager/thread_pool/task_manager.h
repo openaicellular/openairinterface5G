@@ -11,6 +11,7 @@
 typedef struct{
   uint8_t* buf;
   size_t len;
+  size_t cap; // capacity
   task_ans_t* ans;
 } thread_info_tm_t;
 
