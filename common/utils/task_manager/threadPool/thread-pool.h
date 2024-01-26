@@ -343,6 +343,9 @@ static inline int abortTpool(tpool_t *t) {
     thread = thread->next;
   }
 
+  if(t->allthreads != NULL)
+    free(t->allthreads);
+
   return nbRemoved;
 }
 
