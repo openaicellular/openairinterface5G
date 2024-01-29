@@ -336,6 +336,10 @@ static inline int abortTpool(tpool_t *t) {
   condbroadcast(t->incomingFifo.notifF);
   mutexunlock(nf->lockF);
 
+  // Poor man's solution for letting the threads
+  // finish and avoid a data race
+  sleep(1);
+
   /* join threads that are still runing */
   thread = t->allthreads;
   while (thread != NULL) {
