@@ -11,9 +11,9 @@
 // desired thread pool
 
 // Work stealing thread pool
-// #define task_manager_t ws_task_manager_t
+ #define task_manager_t ws_task_manager_t
 // Previous single queue OAI thread pool 
-#define task_manager_t tpool_t
+//#define task_manager_t tpool_t
 // Most rated C thread pool in github
 //#define task_manager_t threadpool
 

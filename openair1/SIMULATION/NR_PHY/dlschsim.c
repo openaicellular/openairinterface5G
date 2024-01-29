@@ -663,8 +663,8 @@ int main(int argc, char **argv)
   free(gNB->gNB_config.tdd_table.max_tdd_periodicity_list);
 
   void (*clean)(task_t*) = NULL;
-  free_task_manager(&gNB->man, clean);
   free_task_manager(&nrUE_params.man, clean);
+  free_task_manager(&gNB->man, clean);
 
   phy_free_nr_gNB(gNB);
   free(RC.gNB[0]);
