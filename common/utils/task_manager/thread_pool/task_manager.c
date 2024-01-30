@@ -22,6 +22,10 @@
 
 #include <ctype.h> // toupper
 
+//#define POLL_AND_SLEEP 
+
+
+
 
 #if defined (__i386__) || defined(__x86_64__)
   #define pause_or_yield  __builtin_ia32_pause
@@ -339,6 +343,58 @@ ret_try_t try_pop_not_q(not_q_t* q)
   return ret;
 }
 
+#ifdef POLL_AND_SLEEP 
+
+static
+bool pop_not_q(not_q_t* q, ret_try_t* out)
+{
+  assert(q != NULL);
+  assert(out != NULL);
+  assert(q->done == 0 || q->done ==1);
+
+  int rc = pthread_mutex_lock(&q->mtx);
+  assert(rc == 0);
+  assert(q->done == 0 || q->done ==1);
+
+
+  const struct timespec ns = {0,1024};
+  int cnt = 0;
+  while(size_seq_ring_task(&q->r) == 0 && q->done == 0){
+
+    rc = pthread_mutex_unlock(&q->mtx);
+    assert(rc == 0);
+
+    nanosleep(&ns, NULL);
+
+    int rc = pthread_mutex_lock(&q->mtx);
+    assert(rc == 0);
+
+    if(cnt == 1024){
+      cnt = 0;
+      pthread_cond_wait(&q->cv , &q->mtx);
+    }
+    cnt++;
+  }
+
+  //printf("Waking idx %ld %ld \n", q->idx, time_now_us());
+
+  assert(q->done == 0 || q->done ==1);
+  if(q->done == 1){
+    int rc = pthread_mutex_unlock(&q->mtx);
+    assert(rc == 0);
+    return false;
+  }
+
+  out->t = pop_seq_ring_task(&q->r);
+
+  rc = pthread_mutex_unlock(&q->mtx);
+  assert(rc == 0);
+
+  return true;
+}
+
+#else
+
 static
 bool pop_not_q(not_q_t* q, ret_try_t* out)
 {
@@ -370,6 +426,8 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
 
   return true;
 }
+#endif
+
 
 static
 void done_not_q(not_q_t* q)
