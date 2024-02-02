@@ -198,7 +198,8 @@ void init_sq_task_manager(tpool_t *pool, int* lst, size_t num_threads)
   assert(it < 1024);
 
   bool performanceMeas = false;
-  char name[] = "single_queue_thread_pool";
+  // Single Queue thread pool
+  char name[] = "sq_TPool-";
   initNamedTpool(str, pool, performanceMeas, name);
 }
 

@@ -356,20 +356,23 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
   assert(rc == 0);
   assert(q->done == 0 || q->done ==1);
 
+ // printf("Sleeping idx %ld %ld \n", q->idx, time_now_us());
 
-  const struct timespec ns = {0,1024};
+  const struct timespec ns = {0,1};
   int cnt = 0;
   while(size_seq_ring_task(&q->r) == 0 && q->done == 0){
 
     rc = pthread_mutex_unlock(&q->mtx);
     assert(rc == 0);
 
-    nanosleep(&ns, NULL);
+    cnt++;
+    if(cnt % 64)
+    	nanosleep(&ns, NULL);
 
     int rc = pthread_mutex_lock(&q->mtx);
     assert(rc == 0);
 
-    if(cnt == 1024){
+    if(cnt == 4*1024){
       cnt = 0;
       pthread_cond_wait(&q->cv , &q->mtx);
     }

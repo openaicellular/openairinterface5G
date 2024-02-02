@@ -556,8 +556,12 @@ int main(int argc, char *argv[])
   gNB->RU_list[0] = calloc(1, sizeof(**gNB->RU_list));
   gNB->RU_list[0]->rfdevice.openair0_cfg = openair0_cfg;
 
-  int lst_core_id[32] = {-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1};
-  assert(threadCnt < 33);
+  const int max_cid = 32;
+  int lst_core_id[max_cid];
+  for(int i = 0; i < max_cid; ++i){
+     lst_core_id[i] = -1;
+  }
+  assert(threadCnt < max_cid);
   init_task_manager(&gNB->man, lst_core_id, max(threadCnt, 1));
 
   initNotifiedFIFO(&gNB->respDecode);
