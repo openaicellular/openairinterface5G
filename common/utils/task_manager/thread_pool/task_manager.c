@@ -1,3 +1,24 @@
+/*
+ * Licensed to the OpenAirInterface (OAI) Software Alliance under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The OpenAirInterface Software Alliance licenses this file to You under
+ * the OAI Public License, Version 1.1  (the "License"); you may not use this file
+ * except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.openairinterface.org/?page_id=698
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *-------------------------------------------------------------------------------
+ * For more information about the OpenAirInterface (OAI) Software Alliance:
+ *      contact@openairinterface.org
+ */
+
 #define _GNU_SOURCE
 #include <unistd.h>
 
@@ -5,6 +26,7 @@
 
 #include <assert.h> 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -14,8 +36,6 @@
 #include <sys/types.h>
 #include <sys/sysinfo.h>
 
-#include <fcntl.h>
-
 #include <linux/futex.h>      /* Definition of FUTEX_* constants */
 #include <sys/syscall.h>      /* Definition of SYS_* constants */
 #include <unistd.h>
@@ -23,32 +43,6 @@
 #include <ctype.h> // toupper
 
 //#define POLL_AND_SLEEP 
-
-#if defined (__i386__) || defined(__x86_64__)
-  #define pause_or_yield  __builtin_ia32_pause
-#elif __aarch64__
-  #define pause_or_yield() asm volatile("yield" ::: "memory")
-#else
-    static_assert(0!=0, "Unknown CPU architecture");
-#endif
-
-/*
-static
-int64_t time_now_us(void)
-{
-  struct timespec tms;
-  if (clock_gettime(CLOCK_MONOTONIC_RAW, &tms)) {
-    return -1;
-  }
-  int64_t micros = tms.tv_sec * 1000000;
-  int64_t const tv_nsec = tms.tv_nsec;
-  micros += tv_nsec/1000;
-  if (tv_nsec % 1000 >= 500) {
-    ++micros;
-  }
-  return micros;
-}
-*/
 
 static
 void pin_thread_to_core(int core_num)
@@ -69,19 +63,15 @@ void pin_thread_to_core(int core_num)
 //////////////////////////////
 
 // For working correctly, maintain the default elements to a 2^N e.g., 2^5=32
-#define DEFAULT_ELM 32
+#define DEFAULT_ELM 256
 
 typedef struct seq_ring_buf_s
 {
-//  const size_t elt_size;
   task_t* array;
-
   size_t cap;
   uint32_t head;
   uint32_t tail;
-
   _Atomic uint64_t sz;
-
 } seq_ring_task_t;
 
 typedef void (*seq_free_func)(task_t*); 
@@ -94,7 +84,7 @@ size_t size_seq_ring_task(seq_ring_task_t* r)
   return r->head - r->tail;
 }
 
-inline static
+static
 uint32_t mask(uint32_t cap, uint32_t val)
 {
   return val & (cap-1);
@@ -151,7 +141,6 @@ void free_seq_ring_task(seq_ring_task_t* r, seq_free_func fp)
   free(r->array);
 }
 
-
 static
 void push_back_seq_ring_task(seq_ring_task_t* r, task_t t)
 {
@@ -203,8 +192,6 @@ typedef struct {
   seq_ring_task_t r;
   size_t t_id;
   size_t idx; // for debugginf
- // _Atomic int32_t* futex;
-  //_Atomic bool* waiting;
   _Atomic int done;
 } not_q_t;
 
@@ -213,9 +200,8 @@ typedef struct{
   bool success;
 } ret_try_t;
 
-
 static
-void init_not_q(not_q_t* q, size_t idx, size_t t_id /*, _Atomic int32_t* futex , _Atomic bool* waiting */)
+void init_not_q(not_q_t* q, size_t idx, size_t t_id)
 {
   assert(q != NULL);
   assert(t_id != 0 && "Invalid thread id");
@@ -223,7 +209,6 @@ void init_not_q(not_q_t* q, size_t idx, size_t t_id /*, _Atomic int32_t* futex ,
   q->idx = idx;
 
   q->done = 0;
-  //q->waiting = waiting;
   init_seq_ring_task(&q->r);
 
   pthread_mutexattr_t attr = {0};
@@ -239,8 +224,6 @@ void init_not_q(not_q_t* q, size_t idx, size_t t_id /*, _Atomic int32_t* futex ,
   assert(rc == 0);
 
   q->t_id = t_id;
-
-  //q->futex = futex;
 }
 
 static
@@ -266,10 +249,9 @@ bool try_push_not_q(not_q_t* q, task_t t)
   assert(t.func != NULL);
   assert(t.args != NULL);
 
-//  if(q->t_id == pthread_self() ){
-//    printf("[MIR]: Cycle detected. Thread from tpool calling itself. Reentrancy forbidden \n");
-//    return false;
-//  }
+  if(q->t_id == pthread_self() ){
+    printf("[TASK_MAN]: Cycle detected. Thread from tpool calling itself. Reentrancy should be forbidden. Most probably a bug \n");
+  }
 
   if(pthread_mutex_trylock(&q->mtx ) != 0)
     return false;
@@ -305,7 +287,6 @@ void push_not_q(not_q_t* q, task_t t)
 
   pthread_cond_signal(&q->cv);
 }
-
 
 static
 ret_try_t try_pop_not_q(not_q_t* q)
@@ -353,8 +334,8 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
   assert(rc == 0);
   assert(q->done == 0 || q->done ==1);
 
- // printf("Sleeping idx %ld %ld \n", q->idx, time_now_us());
-
+  // Polling can be tunned using different combination
+  // of cnt values. it can also be done using pthread_cond_timedwait
   const struct timespec ns = {0,1};
   int cnt = 0;
   while(size_seq_ring_task(&q->r) == 0 && q->done == 0){
@@ -375,8 +356,6 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
     }
     cnt++;
   }
-
-  //printf("Waking idx %ld %ld \n", q->idx, time_now_us());
 
   assert(q->done == 0 || q->done ==1);
   if(q->done == 1){
@@ -410,8 +389,6 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
     pthread_cond_wait(&q->cv , &q->mtx);
   }
 
-  //printf("Waking idx %ld %ld \n", q->idx, time_now_us());
-
   assert(q->done == 0 || q->done ==1);
   if(q->done == 1){
     int rc = pthread_mutex_unlock(&q->mtx);
@@ -427,7 +404,6 @@ bool pop_not_q(not_q_t* q, ret_try_t* out)
   return true;
 }
 #endif
-
 
 static
 void done_not_q(not_q_t* q)
@@ -450,7 +426,6 @@ void done_not_q(not_q_t* q)
 //  q->futex++;
 }
 
-
 //////////////////////////////
 //////////////////////////////
 ////////// END Notification Queue //
@@ -458,15 +433,11 @@ void done_not_q(not_q_t* q)
 //////////////////////////////
 //////////////////////////////
 
-
-//static int marker_fd;
-
 typedef struct{
   ws_task_manager_t* man;
   int idx;
   int core_id; 
 } task_thread_args_t;
-
 
 // Just for debugging purposes, it is very slow!!!!
 //static
@@ -566,13 +537,13 @@ void init_ws_task_manager(ws_task_manager_t* man, int* core_id, size_t num_threa
     ret = pthread_attr_setschedpolicy(&attr, SCHED_RR);
     assert(ret == 0);
     struct sched_param sparam = {0};
-    sparam.sched_priority = 99;
+    sparam.sched_priority = 97;
     ret = pthread_attr_setschedparam(&attr, &sparam);
 
     int rc = pthread_create(&man->t_arr[i], &attr, worker_thread, args);
     if(rc != 0){
-      printf("[MIR]: %s \n", strerror(rc));
-      printf("[MIR]: Could not create the pthread with attributtes, trying without attributes\n" );
+      printf("[TASK_MAN]: %s \n", strerror(rc));
+      printf("[TASK_MAN]: Could not create the pthread with attributtes, trying without attributes\n" );
       rc = pthread_create(&man->t_arr[i], NULL, worker_thread, args);
       assert(rc == 0 && "Error creating a thread");
     }
@@ -580,17 +551,11 @@ void init_ws_task_manager(ws_task_manager_t* man, int* core_id, size_t num_threa
 
   // Syncronize thread pool threads. All the threads started
   pthread_barrier_wait(&man->barrier);
-
-  rc = pthread_barrier_destroy(&man->barrier);
-  assert(rc == 0);
-
-  //pin_thread_to_core(3);
 }
 
 void free_ws_task_manager(ws_task_manager_t* man, void (*clean)(task_t*))
 {
   not_q_t* q_arr = (not_q_t*)man->q_arr;
-  //atomic_store(&man->waiting, false);
 
   for(uint32_t i = 0; i < man->len_thr; ++i){
     done_not_q(&q_arr[i]);
@@ -605,11 +570,12 @@ void free_ws_task_manager(ws_task_manager_t* man, void (*clean)(task_t*))
     free_not_q(&q_arr[i], clean); 
   }
 
+  int rc = pthread_barrier_destroy(&man->barrier);
+  assert(rc == 0);
+
   free(man->q_arr);
 
   free(man->t_arr);
-
-
 }
 
 void async_ws_task_manager(ws_task_manager_t* man, task_t t)
@@ -617,7 +583,6 @@ void async_ws_task_manager(ws_task_manager_t* man, task_t t)
   assert(man != NULL);
   assert(man->len_thr > 0);
   assert(t.func != NULL);
-  //assert(t.args != NULL);
 
   size_t const index = man->index++;
   size_t const len_thr = man->len_thr;
@@ -648,6 +613,4 @@ void async_ws_task_manager(ws_task_manager_t* man, task_t t)
   //cnt_in++;
   //printf("t_id %ld Tasks in %d %ld num_takss %ld idx %ld \n", pthread_self(), cnt_in, time_now_us(), man->num_task , index % len_thr );
 }
-
-#undef pause_or_yield
 
