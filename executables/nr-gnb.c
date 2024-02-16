@@ -173,12 +173,6 @@ static void tx_func(void *param)
   /* this thread is done with the sched_info, decrease the reference counter */
   LOG_D(NR_PHY, "Calling deref_sched_response for id %d (tx_func) in %d.%d\n", info->sched_response_id, frame_tx, slot_tx);
   deref_sched_response(info->sched_response_id);
-
-  //assert(info->elt->reponseFifo == &gNB->L1_tx_out);
-  if (info->elt->reponseFifo) 
-    pushNotifiedFIFO(info->elt->reponseFifo, info->elt);
-  else
-    delNotifiedFIFO_elt(info->elt);
 }
 
 
@@ -290,12 +284,6 @@ void rx_func(void *param)
 
   stop_meas(&softmodem_stats_rxtx_sf);
   clock_gettime(CLOCK_MONOTONIC, &info->gNB->rt_L1_profiling.return_L1_RX[rt_prof_idx]);
-  
-  //assert(info->elt->reponseFifo == &gNB->resp_L1);
-  if (info->elt->reponseFifo) 
-    pushNotifiedFIFO(info->elt->reponseFifo, info->elt);
-  else
-    delNotifiedFIFO_elt(info->elt);
 }
 
 static size_t dump_L1_meas_stats(PHY_VARS_gNB *gNB, RU_t *ru, char *output, size_t outputlen) {
@@ -383,9 +371,6 @@ void init_gNB_Tpool(int inst) {
   span_core_id_t out = {.cap = 128, .core_id = core_id, .sz = 0};
   parse_num_threads(get_softmodem_params()->threadPoolConfig, &out);
   init_task_manager(&gNB->man, out.core_id, out.sz);
-  // 2nd tpool needed to avoid current cycle and deadlock
-  int lst_cores[] = {-1, -1};
-  init_task_manager(&gNB->man_rx_tx_ru, lst_cores, 2);
 
   gNB_L1_proc_t *proc = &gNB->proc;
   // PUSCH symbols per thread need to be calculated by how many threads we have
@@ -433,7 +418,7 @@ void term_gNB_Tpool(int inst) {
 
   void (*clean)(task_t*) = NULL;
   free_task_manager(&gNB->man , clean);
-  free_task_manager(&gNB->man_rx_tx_ru , clean);
+  
 
   gNB_L1_proc_t *proc = &gNB->proc;
   if (!get_softmodem_params()->emulate_l1)

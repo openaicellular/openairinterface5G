@@ -950,7 +950,7 @@ void *UE_thread(void *arg)
       // or the computed value is 0 = no offset to do
       // we store it to apply the drift compensation at beginning of next frame
       shiftForNextFrame = ret;
-    t = (task_t){.func = UE_dl_processing, .args = curMsgRx};
+    task_t t = {.func = UE_dl_processing, .args = curMsgRx};
     async_task_manager(&(get_nrUE_params()->man), t);
 
     // Start TX slot processing here. It runs in parallel with RX slot processing

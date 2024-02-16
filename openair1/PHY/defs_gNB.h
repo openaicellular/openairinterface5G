@@ -832,7 +832,6 @@ typedef struct processingData_L1tx {
   int num_ul_pdcch;
   /* a reference to the sched_response, to release it when not needed anymore */
   int sched_response_id;
-  notifiedFIFO_elt_t *elt;
 } processingData_L1tx_t;
 
 typedef struct processingData_L1rx {
