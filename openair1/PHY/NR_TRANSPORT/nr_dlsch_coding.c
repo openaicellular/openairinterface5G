@@ -336,7 +336,7 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
 
   start_meas(dlsch_segmentation_stats);
   impp.Kb = nr_segmentation(harq->b, harq->c, harq->B, &impp.n_segments, &impp.K, impp.Zc, &impp.F, impp.BG);
-  LATSEQ_P("D phy.cbseg--phy.ldpc", "len%u::fm%u.sl%u.nbseg%u.nbbitscb%u.rnti%u", 1, frame, slot, impp.n_segments, impp.K, rel15->rnti);
+  LATSEQ_P("D phy.cbseg--phy.ldpc", "len%u::fm%u.sl%u.nbseg%u.CBbits%u.Fbits%u.rnti%u", 1, frame, slot, impp.n_segments, impp.K. impp.F, rel15->rnti);
   stop_meas(dlsch_segmentation_stats);
 
   if (impp.n_segments>MAX_NUM_NR_DLSCH_SEGMENTS_PER_LAYER*rel15->nrOfLayers) {
