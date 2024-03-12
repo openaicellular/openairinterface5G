@@ -3136,7 +3136,7 @@ void prepare_initial_ul_rrc_message(gNB_MAC_INST *mac, NR_UE_info_t *UE)
   DevAssert(cellGroupConfig->rlc_BearerToAddModList->list.count == 1);
   const NR_RLC_BearerConfig_t *bearer = cellGroupConfig->rlc_BearerToAddModList->list.array[0];
   DevAssert(bearer->servedRadioBearer->choice.srb_Identity == srb_id);
-  nr_rlc_add_srb(UE->rnti, bearer->servedRadioBearer->choice.srb_Identity, bearer);
+  nr_rlc_add_srb(UE->rnti, bearer->servedRadioBearer->choice.srb_Identity, bearer, NULL);
 
   int priority = bearer->mac_LogicalChannelConfig->ul_SpecificParameters->priority;
   nr_lc_config_t c = {.lcid = bearer->logicalChannelIdentity, .priority = priority};
