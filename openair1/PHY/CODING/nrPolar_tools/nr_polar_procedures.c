@@ -396,13 +396,7 @@ void nr_polar_rate_matching_pattern(uint16_t *rmp,
   }
 }
 
-
-void nr_polar_rate_matching(double *input,
-			    double *output,
-			    uint16_t *rmp,
-			    uint16_t K,
-			    uint16_t N,
-			    uint16_t E)
+void nr_polar_rate_matching(const double *input, double *output, uint16_t *rmp, uint16_t K, uint16_t N, uint16_t E)
 {
   if (E>=N) { //repetition
     for (int i=0; i<=N-1; i++) output[i]=0;

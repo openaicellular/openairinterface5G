@@ -98,31 +98,80 @@ void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
                            fapi_nr_dci_indication_t *dci_ind,
                            fapi_nr_rx_indication_t *rx_ind,
                            const UE_nr_rxtx_proc_t *proc,
-                           PHY_VARS_NR_UE *ue,
+                           const PHY_VARS_NR_UE *ue,
                            void *phy_data)
 {
 }
 void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
-                           uint8_t pdu_type,
-                           PHY_VARS_NR_UE *ue,
-                           NR_UE_DLSCH_t *dlsch0,
-                           NR_UE_DLSCH_t *dlsch1,
-                           uint16_t n_pdus,
+                           const uint8_t pdu_type,
+                           const PHY_VARS_NR_UE *ue,
+                           const NR_UE_DLSCH_t *dlsch0,
+                           const NR_UE_DLSCH_t *dlsch1,
+                           const uint16_t n_pdus,
                            const UE_nr_rxtx_proc_t *proc,
-                           void *typeSpecific,
+                           const void *typeSpecific,
                            uint8_t *b)
 {
 }
 
-int nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
-                           const UE_nr_rxtx_proc_t *proc,
-                           int32_t pdcch_est_size,
-                           c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
-                           nr_phy_data_t *phy_data,
-                           int n_ss,
-                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+bool nr_ue_pdsch_procedures(void *parms)
 {
   return 0;
+}
+
+void pdcch_processing(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
+{
+}
+
+void pdsch_symbol_proc_start(nr_ue_symb_data_t symb_data)
+{
+}
+
+bool pdsch_symbol_proc_end(nr_ue_symb_data_t symb_data)
+{
+  return false;
+}
+
+void free_pdsch_slot_proc_buffers(nr_ue_symb_data_t *symb_data)
+{
+}
+
+bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
+                            UE_nr_rxtx_proc_t *proc,
+                            NR_UE_DLSCH_t dlsch[2],
+                            const int llrSize,
+                            int16_t llr[NR_MAX_NB_LAYERS > 4 ? 2 : 1][llrSize])
+{
+  return false;
+}
+
+void nr_pdsch_slot_init(nr_phy_data_t *phyData, PHY_VARS_NR_UE *ue)
+{
+}
+
+int nr_pdsch_generate_channel_estimates(
+    const PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const int symbol,
+    const NR_UE_DLSCH_t *dlsch,
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+    c16_t channel_estimates[dlsch->Nl][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
+{
+  return 0;
+}
+
+void nr_generate_pdsch_extracted_rxdataF(
+    const PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const int symbol,
+    const NR_UE_DLSCH_t *dlsch,
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+    c16_t rxdataF_ext[ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])
+{
+}
+
+void nr_pdcch_slot_init(nr_phy_data_t *phyData, PHY_VARS_NR_UE *ue)
+{
 }
 
 void nr_phy_config_request_sim_pbchsim(PHY_VARS_gNB *gNB,
@@ -613,8 +662,6 @@ int main(int argc, char **argv)
 
   processingData_L1tx_t msgDataTx;
   // generate signal
-  const uint32_t rxdataF_sz = UE->frame_parms.samples_per_slot_wCP;
-  __attribute__ ((aligned(32))) c16_t rxdataF[UE->frame_parms.nb_antennas_rx][rxdataF_sz];
   if (input_fd==NULL) {
 
     for (i=0; i<frame_parms->Lmax; i++) {
@@ -709,7 +756,6 @@ int main(int argc, char **argv)
 		  	  	  	  	    frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples);
   printf("txlev %d (%f)\n",txlev,10*log10(txlev));*/
 
-  
   for (SNR=snr0; SNR<snr1; SNR+=.2) {
 
     n_errors = 0;
@@ -733,24 +779,24 @@ int main(int argc, char **argv)
       //printf("sigma2 %f (%f dB), tx_lev %f (%f dB)\n",sigma2,sigma2_dB,txlev,10*log10((double)txlev));
 
       if(eps!=0.0)
-        rf_rx(r_re,  // real part of txdata
-           r_im,  // imag part of txdata
-           NULL,  // interference real part
-           NULL, // interference imag part
-           0,  // interference power
-           frame_parms->nb_antennas_rx,  // number of rx antennas
-           frame_length_complex_samples,  // number of samples in frame
-           1.0e9/fs,   //sampling time (ns)
-           cfo,	// frequency offset in Hz
-           0.0, // drift (not implemented)
-           0.0, // noise figure (not implemented)
-           0.0, // rx gain in dB ?
-           200, // 3rd order non-linearity in dB ?
-           &ip, // initial phase
-           30.0e3,  // phase noise cutoff in kHz
-           -500.0, // phase noise amplitude in dBc
-           0.0,  // IQ imbalance (dB),
-	   0.0); // IQ phase imbalance (rad)
+        rf_rx(r_re, // real part of txdata
+              r_im, // imag part of txdata
+              NULL, // interference real part
+              NULL, // interference imag part
+              0, // interference power
+              frame_parms->nb_antennas_rx, // number of rx antennas
+              frame_length_complex_samples, // number of samples in frame
+              1.0e9 / fs, // sampling time (ns)
+              cfo, // frequency offset in Hz
+              0.0, // drift (not implemented)
+              0.0, // noise figure (not implemented)
+              0.0, // rx gain in dB ?
+              200, // 3rd order non-linearity in dB ?
+              &ip, // initial phase
+              30.0e3, // phase noise cutoff in kHz
+              -500.0, // phase noise amplitude in dBc
+              0.0, // IQ imbalance (dB),
+              0.0); // IQ phase imbalance (rad)
 
       for (i=0; i<frame_length_complex_samples; i++) {
         for (aa=0; aa<frame_parms->nb_antennas_rx; aa++) {
@@ -760,25 +806,22 @@ int main(int argc, char **argv)
       }
 
       if (n_trials==1) {
-	LOG_M("rxsig0.m","rxs0", UE->common_vars.rxdata[0],frame_parms->samples_per_frame,1,1);
-	if (gNB->frame_parms.nb_antennas_tx>1)
-	  LOG_M("rxsig1.m","rxs1", UE->common_vars.rxdata[1],frame_parms->samples_per_frame,1,1);
+        LOG_M("rxsig0.m", "rxs0", UE->common_vars.rxdata[0], frame_parms->samples_per_frame, 1, 1);
+        if (gNB->frame_parms.nb_antennas_tx > 1)
+          LOG_M("rxsig1.m", "rxs1", UE->common_vars.rxdata[1], frame_parms->samples_per_frame, 1, 1);
       }
       if (UE->is_synchronized == 0) {
-	UE_nr_rxtx_proc_t proc={0};
+        UE_nr_rxtx_proc_t proc = {0};
         nr_initial_sync_t ret = nr_initial_sync(&proc, UE, 1, 0);
         printf("nr_initial_sync1 returns %s\n", ret.cell_detected ? "cell detected" : "cell not detected");
         if (!ret.cell_detected)
           n_errors++;
-      }
-      else {
+      } else {
         UE_nr_rxtx_proc_t proc={0};
 
         uint8_t ssb_index = 0;
         const int estimateSz = frame_parms->symbols_per_slot * frame_parms->ofdm_symbol_size;
         __attribute__((aligned(32))) struct complex16 dl_ch_estimates[frame_parms->nb_antennas_rx][estimateSz];
-        __attribute__((
-            aligned(32))) struct complex16 dl_ch_estimates_time[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
         while (!((SSB_positions >> ssb_index) & 0x01))
           ssb_index++; // to select the first transmitted ssb
         UE->symbol_offset = nr_get_ssb_start_symbol(frame_parms, ssb_index);
@@ -786,36 +829,53 @@ int main(int argc, char **argv)
         int ssb_slot = (UE->symbol_offset/14)+(n_hf*(frame_parms->slots_per_frame>>1));
         proc.nr_slot_rx = ssb_slot;
         proc.gNB_id = 0;
-	for (int i=UE->symbol_offset+1; i<UE->symbol_offset+4; i++) {
-          nr_slot_fep(UE,
-                      &proc,
-                      i%frame_parms->symbols_per_slot,
-                      rxdataF);
+        int16_t pbch_e_rx[NR_POLAR_PBCH_E];
+        for (int i = UE->symbol_offset + 1; i < UE->symbol_offset + 4; i++) {
+          __attribute__((aligned(32)))
+          c16_t rxdata[UE->frame_parms.nb_antennas_rx][UE->frame_parms.ofdm_symbol_size + UE->frame_parms.nb_prefix_samples0];
+          __attribute__((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][UE->frame_parms.ofdm_symbol_size];
+          for (int aarx = 0; aarx < UE->frame_parms.nb_antennas_rx; aarx++) {
+            const int samplesPrefix = SYMBOL_HAS_LONGER_CP(i + ssb_slot * NR_SYMBOLS_PER_SLOT, frame_parms->numerology_index)
+                                          ? frame_parms->nb_prefix_samples0
+                                          : frame_parms->nb_prefix_samples;
+            int sampleOffset = frame_parms->ofdm_symbol_size * i;
+            for (int symb = 0; symb < i; symb++)
+              sampleOffset += (SYMBOL_HAS_LONGER_CP(symb, frame_parms->numerology_index) ? frame_parms->nb_prefix_samples0
+                                                                                         : frame_parms->nb_prefix_samples);
+            sampleOffset += samplesPrefix;
+            memcpy(&rxdata[aarx][0],
+                   &UE->common_vars.rxdata[aarx][frame_parms->get_samples_slot_timestamp(ssb_slot, frame_parms, 0) + sampleOffset],
+                   frame_parms->ofdm_symbol_size * sizeof(c16_t));
+          }
+          nr_symbol_fep(UE, ssb_slot, i, 0, rxdata, rxdataF);
 
-          nr_pbch_channel_estimation(UE,estimateSz, dl_ch_estimates, dl_ch_estimates_time, &proc, 
-				     i%frame_parms->symbols_per_slot,i-(UE->symbol_offset+1),ssb_index%8,n_hf,rxdataF);
-
+          for (int aarx = 0; aarx < UE->frame_parms.nb_antennas_rx; aarx++) {
+            nr_pbch_channel_estimation(UE, i - (UE->symbol_offset + 1), ssb_index & 7, n_hf, rxdataF[aarx], dl_ch_estimates[aarx]);
+          }
+          nr_generate_pbch_llr(UE, i - UE->symbol_offset, ssb_index, rxdataF, dl_ch_estimates, pbch_e_rx);
         }
-	fapiPbch_t result;
-        ret = nr_rx_pbch(UE, &proc, estimateSz, dl_ch_estimates, frame_parms, ssb_index % 8, &result, rxdataF);
+        fapiPbch_t result;
+        ret = nr_pbch_decode(UE, &proc, ssb_index, pbch_e_rx, &result);
 
-	if (ret==0) {
-	  //UE->rx_ind.rx_indication_body->mib_pdu.ssb_index;  //not yet detected automatically
-	  //UE->rx_ind.rx_indication_body->mib_pdu.ssb_length; //Lmax, not yet detected automatically
-	  uint8_t gNB_xtra_byte=0;
-	  for (int i=0; i<8; i++)
-	    gNB_xtra_byte |= ((gNB->pbch.pbch_a>>(31-i))&1)<<(7-i);
- 
-	  payload_ret = (result.xtra_byte == gNB_xtra_byte);
-	  for (i=0;i<3;i++){
-	    payload_ret += (result.decoded_output[i] == ((msgDataTx.ssb[ssb_index].ssb_pdu.ssb_pdu_rel15.bchPayload>>(8*i)) & 0xff));
-	  } 
-	  //printf("ret %d\n", payload_ret);
-	  if (payload_ret!=4) 
-	    n_errors_payload++;
-	}
+        if (ret == 0) {
+          // UE->rx_ind.rx_indication_body->mib_pdu.ssb_index;  //not yet detected automatically
+          // UE->rx_ind.rx_indication_body->mib_pdu.ssb_length; //Lmax, not yet detected automatically
+          uint8_t gNB_xtra_byte = 0;
+          for (int i = 0; i < 8; i++)
+            gNB_xtra_byte |= ((gNB->pbch.pbch_a >> (31 - i)) & 1) << (7 - i);
 
-	if (ret!=0) n_errors++;
+          payload_ret = (result.xtra_byte == gNB_xtra_byte);
+          for (i = 0; i < 3; i++) {
+            payload_ret +=
+                (result.decoded_output[i] == ((msgDataTx.ssb[ssb_index].ssb_pdu.ssb_pdu_rel15.bchPayload >> (8 * i)) & 0xff));
+          }
+          // printf("ret %d\n", payload_ret);
+          if (payload_ret != 4)
+            n_errors_payload++;
+        }
+
+        if (ret != 0)
+          n_errors++;
       }
     } //noise trials
     printf("SNR %f: trials %d, n_errors_crc = %d, n_errors_payload %d\n", SNR,n_trials,n_errors,n_errors_payload);

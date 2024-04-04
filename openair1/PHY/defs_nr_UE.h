@@ -120,6 +120,8 @@ typedef enum {
   NR_SSS_EST,
 } NR_CHANNEL_EST_t;
 
+typedef enum { SCHEDULED, PROCESSING, DONE } NR_UE_PHY_CHANNEL_STATE_t;
+
 #define debug_msg if (((mac_xface->frame%100) == 0) || (mac_xface->frame < 50)) msg
 
 typedef struct {
@@ -235,6 +237,7 @@ typedef struct {
 #define NR_PRS_IDFT_OVERSAMP_FACTOR 1  // IDFT oversampling factor for NR PRS channel estimates in time domain, ALLOWED value 16x, and 1x is default(ie. IDFT size is frame_params->ofdm_symbol_size)
 typedef struct {
   prs_config_t prs_cfg;
+  c16_t *ch_est;
   int32_t reserved;
   prs_meas_t **prs_meas;
 } NR_PRS_RESOURCE_t;
@@ -380,9 +383,7 @@ typedef struct PHY_VARS_NR_UE_s {
   fapi_nr_config_request_t nrUE_config;
   nr_synch_request_t synch_request;
 
-  NR_UE_PRACH     *prach_vars[NUMBER_OF_CONNECTED_gNB_MAX];
-  NR_UE_CSI_IM    *csiim_vars[NUMBER_OF_CONNECTED_gNB_MAX];
-  NR_UE_CSI_RS    *csirs_vars[NUMBER_OF_CONNECTED_gNB_MAX];
+  NR_UE_PRACH *prach_vars[NUMBER_OF_CONNECTED_gNB_MAX];
   NR_UE_SRS       *srs_vars[NUMBER_OF_CONNECTED_gNB_MAX];
   NR_UE_PRS       *prs_vars[NR_MAX_PRS_COMB_SIZE];
   uint8_t          prs_active_gNBs;
@@ -541,8 +542,15 @@ typedef struct PHY_VARS_NR_UE_s {
   time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t pdcch_procedures_stat;
   time_stats_t pdsch_procedures_stat;
+  time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+  time_stats_t pdsch_comp_out;
+  time_stats_t pdsch_llr_gen;
+  time_stats_t pdsch_llr_demapping;
+  time_stats_t pdsch_mem_init;
   time_stats_t pdsch_procedures_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t dlsch_procedures_stat;
+  time_stats_t dlsch_ldpc_whole;
 
   time_stats_t rx_pdsch_stats;
   time_stats_t ofdm_demod_stats;
@@ -589,8 +597,9 @@ typedef struct PHY_VARS_NR_UE_s {
   void *phy_sim_pdsch_dl_ch_estimates;
   void *phy_sim_pdsch_dl_ch_estimates_ext;
   uint8_t *phy_sim_dlsch_b;
-
   notifiedFIFO_t tx_resume_ind_fifo[NR_MAX_SLOTS_PER_FRAME];
+
+  int init_sync_ssbIdx;
 } PHY_VARS_NR_UE;
 
 typedef struct {
@@ -617,7 +626,10 @@ typedef struct nr_phy_data_tx_s {
 typedef struct nr_phy_data_s {
   NR_UE_PDCCH_CONFIG phy_pdcch_config;
   NR_UE_DLSCH_t dlsch[2];
+  NR_UE_CSI_RS csirs_vars;
+  NR_UE_CSI_IM csiim_vars;
 } nr_phy_data_t;
+
 /* this structure is used to pass both UE phy vars and
  * proc to the function UE_thread_rxn_txnp4
  */
@@ -628,7 +640,43 @@ typedef struct nr_rxtx_thread_data_s {
   nr_phy_data_t phy_data;
   int tx_wait_for_dlsch;
   int rx_offset;
+  notifiedFIFO_t *txFifo;
 } nr_rxtx_thread_data_t;
+
+typedef struct nr_ue_symb_data_s {
+  PHY_VARS_NR_UE *UE;
+  UE_nr_rxtx_proc_t *proc;
+  UE_nr_rxtx_proc_t valProc;
+  int symbol;
+  c16_t *rxdataF_ext;
+  NR_UE_DLSCH_t dlsch[2];
+  NR_UE_DLSCH_t *p_dlsch;
+  c16_t *ptrs_phase_per_slot;
+  int32_t *ptrs_re_per_slot;
+  c16_t *rxdataF_comp;
+  c16_t *pdsch_dl_ch_estimates;
+  c16_t *pdsch_dl_ch_est_ext;
+  c16_t *dl_ch_mag;
+  c16_t *dl_ch_magb;
+  c16_t *dl_ch_magr;
+  int llrSize;
+  int16_t *layer_llr;
+  time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+} nr_ue_symb_data_t;
+
+typedef struct nr_csi_symbol_res_s {
+  int rsrpSum1;
+  int rsrp;
+  int rsrpDbm;
+  int sum_re1;
+  int sum_im1;
+  int sum_re2;
+  int sum_im2;
+  int power_re;
+  int power_im;
+  int count;
+} nr_csi_symbol_res_t;
 
 typedef struct LDPCDecode_ue_s {
   PHY_VARS_NR_UE *phy_vars_ue;

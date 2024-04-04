@@ -33,13 +33,24 @@
 #define NR_SYNCH_HYST 1
 
 /* A function to perform the channel estimation of DL PRS signal */
-int nr_prs_channel_estimation(uint8_t gNB_id,
-                              uint8_t rsc_id,
-                              uint8_t rep_num,
-                              PHY_VARS_NR_UE *ue,
+int nr_prs_channel_estimation(const uint8_t gNB_id,
+                              const uint8_t rsc_id,
+                              const uint8_t rep_num,
+                              const int l,
+                              const PHY_VARS_NR_UE *ue,
                               const UE_nr_rxtx_proc_t *proc,
-                              NR_DL_FRAME_PARMS *frame_params,
-                              c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                              const prs_config_t *prs_cfg,
+                              const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                              prs_meas_t **prs_meas,
+                              c16_t ch_est_out[ue->frame_parms.ofdm_symbol_size]);
+
+void nr_prs_doa_estimation(const uint8_t gNB_id,
+                           const uint8_t rsc_id,
+                           const PHY_VARS_NR_UE *ue,
+                           const UE_nr_rxtx_proc_t *proc,
+                           const prs_config_t *prs_cfg,
+                           c16_t ch_est_in[ue->frame_parms.ofdm_symbol_size],
+                           prs_meas_t **prs_meas);
 
 /* Generic function to find the peak of channel estimation buffer */
 void peak_estimator(int32_t *buffer, int32_t buf_len, int32_t *peak_idx, int32_t *peak_val, int32_t mean_val);
@@ -47,59 +58,49 @@ void peak_estimator(int32_t *buffer, int32_t buf_len, int32_t *peak_idx, int32_t
 /*!
 \brief This function performs channel estimation including frequency and temporal interpolation
 */
-void nr_pdcch_channel_estimation(PHY_VARS_NR_UE *ue,
+void nr_pdcch_channel_estimation(const PHY_VARS_NR_UE *ue,
                                  const UE_nr_rxtx_proc_t *proc,
-                                 unsigned char symbol,
-                                 fapi_nr_coreset_t *coreset,
-                                 uint16_t first_carrier_offset,
-                                 uint16_t BWPStart,
-                                 int32_t pdcch_est_size,
+                                 const unsigned char symbol,
+                                 const fapi_nr_coreset_t *coreset,
+                                 const uint16_t first_carrier_offset,
+                                 const uint16_t BWPStart,
+                                 const int32_t pdcch_est_size,
                                  c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
-                                 c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 c32_t nr_pbch_dmrs_correlation(const PHY_VARS_NR_UE *ue,
                                const UE_nr_rxtx_proc_t *proc,
                                const int symbol,
                                const int dmrss,
                                const uint32_t nr_gold_pbch[NR_PBCH_DMRS_LENGTH_DWORD],
-                               const c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                               const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
-int nr_pbch_channel_estimation(PHY_VARS_NR_UE *ue,
-                               int estimateSz,
-                               struct complex16 dl_ch_estimates[][estimateSz],
-                               struct complex16 dl_ch_estimates_time[][ue->frame_parms.ofdm_symbol_size],
-                               const UE_nr_rxtx_proc_t *proc,
-                               unsigned char symbol,
-                               int dmrss,
-                               uint8_t ssb_index,
-                               uint8_t n_hf,
-                               c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+int nr_pbch_channel_estimation(const PHY_VARS_NR_UE *ue,
+                               const int dmrss,
+                               const int ssb_index,
+                               const int n_hf,
+                               const c16_t rxdataF[ue->frame_parms.ofdm_symbol_size],
+                               c16_t dl_ch_estimates[ue->frame_parms.ofdm_symbol_size]);
 
-int nr_pdsch_channel_estimation(PHY_VARS_NR_UE *ue,
+int nr_pdsch_channel_estimation(const PHY_VARS_NR_UE *ue,
                                 const UE_nr_rxtx_proc_t *proc,
-                                int nl,
-                                unsigned short p,
-                                unsigned char symbol,
-                                unsigned char nscid,
-                                unsigned short scrambling_id,
-                                unsigned short BWPStart,
-                                uint8_t config_type,
-                                uint16_t rb_offset,
-                                unsigned short bwp_start_subcarrier,
-                                unsigned short nb_rb_pdsch,
-                                uint32_t pdsch_est_size,
-                                int32_t dl_ch_estimates[][pdsch_est_size],
-                                int rxdataFsize,
-                                c16_t rxdataF[][rxdataFsize]);
+                                const int rb_offset,
+                                const unsigned int p,
+                                const unsigned int aarx,
+                                const unsigned char symbol,
+                                const unsigned short BWPStart,
+                                const uint8_t config_type,
+                                const unsigned short bwp_start_subcarrier,
+                                const unsigned short nb_rb_pdsch,
+                                const int nscid,
+                                const c16_t rxdataF[ue->frame_parms.ofdm_symbol_size],
+                                c16_t dl_ch_estimates[ue->frame_parms.ofdm_symbol_size]);
 
-int nr_adjust_synch_ue(NR_DL_FRAME_PARMS *frame_parms,
-                       PHY_VARS_NR_UE *ue,
-                       module_id_t gNB_id,
-                       int estimateSz,
-                       struct complex16 dl_ch_estimates_time[][estimateSz],
-                       uint8_t frame,
-                       uint8_t subframe,
-                       short coef);
+int nr_adjust_synch_ue(PHY_VARS_NR_UE *ue,
+                       const c16_t dl_ch_estimates_time[][ue->frame_parms.ofdm_symbol_size],
+                       const uint8_t frame,
+                       const uint8_t slot,
+                       const short coef);
 
 void nr_ue_measurements(PHY_VARS_NR_UE *ue,
                         const UE_nr_rxtx_proc_t *proc,
@@ -108,33 +109,35 @@ void nr_ue_measurements(PHY_VARS_NR_UE *ue,
                         int32_t dl_ch_estimates[][pdsch_est_size]);
 
 void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
-                                 uint8_t gNB_index,
+                                 const int ssb_index,
                                  const UE_nr_rxtx_proc_t *proc,
-                                 c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
                             const UE_nr_rxtx_proc_t *proc,
-                            c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 void phy_adjust_gain_nr(PHY_VARS_NR_UE *ue,
                         uint32_t rx_power_fil_dB,
                         uint8_t gNB_id);
 
-void nr_pdsch_ptrs_processing(PHY_VARS_NR_UE *ue,
-                              int nbRx,
-                              c16_t ptrs_phase_per_slot[][14],
-                              int32_t ptrs_re_per_slot[][14],
-                              uint32_t rx_size_symbol,
-                              int32_t rxdataF_comp[][nbRx][rx_size_symbol * NR_SYMBOLS_PER_SLOT],
-                              NR_DL_FRAME_PARMS *frame_parms,
-                              NR_DL_UE_HARQ_t *dlsch0_harq,
-                              NR_DL_UE_HARQ_t *dlsch1_harq,
-                              uint8_t gNB_id,
-                              uint8_t nr_slot_rx,
-                              unsigned char symbol,
-                              uint32_t nb_re_pdsch,
-                              uint16_t rnti,
-                              NR_UE_DLSCH_t dlsch[2]);
+int nr_pdsch_ptrs_tdinterpol(const NR_UE_DLSCH_t *dlsch, c16_t phase_per_symbol[NR_SYMBOLS_PER_SLOT]);
+
+void nr_pdsch_ptrs_compensate(const c16_t phase_per_symbol,
+                              const int symbol,
+                              const NR_UE_DLSCH_t *dlsch,
+                              c16_t rxdataF_comp[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB]);
+
+void nr_pdsch_ptrs_processing_core(const PHY_VARS_NR_UE *ue,
+                                   const int gNB_id,
+                                   const int nr_slot_rx,
+                                   const int symbol,
+                                   const int nb_re_pdsch,
+                                   const int rnti,
+                                   const NR_UE_DLSCH_t *dlsch,
+                                   c16_t rxdataF_comp[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                                   c16_t *phase_per_symbol,
+                                   int32_t *ptrs_re_symbol);
 
 float_t get_nr_RSRP(module_id_t Mod_id,uint8_t CC_id,uint8_t gNB_index);
 /** @}*/

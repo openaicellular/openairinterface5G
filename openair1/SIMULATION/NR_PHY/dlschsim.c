@@ -423,7 +423,7 @@ int main(int argc, char **argv)
 
 	//nr_init_frame_parms_ue(&UE->frame_parms);
 	//init_nr_ue_transport(UE, 0);
-  NR_UE_DLSCH_t dlsch_ue[NR_MAX_NB_LAYERS > 4? 2:1] = {0};
+  NR_UE_DLSCH_t dlsch_ue[2] = {0};
   int num_codeword = NR_MAX_NB_LAYERS > 4? 2:1;
   nr_ue_dlsch_init(dlsch_ue, num_codeword, 5);
   for (int i=0; i < num_codeword; i++)

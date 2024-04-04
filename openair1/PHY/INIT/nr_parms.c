@@ -65,9 +65,8 @@ void set_Lmax(NR_DL_FRAME_PARMS *fp) {
   }
 }
 
-
-int nr_get_ssb_start_symbol(NR_DL_FRAME_PARMS *fp,uint8_t i_ssb) {
-
+int nr_get_ssb_start_symbol(const NR_DL_FRAME_PARMS *fp, const uint8_t i_ssb)
+{
   int mu = fp->numerology_index;
   int symbol = 0;
   uint8_t n, n_temp;
@@ -187,15 +186,15 @@ uint32_t get_samples_per_slot(int slot, const NR_DL_FRAME_PARMS *fp)
 
 uint32_t get_slot_from_timestamp(openair0_timestamp timestamp_rx, const NR_DL_FRAME_PARMS *fp)
 {
-   uint32_t slot_idx = 0;
-   int samples_till_the_slot = fp->get_samples_per_slot(slot_idx,fp)-1;
-   timestamp_rx = timestamp_rx%fp->samples_per_frame;
+  uint32_t slot_idx = 0;
+  int samples_till_the_slot = fp->get_samples_per_slot(slot_idx, fp) - 1;
+  timestamp_rx = timestamp_rx % fp->samples_per_frame;
 
-    while (timestamp_rx > samples_till_the_slot) {
-        slot_idx++;
-        samples_till_the_slot += fp->get_samples_per_slot(slot_idx,fp);
-     }
-   return slot_idx; 
+  while (timestamp_rx > samples_till_the_slot) {
+    slot_idx++;
+    samples_till_the_slot += fp->get_samples_per_slot(slot_idx, fp);
+  }
+  return slot_idx;
 }
 
 uint32_t get_samples_slot_timestamp(int slot, const NR_DL_FRAME_PARMS *fp, uint8_t sl_ahead)

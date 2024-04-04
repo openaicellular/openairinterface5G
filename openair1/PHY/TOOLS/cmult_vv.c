@@ -155,12 +155,7 @@ int mult_cpx_vector(int16_t *x1, //Q15
   return(0);
 }
 
-int multadd_cpx_vector(int16_t *x1,
-                    int16_t *x2,
-                    int16_t *y,
-                    uint8_t zero_flag,
-                    uint32_t N,
-                    int output_shift)
+int multadd_cpx_vector(int16_t *x1, const int16_t *x2, int16_t *y, uint8_t zero_flag, uint32_t N, int output_shift)
 {
   // Multiply elementwise the complex conjugate of x1 with x2.
   // x1       - input 1    in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|

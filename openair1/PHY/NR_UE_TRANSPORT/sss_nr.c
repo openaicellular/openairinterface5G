@@ -259,25 +259,24 @@ static int pss_ch_est_nr(PHY_VARS_NR_UE *ue,
 static int do_pss_sss_extract_nr(
     PHY_VARS_NR_UE *ue,
     const UE_nr_rxtx_proc_t *proc,
-    c16_t pss_ext[NB_ANTENNAS_RX][LENGTH_PSS_NR],
-    c16_t sss_ext[NB_ANTENNAS_RX][LENGTH_SSS_NR],
-    uint8_t doPss,
-    uint8_t doSss,
-    uint8_t subframe,
-    c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]) // add flag to indicate extracting only PSS, only SSS, or both
+    c16_t pss_ext[ue->frame_parms.nb_antennas_rx][LENGTH_PSS_NR],
+    c16_t sss_ext[ue->frame_parms.nb_antennas_rx][LENGTH_SSS_NR],
+    const uint8_t doPss,
+    const uint8_t doSss,
+    const uint8_t subframe,
+    const c16_t rxdataF[NR_N_SYMBOLS_SSB][ue->frame_parms.nb_antennas_rx]
+                       [ue->frame_parms.ofdm_symbol_size]) // add flag to indicate extracting only PSS, only SSS, or both
 {
   NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
   AssertFatal(frame_parms->nb_antennas_rx > 0, "UB as sss_ext is not set to any value\n");
 
   for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-    int pss_symbol = 0;
-    int sss_symbol = get_softmodem_params()->sl_mode == 0 ?
-                     (SSS_SYMBOL_NB - PSS_SYMBOL_NB) :
-                     (SSS0_SL_SYMBOL_NB - PSS0_SL_SYMBOL_NB) ;
-    unsigned int ofdm_symbol_size = frame_parms->ofdm_symbol_size;
+    const int pss_symbol = 0;
+    const int sss_symbol =
+        get_softmodem_params()->sl_mode == 0 ? (SSS_SYMBOL_NB - PSS_SYMBOL_NB) : (SSS0_SL_SYMBOL_NB - PSS0_SL_SYMBOL_NB);
 
-    c16_t *pss_rxF = rxdataF[aarx] + pss_symbol * ofdm_symbol_size;
-    c16_t *sss_rxF = rxdataF[aarx] + sss_symbol * ofdm_symbol_size;
+    const c16_t *pss_rxF = rxdataF[pss_symbol][aarx];
+    const c16_t *sss_rxF = rxdataF[sss_symbol][aarx];
 
     c16_t *pss_rxF_ext = pss_ext[aarx];
     c16_t *sss_rxF_ext = sss_ext[aarx];
@@ -342,10 +341,10 @@ static int do_pss_sss_extract_nr(
 
 static int pss_sss_extract_nr(PHY_VARS_NR_UE *phy_vars_ue,
                               const UE_nr_rxtx_proc_t *proc,
-                              c16_t pss_ext[NB_ANTENNAS_RX][LENGTH_PSS_NR],
-                              c16_t sss_ext[NB_ANTENNAS_RX][LENGTH_SSS_NR],
-                              uint8_t subframe,
-                              c16_t rxdataF[][phy_vars_ue->frame_parms.samples_per_slot_wCP])
+                              c16_t pss_ext[phy_vars_ue->frame_parms.nb_antennas_rx][LENGTH_PSS_NR],
+                              c16_t sss_ext[phy_vars_ue->frame_parms.nb_antennas_rx][LENGTH_SSS_NR],
+                              const uint8_t subframe,
+                              const c16_t rxdataF[NR_N_SYMBOLS_SSB][phy_vars_ue->frame_parms.nb_antennas_rx][phy_vars_ue->frame_parms.ofdm_symbol_size])
 {
   return do_pss_sss_extract_nr(phy_vars_ue, proc, pss_ext, sss_ext, 1 /* doPss */, 1 /* doSss */, subframe, rxdataF);
 }
@@ -356,18 +355,19 @@ static int pss_sss_extract_nr(PHY_VARS_NR_UE *phy_vars_ue,
  *
  * PARAMETERS :   none
  *
- * RETURN :       Set Nid_cell in ue context, return true if cell detected
+ * RETURN :       Set Nid_cell in ue context
  *
  * DESCRIPTION :  Determine element Nid1 of cell identity
  *                so Nid_cell in ue context is set according to Nid1 & Nid2
  *
  *********************************************************************/
+
 bool rx_sss_nr(PHY_VARS_NR_UE *ue,
                const UE_nr_rxtx_proc_t *proc,
                int32_t *tot_metric,
                uint8_t *phase_max,
                int *freq_offset_sss,
-               c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+               c16_t rxdataF[NR_N_SYMBOLS_SSB][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
 {
   uint8_t i;
   c16_t pss_ext[NB_ANTENNAS_RX][LENGTH_PSS_NR] = {0};

@@ -168,10 +168,10 @@ int8_t polar_decoder(double *input,
 
 uint32_t polar_decoder_int16(int16_t *input,
                              uint64_t *out,
-                             uint8_t ones_flag,
-                             int8_t messageType,
-                             uint16_t messageLength,
-                             uint8_t aggregation_level);
+                             const uint8_t ones_flag,
+                             const int8_t messageType,
+                             const uint16_t messageLength,
+                             const uint8_t aggregation_level);
 
 int8_t polar_decoder_dci(double *input,
                          uint32_t *out,
@@ -228,12 +228,7 @@ void nr_polar_rate_matching_pattern(uint16_t *rmp,
                                     uint16_t N,
                                     uint16_t E);
 
-void nr_polar_rate_matching(double *input,
-                            double *output,
-                            uint16_t *rmp,
-                            uint16_t K,
-                            uint16_t N,
-                            uint16_t E);
+void nr_polar_rate_matching(const double *input, double *output, uint16_t *rmp, uint16_t K, uint16_t N, uint16_t E);
 
 void nr_polar_rate_matching_int16(int16_t *input,
                                   int16_t *output,

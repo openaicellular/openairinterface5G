@@ -65,10 +65,10 @@ static int ssb_sort(const void *a, const void *b)
   return ((NR_UE_SSB *)b)->metric - ((NR_UE_SSB *)a)->metric;
 }
 
-static bool nr_pbch_detection(const UE_nr_rxtx_proc_t *proc,
+static bool nr_pbch_detection(UE_nr_rxtx_proc_t *proc,
                               PHY_VARS_NR_UE *ue,
-                              int pbch_initial_symbol,
-                              c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+                              const int pbch_initial_symbol,
+                              const c16_t rxdataF[NR_N_SYMBOLS_SSB][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
 {
   NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
 
@@ -83,7 +83,7 @@ static bool nr_pbch_detection(const UE_nr_rxtx_proc_t *proc,
       // computing correlation between received DMRS symbols and transmitted sequence for current i_ssb and n_hf
       cd_t cumul = {0};
       for (int i = pbch_initial_symbol; i < pbch_initial_symbol + 3; i++) {
-        c32_t meas = nr_pbch_dmrs_correlation(ue, proc, i, i - pbch_initial_symbol, ue->nr_gold_pbch[hf][l], rxdataF);
+        c32_t meas = nr_pbch_dmrs_correlation(ue, proc, i, i - pbch_initial_symbol, ue->nr_gold_pbch[hf][l], rxdataF[i]);
         csum(cumul, cumul, meas);
       }
       *current_ssb = (NR_UE_SSB){.i_ssb = l, .n_hf = hf, .metric = squaredMod(cumul)};
@@ -93,37 +93,27 @@ static bool nr_pbch_detection(const UE_nr_rxtx_proc_t *proc,
   qsort(best_ssb, N_L * N_hf, sizeof(NR_UE_SSB), ssb_sort);
   stop_meas(&ue->dlsch_channel_estimation_stats);
 
-  const int nb_ant = frame_parms->nb_antennas_rx;
   for (NR_UE_SSB *ssb = best_ssb; ssb < best_ssb + N_L * N_hf; ssb++) {
-    start_meas(&ue->dlsch_channel_estimation_stats);
     // computing channel estimation for selected best ssb
     const int estimateSz = frame_parms->symbols_per_slot * frame_parms->ofdm_symbol_size;
-    __attribute__((aligned(32))) c16_t dl_ch_estimates[nb_ant][estimateSz];
-    __attribute__((aligned(32))) c16_t dl_ch_estimates_time[nb_ant][frame_parms->ofdm_symbol_size];
+    __attribute__ ((aligned(32))) struct complex16 dl_ch_estimates[frame_parms->nb_antennas_rx][estimateSz];
+    int16_t pbch_e_rx[NR_POLAR_PBCH_E];
 
-    for(int i=pbch_initial_symbol; i<pbch_initial_symbol+3;i++)
-      nr_pbch_channel_estimation(ue,
-                                 estimateSz,
-                                 dl_ch_estimates,
-                                 dl_ch_estimates_time,
-                                 proc,
-                                 i,
-                                 i - pbch_initial_symbol,
-                                 ssb->i_ssb,
-                                 ssb->n_hf,
-                                 rxdataF);
-
-    stop_meas(&ue->dlsch_channel_estimation_stats);
-    fapiPbch_t result = {0};
-    if (0 == nr_rx_pbch(ue, proc, estimateSz, dl_ch_estimates, frame_parms, ssb->i_ssb, &result, rxdataF)) {
+    for (int i = pbch_initial_symbol; i < pbch_initial_symbol + 3; i++) {
+      for (int aarx = 0; aarx < ue->frame_parms.nb_antennas_rx; aarx++) {
+        nr_pbch_channel_estimation(ue,
+                                   i - pbch_initial_symbol,
+                                   ssb->i_ssb,
+                                   ssb->n_hf,
+                                   rxdataF[i][aarx],
+                                   dl_ch_estimates[aarx]);
+      }
+      nr_generate_pbch_llr(ue, i - pbch_initial_symbol + 1, ssb->i_ssb, rxdataF[i], dl_ch_estimates, pbch_e_rx);
+    }
+    fapiPbch_t pbchResult = {0}; /* TODO: Not used anywhere. To be cleaned later */
+    if (0 == nr_pbch_decode(ue, proc, ssb->i_ssb, pbch_e_rx, &pbchResult)) {
       if (DUMP_PBCH_CH_ESTIMATES) {
-        write_output("pbch_ch_estimates.m", "pbch_ch_estimates", dl_ch_estimates, nb_ant * estimateSz, 1, 1);
-        write_output("pbch_ch_estimates_time.m",
-                     "pbch_ch_estimates_time",
-                     dl_ch_estimates_time,
-                     nb_ant * frame_parms->ofdm_symbol_size,
-                     1,
-                     1);
+        write_output("pbch_ch_estimates.m", "pbch_ch_estimates", dl_ch_estimates, frame_parms->nb_antennas_rx * estimateSz, 1, 1);
       }
       LOG_I(PHY, "[UE%d] Initial sync: pbch decoded sucessfully, ssb index %d\n", ue->Mod_id, frame_parms->ssb_index);
       return true;
@@ -161,8 +151,6 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
    *          sync_pos            SS/PBCH block
    */
 
-  const uint32_t rxdataF_sz = ue->frame_parms.samples_per_slot_wCP;
-  __attribute__((aligned(32))) c16_t rxdataF[ue->frame_parms.nb_antennas_rx][rxdataF_sz];
   cnt++;
   if (1) { // (cnt>100)
     cnt = 0;
@@ -192,6 +180,9 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
           // In SA we need to perform frequency offset correction until the end of buffer because we need to decode SIB1
           // and we do not know yet in which slot it goes.
 
+        // In SA we need to perform frequency offset correction until the end of buffer because we need to decode SIB1
+        // and we do not know yet in which slot it goes.
+
           for (int n = frame_id * fp->samples_per_frame; n < (frame_id + 1) * fp->samples_per_frame; n++) {
             for (int ar = 0; ar < fp->nb_antennas_rx; ar++) {
               const double re = ue->common_vars.rxdata[ar][n].r;
@@ -211,11 +202,26 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
         /* time samples in buffer rxdata are used as input of FFT -> FFT results are stored in the frequency buffer rxdataF */
         /* rxdataF stores SS/PBCH from beginning of buffers in the same symbol order as in time domain */
 
-        for (int i = 0; i < NR_N_SYMBOLS_SSB; i++)
-          nr_slot_fep_init_sync(ue, proc, i, frame_id * fp->samples_per_frame + ue->ssb_offset, false, rxdataF, link_type_dl);
+        __attribute__((aligned(32)))
+        c16_t rxdata[NR_N_SYMBOLS_SSB][fp->nb_antennas_rx][fp->ofdm_symbol_size + fp->nb_prefix_samples0];
+        __attribute__((aligned(32))) c16_t rxdataF[NR_N_SYMBOLS_SSB][fp->nb_antennas_rx][fp->ofdm_symbol_size];
+
+        for (int aarx = 0; aarx < fp->nb_antennas_rx; aarx++) {
+          const int symbolSamples = (fp->ofdm_symbol_size + fp->nb_prefix_samples);
+          for (int symbol = 0; symbol < NR_N_SYMBOLS_SSB; symbol++) {
+            memcpy(rxdata[symbol][aarx],
+                  &ue->common_vars.rxdata[aarx][frame_id * fp->samples_per_frame + ue->ssb_offset + (symbol * symbolSamples)
+                                                + fp->nb_prefix_samples],
+                  sizeof(c16_t) * fp->ofdm_symbol_size);
+          }
+        }
+
+        for (int i = 0; i < NR_N_SYMBOLS_SSB; i++) {
+          nr_symbol_fep(ue, proc->nr_slot_rx, i, link_type_dl, rxdata[i], rxdataF[i]);
+        }
 
 #ifdef DEBUG_INITIAL_SYNCH
-        LOG_I(PHY, "Calling sss detection (normal CP)\n");
+        LOG_I(PHY,"Calling sss detection (normal CP)\n");
 #endif
 
         int freq_offset_sss = 0;
@@ -265,7 +271,7 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
           // compute the scrambling IDs for PDSCH DMRS
           for (int i = 0; i < NR_NB_NSCID; i++) {
             ue->scramblingID_dlsch[i] = fp->Nid_cell;
-            nr_gold_pdsch(ue, i, ue->scramblingID_dlsch[i]);
+            nr_gold_pdsch(i, ue->scramblingID_dlsch[i], ue);
           }
 
           nr_init_csi_rs(fp, ue->nr_csi_info->nr_gold_csi_rs, fp->Nid_cell);

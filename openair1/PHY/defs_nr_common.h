@@ -123,10 +123,21 @@ typedef struct {
   uint16_t csi_gold_init;
   uint32_t ***nr_gold_csi_rs;
   uint8_t csi_rs_generated_signal_bits;
-  int32_t **csi_rs_generated_signal;
+  c16_t **csi_rs_generated_signal;
+} nr_csi_info_t;
+
+typedef struct nr_csi_phy_parms_s {
+  uint8_t N_cdm_groups;
+  uint8_t CDM_group_size;
+  uint8_t k_prime;
+  uint8_t l_prime;
+  uint8_t N_ports;
+  uint8_t j_cdm[16];
+  uint8_t k_overline[16];
+  uint8_t l_overline[16];
   bool csi_im_meas_computed;
   uint32_t interference_plus_noise_power;
-} nr_csi_info_t;
+} nr_csi_phy_parms_t;
 
 typedef struct NR_DL_FRAME_PARMS NR_DL_FRAME_PARMS;
 

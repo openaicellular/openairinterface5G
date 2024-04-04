@@ -618,10 +618,10 @@ void init_polar_deinterleaver_table(t_nrPolar_params *polarParams) {
 
 uint32_t polar_decoder_int16(int16_t *input,
                              uint64_t *out,
-                             uint8_t ones_flag,
-                             int8_t messageType,
-                             uint16_t messageLength,
-                             uint8_t aggregation_level )
+                             const uint8_t ones_flag,
+                             const int8_t messageType,
+                             const uint16_t messageLength,
+                             const uint8_t aggregation_level)
 {
   t_nrPolar_params *polarParams=nr_polar_params(messageType, messageLength, aggregation_level, true);
 

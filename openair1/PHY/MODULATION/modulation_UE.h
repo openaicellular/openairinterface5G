@@ -48,18 +48,13 @@ int slot_fep(PHY_VARS_UE *phy_vars_ue,
              int no_prefix,
 	     int reset_freq_est);
 
-int nr_slot_fep(PHY_VARS_NR_UE *ue,
-                const UE_nr_rxtx_proc_t *proc,
-                unsigned char symbol,
-                c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
-
-int nr_slot_fep_init_sync(PHY_VARS_NR_UE *ue,
-                          const UE_nr_rxtx_proc_t *proc,
-                          unsigned char symbol,
-                          int sample_offset,
-                          bool pbch_decoded,
-                          c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP],
-                          int link_type);
+void nr_symbol_fep(
+    const PHY_VARS_NR_UE *ue,
+    const int slot,
+    const unsigned char symbol,
+    const int link_type,
+    const c16_t rxdata[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size + ue->frame_parms.nb_prefix_samples0],
+    c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 int slot_fep_mbsfn(PHY_VARS_UE *phy_vars_ue,
                    unsigned char l,

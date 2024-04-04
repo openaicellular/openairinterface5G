@@ -992,9 +992,10 @@ void nr_ue_aperiodic_srs_scheduling(NR_UE_MAC_INST_t *mac, long resource_trigger
     return;
   }
 
-  AssertFatal(slot_offset > DURATION_RX_TO_TX,
-              "Slot offset between DCI and aperiodic SRS (%d) needs to be higher than DURATION_RX_TO_TX (%d)\n",
-              slot_offset, DURATION_RX_TO_TX);
+  AssertFatal(slot_offset >= DURATION_RX_TO_TX,
+              "Slot offset between DCI and aperiodic SRS (%d) needs to be higher than or equal to DURATION_RX_TO_TX (%d)\n",
+              slot_offset,
+              DURATION_RX_TO_TX);
   int n_slots_frame = nr_slots_per_frame[current_UL_BWP->scs];
   int sched_slot = (slot + slot_offset) % n_slots_frame;
   NR_TDD_UL_DL_ConfigCommon_t *tdd_config = mac->tdd_UL_DL_ConfigurationCommon;
@@ -1400,8 +1401,9 @@ int nr_ue_pusch_scheduler(const NR_UE_MAC_INST_t *mac,
         AssertFatal(1 == 0, "Invalid numerology %i\n", mu);
     }
 
-    AssertFatal((k2 + delta) > DURATION_RX_TO_TX,
-                "Slot offset (%ld) for Msg3 needs to be higher than DURATION_RX_TO_TX (%d). Please set min_rxtxtime at least to %d in gNB config file or gNBs.[0].min_rxtxtime=%d via command line.\n",
+    AssertFatal((k2 + delta) >= DURATION_RX_TO_TX,
+                "Slot offset (%ld) for Msg3 needs to be higher than or equal to DURATION_RX_TO_TX (%d). Please set min_rxtxtime at "
+                "least to %d in gNB config file or gNBs.[0].min_rxtxtime=%d via command line.\n",
                 k2,
                 DURATION_RX_TO_TX,
                 DURATION_RX_TO_TX,
@@ -1416,7 +1418,7 @@ int nr_ue_pusch_scheduler(const NR_UE_MAC_INST_t *mac,
 
   } else {
 
-    AssertFatal(k2 > DURATION_RX_TO_TX,
+    AssertFatal(k2 >= DURATION_RX_TO_TX,
                 "Slot offset K2 (%ld) needs to be higher than DURATION_RX_TO_TX (%d). Please set min_rxtxtime at least to %d in gNB config file or gNBs.[0].min_rxtxtime=%d via command line.\n",
                 k2,
                 DURATION_RX_TO_TX,

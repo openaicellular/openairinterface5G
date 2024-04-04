@@ -80,6 +80,6 @@ bool rx_sss_nr(PHY_VARS_NR_UE *ue,
                int32_t *tot_metric,
                uint8_t *phase_max,
                int *freq_offset_sss,
-               c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+               c16_t rxdataF[NR_N_SYMBOLS_SSB][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 #endif /* SSS_NR_H */
 

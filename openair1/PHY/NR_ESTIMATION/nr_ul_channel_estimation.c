@@ -534,12 +534,7 @@ void nr_pusch_ptrs_processing(PHY_VARS_gNB *gNB,
     }
 
     if(symbol == *startSymbIndex) {
-      *ptrsSymbPos = 0;
-      set_ptrs_symb_idx(ptrsSymbPos,
-                        *nbSymb,
-                        *startSymbIndex,
-                        1<< *L_ptrs,
-                        *dmrsSymbPos);
+      *ptrsSymbPos = get_ptrs_symb_idx(*nbSymb, *startSymbIndex, 1 << *L_ptrs, *dmrsSymbPos);
     }
 
     /* if not PTRS symbol set current ptrs symbol index to zero*/
@@ -558,8 +553,8 @@ void nr_pusch_ptrs_processing(PHY_VARS_gNB *gNB,
                              nr_tti_rx,
                              symbol,
                              frame_parms->ofdm_symbol_size,
-                             (int16_t *)&pusch_vars->rxdataF_comp[aarx][(symbol * nb_re_pusch)],
                              gNB->nr_gold_pusch_dmrs[rel15_ul->scid][nr_tti_rx][symbol],
+                             (int16_t *)&pusch_vars->rxdataF_comp[aarx][(symbol * nb_re_pusch)],
                              (int16_t *)&phase_per_symbol[symbol],
                              ptrs_re_symbol);
     }

@@ -47,11 +47,7 @@
 
 /************** FUNCTION ******************************************/
 
-void set_ptrs_symb_idx(uint16_t *ptrs_symbols,
-                       uint8_t duration_in_symbols,
-                       uint8_t start_symbol,
-                       uint8_t L_ptrs,
-                       uint16_t dmrs_symb_pos);
+int get_ptrs_symb_idx(const int duration_in_symbols, const int start_symbol, const int L_ptrs, const int dmrs_symb_pos);
 
 uint8_t is_ptrs_subcarrier(uint16_t k,
                            uint16_t n_rnti,
@@ -74,7 +70,10 @@ uint8_t is_ptrs_subcarrier(uint16_t k,
 *
 *********************************************************************/
 
-static inline uint8_t is_ptrs_symbol(uint8_t l, uint16_t ptrs_symbols) { return ((ptrs_symbols >> l) & 1); }
+static inline uint8_t is_ptrs_symbol(const uint8_t l, const uint16_t ptrs_symbols)
+{
+  return ((ptrs_symbols >> l) & 1);
+}
 
 uint8_t get_ptrs_symbols_in_slot(uint16_t l_prime_mask, uint16_t start_symb, uint16_t nb_symb);
 int8_t get_next_ptrs_symbol_in_slot(uint16_t  ptrsSymbPos, uint8_t counter, uint8_t nb_symb);
@@ -87,15 +86,15 @@ int8_t nr_ptrs_process_slot(uint16_t dmrsSymbPos,
                             uint16_t noSymb
                             );
 /*  general function to estimate common phase error based upon PTRS */
-void nr_ptrs_cpe_estimation(uint8_t K_ptrs,
-                            uint8_t ptrsReOffset,
-                            uint16_t nb_rb,
-                            uint16_t rnti,
-                            unsigned char Ns,
-                            unsigned char symbol,
-                            uint16_t ofdm_symbol_size,
+void nr_ptrs_cpe_estimation(const uint8_t K_ptrs,
+                            const uint8_t ptrsReOffset,
+                            const uint16_t nb_rb,
+                            const uint16_t rnti,
+                            const unsigned char Ns,
+                            const unsigned char symbol,
+                            const uint16_t ofdm_symbol_size,
+                            const uint32_t *gold_seq,
                             int16_t *rxF_comp,
-                            uint32_t *gold_seq,
                             int16_t *error_est,
                             int32_t *ptrs_sc);
 

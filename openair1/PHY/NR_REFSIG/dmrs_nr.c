@@ -317,6 +317,15 @@ uint8_t get_dmrs_symbols_in_slot(uint16_t l_prime_mask,  uint16_t nb_symb)
   return tmp;
 }
 
+int get_last_dmrs_symbol_in_slot(const int dmrs_symbol_pos)
+{
+  for (int i = NR_SYMBOLS_PER_SLOT - 1; i > 0; i--) {
+    if ((dmrs_symbol_pos >> i) & 0x1)
+      return i;
+  }
+  return -1;
+}
+
 /* return the position of valid dmrs symbol in a slot for channel compensation */
 int8_t get_valid_dmrs_idx_for_channel_est(uint16_t  dmrs_symb_pos, uint8_t counter)
 {
@@ -339,79 +348,130 @@ int8_t get_valid_dmrs_idx_for_channel_est(uint16_t  dmrs_symb_pos, uint8_t count
   return symbIdx;
 }
 
+/* return number of data symbols before the last DMRS symbol */
+int get_num_data_symb_before_last_dmrs(const int dmrs_symb_pos)
+{
+  int sum = 0;
+  const int last_dmrs_symbol_idx = get_last_dmrs_symbol_in_slot(dmrs_symb_pos);
+  DevAssert(last_dmrs_symbol_idx != -1);
+  for (int i = 0; i < last_dmrs_symbol_idx; i++) {
+    sum += !((dmrs_symb_pos >> i) & 0x1);
+  }
+  return sum;
+}
+
+int get_first_symb_idx_with_data(const int dmrsBitMap,
+                                 const int dmrsType,
+                                 const int numDmrsCmdGrp,
+                                 const int startSymbol,
+                                 const int numSymbs)
+{
+  int dmrs_data_re;
+  int firstDataSymb = startSymbol;
+
+  if (dmrsType == NFAPI_NR_DMRS_TYPE1)
+    dmrs_data_re = NR_NB_SC_PER_RB - 6 * numDmrsCmdGrp;
+  else
+    dmrs_data_re = NR_NB_SC_PER_RB - 4 * numDmrsCmdGrp;
+
+  while ((dmrs_data_re == 0) && (dmrsBitMap & (1 << firstDataSymb))) {
+    firstDataSymb++;
+  }
+
+  return firstDataSymb;
+}
+
 /* perform averaging of channel estimates and store result in first symbol buffer */
-void nr_chest_time_domain_avg(NR_DL_FRAME_PARMS *frame_parms,
-                              int32_t **ch_estimates,
-                              uint8_t num_symbols,
-                              uint8_t start_symbol,
-                              uint16_t dmrs_bitmap,
-                              uint16_t num_rbs)
+void nr_chest_time_domain_avg(const NR_DL_FRAME_PARMS *frame_parms,
+                              const int num_symbols,
+                              const int start_symbol,
+                              const int dmrs_bitmap,
+                              const int num_rbs,
+                              const int antIdx,
+                              const int layerIdx,
+                              const int Nl,
+                              const bool isUE,
+                              c16_t *ch_estimates)
 {
   simde__m128i *ul_ch128_0;
   simde__m128i *ul_ch128_1;
   int16_t *ul_ch16_0;
-  int total_symbols = start_symbol + num_symbols;
-  int num_dmrs_symb = get_dmrs_symbols_in_slot(dmrs_bitmap, total_symbols);
-  int first_dmrs_symb = get_next_dmrs_symbol_in_slot(dmrs_bitmap, start_symbol, total_symbols);
+
+  const int total_symbols = start_symbol + num_symbols;
+  const int num_dmrs_symb = get_dmrs_symbols_in_slot(dmrs_bitmap, total_symbols);
+  const int first_dmrs_symb = get_next_dmrs_symbol_in_slot(dmrs_bitmap, start_symbol, total_symbols);
+
   AssertFatal(first_dmrs_symb > -1, "No DMRS symbol present in this slot\n");
-  for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-    for (int symb = first_dmrs_symb+1; symb < total_symbols; symb++) {
-      ul_ch128_0 = (simde__m128i *)&ch_estimates[aarx][first_dmrs_symb*frame_parms->ofdm_symbol_size];
-      if ((dmrs_bitmap >> symb) & 0x01) {
-        ul_ch128_1 = (simde__m128i *)&ch_estimates[aarx][symb*frame_parms->ofdm_symbol_size];
-        for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
-          ul_ch128_0[0] = simde_mm_adds_epi16(ul_ch128_0[0], ul_ch128_1[0]);
-          ul_ch128_0[1] = simde_mm_adds_epi16(ul_ch128_0[1], ul_ch128_1[1]);
-          ul_ch128_0[2] = simde_mm_adds_epi16(ul_ch128_0[2], ul_ch128_1[2]);
-          ul_ch128_0 += 3;
-          ul_ch128_1 += 3;
-        }
+
+  const int symb_offset = Nl * frame_parms->nb_antennas_rx * frame_parms->ofdm_symbol_size;
+  const int layer_offset = frame_parms->nb_antennas_rx * frame_parms->ofdm_symbol_size;
+  for (int symb = first_dmrs_symb + 1; symb < total_symbols; symb++) {
+    ul_ch128_0 = isUE ? (simde__m128i *)&ch_estimates[first_dmrs_symb * symb_offset + layerIdx * layer_offset
+                                                      + antIdx * frame_parms->ofdm_symbol_size]
+                      : (simde__m128i *)&ch_estimates[first_dmrs_symb * frame_parms->ofdm_symbol_size];
+    if ((dmrs_bitmap >> symb) & 0x01) {
+      ul_ch128_1 =
+          isUE
+              ? (simde__m128i *)&ch_estimates[symb * symb_offset + layerIdx * layer_offset + antIdx * frame_parms->ofdm_symbol_size]
+              : (simde__m128i *)&ch_estimates[symb * frame_parms->ofdm_symbol_size];
+      for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
+        ul_ch128_0[0] = simde_mm_adds_epi16(ul_ch128_0[0], ul_ch128_1[0]);
+        ul_ch128_0[1] = simde_mm_adds_epi16(ul_ch128_0[1], ul_ch128_1[1]);
+        ul_ch128_0[2] = simde_mm_adds_epi16(ul_ch128_0[2], ul_ch128_1[2]);
+        ul_ch128_0 += 3;
+        ul_ch128_1 += 3;
       }
     }
-    ul_ch128_0 = (simde__m128i *)&ch_estimates[aarx][first_dmrs_symb*frame_parms->ofdm_symbol_size];
-    if (num_dmrs_symb == 2) {
-      for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
-        ul_ch128_0[0] = simde_mm_srai_epi16(ul_ch128_0[0], 1);
-        ul_ch128_0[1] = simde_mm_srai_epi16(ul_ch128_0[1], 1);
-        ul_ch128_0[2] = simde_mm_srai_epi16(ul_ch128_0[2], 1);
-        ul_ch128_0 += 3;
-      }
-    } else if (num_dmrs_symb == 4) {
-      for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
-        ul_ch128_0[0] = simde_mm_srai_epi16(ul_ch128_0[0], 2);
-        ul_ch128_0[1] = simde_mm_srai_epi16(ul_ch128_0[1], 2);
-        ul_ch128_0[2] = simde_mm_srai_epi16(ul_ch128_0[2], 2);
-        ul_ch128_0 += 3;
-      }
-    } else if (num_dmrs_symb == 3) {
-      ul_ch16_0 = (int16_t *)&ch_estimates[aarx][first_dmrs_symb*frame_parms->ofdm_symbol_size];
-      for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
-        ul_ch16_0[0] /= 3;
-        ul_ch16_0[1] /= 3;
-        ul_ch16_0[2] /= 3;
-        ul_ch16_0[3] /= 3;
-        ul_ch16_0[4] /= 3;
-        ul_ch16_0[5] /= 3;
-        ul_ch16_0[6] /= 3;
-        ul_ch16_0[7] /= 3;
-        ul_ch16_0[8] /= 3;
-        ul_ch16_0[9] /= 3;
-        ul_ch16_0[10] /= 3;
-        ul_ch16_0[11] /= 3;
-        ul_ch16_0[12] /= 3;
-        ul_ch16_0[13] /= 3;
-        ul_ch16_0[14] /= 3;
-        ul_ch16_0[15] /= 3;
-        ul_ch16_0[16] /= 3;
-        ul_ch16_0[17] /= 3;
-        ul_ch16_0[18] /= 3;
-        ul_ch16_0[19] /= 3;
-        ul_ch16_0[20] /= 3;
-        ul_ch16_0[21] /= 3;
-        ul_ch16_0[22] /= 3;
-        ul_ch16_0[23] /= 3;
-        ul_ch16_0 += 24;
-      }
-    } else AssertFatal((num_dmrs_symb < 5) && (num_dmrs_symb > 0), "Illegal number of DMRS symbols in the slot\n");
   }
+
+  ul_ch128_0 = isUE ? (simde__m128i *)&ch_estimates[first_dmrs_symb * symb_offset + layerIdx * layer_offset
+                                                    + antIdx * frame_parms->ofdm_symbol_size]
+                    : (simde__m128i *)&ch_estimates[first_dmrs_symb * frame_parms->ofdm_symbol_size];
+  if (num_dmrs_symb == 2) {
+    for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
+      ul_ch128_0[0] = simde_mm_srai_epi16(ul_ch128_0[0], 1);
+      ul_ch128_0[1] = simde_mm_srai_epi16(ul_ch128_0[1], 1);
+      ul_ch128_0[2] = simde_mm_srai_epi16(ul_ch128_0[2], 1);
+      ul_ch128_0 += 3;
+    }
+  } else if (num_dmrs_symb == 4) {
+    for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
+      ul_ch128_0[0] = simde_mm_srai_epi16(ul_ch128_0[0], 2);
+      ul_ch128_0[1] = simde_mm_srai_epi16(ul_ch128_0[1], 2);
+      ul_ch128_0[2] = simde_mm_srai_epi16(ul_ch128_0[2], 2);
+      ul_ch128_0 += 3;
+    }
+  } else if (num_dmrs_symb == 3) {
+    ul_ch16_0 = isUE ? (int16_t *)&ch_estimates[first_dmrs_symb * symb_offset + layerIdx * layer_offset
+                                                + antIdx * frame_parms->ofdm_symbol_size]
+                     : (int16_t *)&ch_estimates[first_dmrs_symb * frame_parms->ofdm_symbol_size];
+    for (int rbIdx = 0; rbIdx < num_rbs; rbIdx++) {
+      ul_ch16_0[0] /= 3;
+      ul_ch16_0[1] /= 3;
+      ul_ch16_0[2] /= 3;
+      ul_ch16_0[3] /= 3;
+      ul_ch16_0[4] /= 3;
+      ul_ch16_0[5] /= 3;
+      ul_ch16_0[6] /= 3;
+      ul_ch16_0[7] /= 3;
+      ul_ch16_0[8] /= 3;
+      ul_ch16_0[9] /= 3;
+      ul_ch16_0[10] /= 3;
+      ul_ch16_0[11] /= 3;
+      ul_ch16_0[12] /= 3;
+      ul_ch16_0[13] /= 3;
+      ul_ch16_0[14] /= 3;
+      ul_ch16_0[15] /= 3;
+      ul_ch16_0[16] /= 3;
+      ul_ch16_0[17] /= 3;
+      ul_ch16_0[18] /= 3;
+      ul_ch16_0[19] /= 3;
+      ul_ch16_0[20] /= 3;
+      ul_ch16_0[21] /= 3;
+      ul_ch16_0[22] /= 3;
+      ul_ch16_0[23] /= 3;
+      ul_ch16_0 += 24;
+    }
+  } else
+    AssertFatal((num_dmrs_symb < 5) && (num_dmrs_symb > 0), "Illegal number of DMRS symbols in the slot\n");
 }

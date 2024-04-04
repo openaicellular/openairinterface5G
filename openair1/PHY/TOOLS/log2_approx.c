@@ -19,7 +19,7 @@
  *      contact@openairinterface.org
  */
 
-unsigned char log2_approx(unsigned int x)
+unsigned char log2_approx(const unsigned int x)
 {
 
   int i;

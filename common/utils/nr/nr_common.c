@@ -308,8 +308,8 @@ int cce_to_reg_interleaving(const int R, int k, int n_shift, const int C, int L,
   return f;
 }
 
-void get_coreset_rballoc(uint8_t *FreqDomainResource,int *n_rb,int *rb_offset) {
-
+void get_coreset_rballoc(const uint8_t *FreqDomainResource, int *n_rb, int *rb_offset)
+{
   uint8_t count=0, start=0, start_set=0;
 
   uint64_t bitmap = (((uint64_t)FreqDomainResource[0])<<37)|

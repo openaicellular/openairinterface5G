@@ -33,17 +33,15 @@
 // The adjustment is performed once per frame based on the
 // last channel estimate of the receiver
 
-int nr_adjust_synch_ue(NR_DL_FRAME_PARMS *frame_parms,
-                       PHY_VARS_NR_UE *ue,
-                       module_id_t gNB_id,
-                       const int estimateSz,
-                       struct complex16 dl_ch_estimates_time[][estimateSz],
-                       uint8_t frame,
-                       uint8_t slot,
-                       short coef)
+int nr_adjust_synch_ue(PHY_VARS_NR_UE *ue,
+                       const c16_t dl_ch_estimates_time[][ue->frame_parms.ofdm_symbol_size],
+                       const uint8_t frame,
+                       const uint8_t slot,
+                       const short coef)
 {
   int max_val = 0, max_pos = 0;
   uint8_t sync_offset = 0;
+  const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_ADJUST_SYNCH, VCD_FUNCTION_IN);
 

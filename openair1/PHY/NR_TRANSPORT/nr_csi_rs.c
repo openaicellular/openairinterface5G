@@ -44,20 +44,13 @@ void nr_init_csi_rs(const NR_DL_FRAME_PARMS *fp, uint32_t ***csi_rs, uint32_t Ni
 }
 
 void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
-                        int32_t **dataF,
                         const int16_t amp,
-                        nr_csi_info_t *nr_csi_info,
-                        const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *csi_params,
                         const int slot,
-                        uint8_t *N_cdm_groups,
-                        uint8_t *CDM_group_size,
-                        uint8_t *k_prime,
-                        uint8_t *l_prime,
-                        uint8_t *N_ports,
-                        uint8_t *j_cdm,
-                        uint8_t *k_overline,
-                        uint8_t *l_overline) {
-
+                        const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *csi_params,
+                        c16_t **dataF,
+                        nr_csi_info_t *nr_csi_info,
+                        nr_csi_phy_parms_t *csi_phy_parms)
+{
 #ifdef NR_CSIRS_DEBUG
   LOG_I(NR_PHY, "csi_params->subcarrier_spacing = %i\n", csi_params->subcarrier_spacing);
   LOG_I(NR_PHY, "csi_params->cyclic_prefix = %i\n", csi_params->cyclic_prefix);
@@ -628,12 +621,12 @@ void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
 
             // ZP CSI RS
             if (csi_params->csi_type == 2) {
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+(2*dataF_offset)] = 0;
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+1+(2*dataF_offset)] = 0;
+              dataF[p][l * frame_parms->ofdm_symbol_size + k + dataF_offset] = (c16_t){0};
             }
             else {
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+(2*dataF_offset)] = (beta*wt*wf*mod_csi[l][mprime<<1]) >> 15;
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+1+(2*dataF_offset)] = (beta*wt*wf*mod_csi[l][(mprime<<1) + 1]) >> 15;
+              dataF[p][l * frame_parms->ofdm_symbol_size + k + dataF_offset].r = (beta * wt * wf * mod_csi[l][mprime << 1]) >> 15;
+              dataF[p][l * frame_parms->ofdm_symbol_size + k + dataF_offset].i =
+                  (beta * wt * wf * mod_csi[l][(mprime << 1) + 1]) >> 15;
             }
 #ifdef NR_CSIRS_DEBUG
             printf("l,k (%d,%d)  seq. index %d \t port %d \t (%d,%d)\n",l,k,mprime,p+3000,
@@ -646,14 +639,17 @@ void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
     }
    }
   }
-  if (N_cdm_groups) *N_cdm_groups = size;
-  if (CDM_group_size) *CDM_group_size = gs;
-  if (k_prime) *k_prime = kprime;
-  if (l_prime) *l_prime = lprime;
-  if (N_ports) *N_ports = ports;
-  if (j_cdm) memcpy(j_cdm,j,16*sizeof(uint8_t));
-  if (k_overline) memcpy(k_overline,koverline,16*sizeof(uint8_t));
-  if (l_overline) memcpy(l_overline,loverline,16*sizeof(uint8_t));
+
+  if (csi_phy_parms) {
+    csi_phy_parms->N_cdm_groups = size;
+    csi_phy_parms->CDM_group_size = gs;
+    csi_phy_parms->k_prime = kprime;
+    csi_phy_parms->l_prime = lprime;
+    csi_phy_parms->N_ports = ports;
+    memcpy(csi_phy_parms->j_cdm, j, sizeof(csi_phy_parms->j_cdm));
+    memcpy(csi_phy_parms->k_overline, koverline, sizeof(csi_phy_parms->k_overline));
+    memcpy(csi_phy_parms->l_overline, loverline, sizeof(csi_phy_parms->l_overline));
+  }
 
 #ifdef NR_CSIRS_DEBUG
   if (N_ports) LOG_I(NR_PHY, "nr_csi_info->N_ports = %d\n", *N_ports);
