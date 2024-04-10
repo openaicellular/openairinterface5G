@@ -803,6 +803,9 @@ class Containerize():
 			if response.returncode != 0:
 				msg = 'Could not log into local registry'
 				logging.error(msg)
+				# Some servers might not be configured w/ selfix as insecure registry
+				if myRegistry == 'selfix':
+					continue
 				myCmd.close()
 				HTML.CreateHtmlTestRow(msg, 'KO', CONST.ALL_PROCESSES_OK)
 				return False
