@@ -14,7 +14,7 @@ set(NR_ULSIM_OPTION_TO_TEST_LIST
 if (ENABLE_LDPC_T2)
   list(APPEND NR_ULSIM_OPTION_TO_TEST_LIST
     t2_offload_nr_ulsim
-    #slot_t2
+    slot_t2
   )
 endif()
 
@@ -144,11 +144,11 @@ set(NR_ULSCHSIM_OPTION_TO_TEST_LIST
   slot_demo
 )
 
-#if (ENABLE_LDPC_T2)
-#  list(APPEND NR_ULSCHSIM_OPTION_TO_TEST_LIST
-#    slot_t2
-#  )
-#endif()
+if (ENABLE_LDPC_T2)
+  list(APPEND NR_ULSCHSIM_OPTION_TO_TEST_LIST
+    slot_t2
+  )
+endif()
 
 set(test_nr_ulschsim_test1 "-R" "106" "-m9" "-s13" "-n100")
 set(test_nr_ulschsim_test2 "-R" "217" "-m15" "-s15" "-n100")
@@ -186,7 +186,7 @@ set(NR_DLSIM_OPTION_TO_TEST_LIST
 if (ENABLE_LDPC_T2)
   list(APPEND NR_DLSIM_OPTION_TO_TEST_LIST
     t2_offload_nr_dlsim
-    #slot_t2
+    slot_t2
   )
 endif()
 
@@ -268,11 +268,11 @@ set(NR_DLSCHSIM_OPTION_TO_TEST_LIST
   slot_demo
 )
 
-#if (ENABLE_LDPC_T2)
-#  list(APPEND NR_DLSCHSIM_OPTION_TO_TEST_LIST
-#    slot_t2
-#  )
-#endif()
+if (ENABLE_LDPC_T2)
+  list(APPEND NR_DLSCHSIM_OPTION_TO_TEST_LIST
+    slot_t2
+  )
+endif()
 
 set(test_nr_dlschsim_test1 "-R" "106" "-m9" "-s13" "-n100")
 set(test_nr_dlschsim_test2 "-R" "217" "-m15" "-s15" "-n100")
@@ -311,7 +311,7 @@ set(NR_SOFTMODEM_OPTION_TO_TEST_LIST
 if (ENABLE_LDPC_T2)
   list(APPEND NR_SOFTMODEM_OPTION_TO_TEST_LIST
     t2_offload
-    #slot_t2
+    slot_t2
   )
 endif()
 
