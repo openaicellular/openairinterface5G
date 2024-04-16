@@ -632,7 +632,8 @@ static int UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc
       UE->if_inst->dl_indication(&dl_indication);
     }
 
-    sampleShift = pbch_pdcch_processing(UE, proc, phy_data);
+    sampleShift = pbch_processing(UE, proc, phy_data);
+    nr_ue_pdcch_procedures(UE, proc, phy_data);
     if (phy_data->dlsch[0].active && phy_data->dlsch[0].rnti_type == TYPE_C_RNTI_) {
       // indicate to tx thread to wait for DLSCH decoding
       const int ack_nack_slot = (proc->nr_slot_rx + phy_data->dlsch[0].dlsch_config.k1_feedback) % UE->frame_parms.slots_per_frame;

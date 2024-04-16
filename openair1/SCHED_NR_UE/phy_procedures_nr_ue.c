@@ -412,53 +412,21 @@ static int nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
   return ret;
 }
 
-int nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
-                           const UE_nr_rxtx_proc_t *proc,
-                           int32_t pdcch_est_size,
-                           c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
-                           nr_phy_data_t *phy_data,
-                           int n_ss,
-                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+unsigned int nr_get_tx_amp(int power_dBm, int power_max_dBm, int N_RB_UL, int nb_rb)
 {
-  int frame_rx = proc->frame_rx;
-  int nr_slot_rx = proc->nr_slot_rx;
-  NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
 
-  fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15 = &phy_pdcch_config->pdcch_config[n_ss];
+  int gain_dB = power_dBm - power_max_dBm;
+  double gain_lin;
 
-  start_meas(&ue->dlsch_rx_pdcch_stats);
-
-  /// PDCCH/DCI e-sequence (input to rate matching).
-  int32_t pdcch_e_rx_size = NR_MAX_PDCCH_SIZE;
-  c16_t pdcch_e_rx[pdcch_e_rx_size];
-
-  nr_rx_pdcch(ue, proc, pdcch_est_size, pdcch_dl_ch_estimates, pdcch_e_rx, rel15, rxdataF);
-
-  fapi_nr_dci_indication_t dci_ind;
-  nr_dci_decoding_procedure(ue, proc, pdcch_e_rx, &dci_ind, rel15);
-
-  for (int i = 0; i < dci_ind.number_of_dcis; i++) {
-    LOG_D(PHY,
-          "[UE  %d] AbsSubFrame %d.%d: DCI %i of %d total DCIs found --> rnti %x : format %d\n",
-          ue->Mod_id,
-          frame_rx % 1024,
-          nr_slot_rx,
-          i + 1,
-          dci_ind.number_of_dcis,
-          dci_ind.dci_list[i].rnti,
-          dci_ind.dci_list[i].dci_format);
+  gain_lin = pow(10,.1*gain_dB);
+  if ((nb_rb >0) && (nb_rb <= N_RB_UL)) {
+    return((int)(AMP*sqrt(gain_lin*N_RB_UL/(double)nb_rb)));
   }
-
-  nr_downlink_indication_t dl_indication;
-  // fill dl_indication message
-  nr_fill_dl_indication(&dl_indication, &dci_ind, NULL, proc, ue, phy_data);
-  //  send to mac
-  ue->if_inst->dl_indication(&dl_indication);
-
-  stop_meas(&ue->dlsch_rx_pdcch_stats);
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_PDCCH_PROCEDURES, VCD_FUNCTION_OUT);
-  return (dci_ind.number_of_dcis);
+  else {
+    LOG_E(PHY,"Illegal nb_rb/N_RB_UL combination (%d/%d)\n",nb_rb,N_RB_UL);
+    //mac_xface->macphy_exit("");
+  }
+  return(0);
 }
 
 static int nr_ue_pdsch_procedures(PHY_VARS_NR_UE *ue,
@@ -872,14 +840,78 @@ static bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
   return dec;
 }
 
-int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
+int get_pdcch_max_rbs(const NR_UE_PDCCH_CONFIG *phy_pdcch_config)
+{
+  int nb_rb = 0;
+  int rb_offset = 0;
+  for (int i = 0; i < phy_pdcch_config->nb_search_space; i++) {
+    int tmp = 0;
+    get_coreset_rballoc(phy_pdcch_config->pdcch_config[i].coreset.frequency_domain_resource, &tmp, &rb_offset);
+    if (tmp > nb_rb)
+      nb_rb = tmp;
+  }
+  return nb_rb;
+}
+
+int get_max_pdcch_symb(const NR_UE_PDCCH_CONFIG *phy_pdcch_config)
+{
+  int max_pdcch_symb = 0;
+  for (int i = 0; i < phy_pdcch_config->nb_search_space; i++)
+    if (phy_pdcch_config->pdcch_config[i].coreset.duration > max_pdcch_symb)
+      max_pdcch_symb = phy_pdcch_config->pdcch_config[i].coreset.duration;
+
+  return max_pdcch_symb;
+}
+
+void nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
+{
+  /* process PDCCH */
+  LOG_D(PHY, " ------ --> PDCCH ChannelComp/LLR Frame.slot %d.%d ------  \n", proc->frame_rx % 1024, proc->nr_slot_rx);
+  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PDCCH, VCD_FUNCTION_IN);
+  const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
+  const int num_monitoring_occ = get_max_pdcch_monOcc(phy_pdcch_config);
+  const int nb_symb_pdcch = get_max_pdcch_symb(phy_pdcch_config);
+  const int pdcchLlrSize = get_pdcch_max_rbs(phy_pdcch_config) * nb_symb_pdcch * 9;
+  c16_t *pdcchLlr = malloc16_clear(sizeof(*pdcchLlr) * pdcchLlrSize * num_monitoring_occ * phy_pdcch_config->nb_search_space);
+
+  int start_symb_pdcch, last_symb_pdcch;
+  set_first_last_pdcch_symb(phy_pdcch_config, &start_symb_pdcch, &last_symb_pdcch);
+
+  /* Temporarily loop over symbols in the slot, perform OFDM demod and process PDCCH.
+     When symbol based proc design is fully merged, this function will be called to process only one symbol
+     and OFDM demod will be removed from here. */
+  const uint32_t rxdataF_sz = ue->frame_parms.samples_per_slot_wCP;
+  __attribute__((aligned(32))) c16_t rxdataF[ue->frame_parms.nb_antennas_rx][rxdataF_sz];
+
+  for (int symbol = start_symb_pdcch; symbol < last_symb_pdcch + 1; symbol++) {
+    NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
+    nr_slot_fep(ue, fp, proc, symbol, rxdataF, link_type_dl);
+    __attribute__((aligned(32))) c16_t rxdataF_symb[fp->nb_antennas_rx][((fp->ofdm_symbol_size + 7) / 8) * 8];
+
+    for (int ant = 0; ant < fp->nb_antennas_rx; ant++)
+      memcpy(rxdataF_symb[ant], &rxdataF[ant][symbol * fp->ofdm_symbol_size], sizeof(c16_t) * fp->ofdm_symbol_size);
+
+    if (symbol < last_symb_pdcch) {
+      nr_pdcch_generate_llr(ue, proc, symbol, phy_data, pdcchLlrSize, num_monitoring_occ, rxdataF_symb, pdcchLlr);
+    } else if (symbol == last_symb_pdcch) {
+      nr_pdcch_generate_llr(ue, proc, symbol, phy_data, pdcchLlrSize, num_monitoring_occ, rxdataF_symb, pdcchLlr);
+      nr_pdcch_dci_indication(proc, pdcchLlrSize, num_monitoring_occ, ue, phy_data, pdcchLlr);
+      free(pdcchLlr);
+      pdcchLlr = NULL;
+    } else {
+      DevAssert(false);
+    }
+  }
+  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PDCCH, VCD_FUNCTION_OUT);
+}
+
+int pbch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
 {
   int frame_rx = proc->frame_rx;
   int nr_slot_rx = proc->nr_slot_rx;
   int gNB_id = proc->gNB_id;
   fapi_nr_config_request_t *cfg = &ue->nrUE_config;
   NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
-  NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
   int sampleShift = 0;
   nr_ue_dlsch_init(phy_data->dlsch, NR_MAX_NB_LAYERS>4 ? 2:1, ue->max_ldpc_iterations);
   
@@ -1001,44 +1033,6 @@ int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_
     LOG_I(NR_PHY,"============================================\n");
   }
 
-  LOG_D(PHY," ------ --> PDCCH ChannelComp/LLR Frame.slot %d.%d ------  \n", frame_rx%1024, nr_slot_rx);
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PDCCH, VCD_FUNCTION_IN);
-
-  uint8_t nb_symb_pdcch = phy_pdcch_config->nb_search_space > 0 ? phy_pdcch_config->pdcch_config[0].coreset.duration : 0;
-  for (uint16_t l=0; l<nb_symb_pdcch; l++) {
-
-    start_meas(&ue->ofdm_demod_stats);
-    nr_slot_fep(ue, fp, proc, l, rxdataF, link_type_dl);
-  }
-
-    // Hold the channel estimates in frequency domain.
-  int32_t pdcch_est_size = ((((fp->symbols_per_slot*(fp->ofdm_symbol_size+LTE_CE_FILTER_LENGTH))+15)/16)*16);
-  __attribute__((aligned(16))) c16_t pdcch_dl_ch_estimates[4 * fp->nb_antennas_rx][pdcch_est_size];
-
-  uint8_t dci_cnt = 0;
-  for(int n_ss = 0; n_ss<phy_pdcch_config->nb_search_space; n_ss++) {
-    for (uint16_t l=0; l<nb_symb_pdcch; l++) {
-
-      // note: this only works if RBs for PDCCH are contigous!
-
-      nr_pdcch_channel_estimation(ue,
-                                  proc,
-                                  l,
-                                  &phy_pdcch_config->pdcch_config[n_ss].coreset,
-                                  fp->first_carrier_offset,
-                                  phy_pdcch_config->pdcch_config[n_ss].BWPStart,
-                                  pdcch_est_size,
-                                  pdcch_dl_ch_estimates,
-                                  rxdataF);
-
-      stop_meas(&ue->ofdm_demod_stats);
-
-    }
-    dci_cnt = dci_cnt + nr_ue_pdcch_procedures(ue, proc, pdcch_est_size, pdcch_dl_ch_estimates, phy_data, n_ss, rxdataF);
-  }
-  LOG_D(PHY, "[UE %d] Frame %d, nr_slot_rx %d: found %d DCIs\n", ue->Mod_id, frame_rx, nr_slot_rx, dci_cnt);
-  phy_pdcch_config->nb_search_space = 0;
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PDCCH, VCD_FUNCTION_OUT);
   return sampleShift;
 }
 

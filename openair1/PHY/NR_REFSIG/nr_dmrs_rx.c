@@ -170,12 +170,7 @@ int nr_pdsch_dmrs_rx(const PHY_VARS_NR_UE *ue,
   return(0);
 }
 
-int nr_pdcch_dmrs_rx(const PHY_VARS_NR_UE *ue,
-                     unsigned int Ns,
-                     const unsigned int *nr_gold_pdcch,
-                     c16_t *output,
-                     unsigned short p,
-                     unsigned short nb_rb_coreset)
+int nr_pdcch_dmrs_rx(const unsigned int *nr_gold_pdcch, c16_t *output, const unsigned short p, const unsigned short nb_rb_coreset)
 {
   uint8_t idx=0;
   //uint8_t pdcch_rb_offset =0;
