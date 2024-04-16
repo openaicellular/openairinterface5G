@@ -64,22 +64,19 @@ c32_t nr_pbch_dmrs_correlation(const NR_DL_FRAME_PARMS *fp,
                                const int Nid_cell,
                                const int ssb_start_subcarrier,
                                const uint32_t nr_gold_pbch[NR_PBCH_DMRS_LENGTH_DWORD],
-                               const c16_t rxdataF[][fp->samples_per_slot_wCP]);
+                               const c16_t rxdataF[fp->nb_antennas_rx][fp->ofdm_symbol_size]);
 
 int nr_pbch_channel_estimation(const NR_DL_FRAME_PARMS *fp,
                                const sl_nr_ue_phy_params_t *sl_phy_params,
-                               int estimateSz,
-                               struct complex16 dl_ch_estimates[][estimateSz],
-                               struct complex16 dl_ch_estimates_time[][fp->ofdm_symbol_size],
                                const UE_nr_rxtx_proc_t *proc,
-                               unsigned char symbol,
-                               int dmrss,
-                               uint ssb_index,
-                               uint n_hf,
-                               int ssb_start_subcarrier,
-                               const c16_t rxdataF[][fp->samples_per_slot_wCP],
-                               bool sidelink,
-                               uint Nid);
+                               const int dmrss,
+                               const int ssb_index,
+                               const int n_hf,
+                               const bool sidelink,
+                               const uint16_t Nid,
+                               const int ssb_start_subcarrier,
+                               const c16_t rxdataF[fp->ofdm_symbol_size],
+                               c16_t dl_ch_estimates[fp->ofdm_symbol_size]);
 
 int nr_pdsch_channel_estimation(PHY_VARS_NR_UE *ue,
                                 const UE_nr_rxtx_proc_t *proc,
@@ -99,14 +96,12 @@ int nr_pdsch_channel_estimation(PHY_VARS_NR_UE *ue,
                                 c16_t rxdataF[][rxdataFsize],
                                 uint32_t *nvar);
 
-int nr_adjust_synch_ue(NR_DL_FRAME_PARMS *frame_parms,
-                       PHY_VARS_NR_UE *ue,
-                       module_id_t gNB_id,
-                       int estimateSz,
-                       struct complex16 dl_ch_estimates_time[][estimateSz],
-                       uint8_t frame,
-                       uint8_t subframe,
-                       short coef);
+int nr_adjust_synch_ue(PHY_VARS_NR_UE *ue,
+                       const NR_DL_FRAME_PARMS *frame_parms,
+                       const c16_t dl_ch_estimates_time[][ue->frame_parms.ofdm_symbol_size],
+                       const uint8_t frame,
+                       const uint8_t slot,
+                       const short coef);
 
 void nr_ue_measurements(PHY_VARS_NR_UE *ue,
                         const UE_nr_rxtx_proc_t *proc,
@@ -116,18 +111,17 @@ void nr_ue_measurements(PHY_VARS_NR_UE *ue,
 
 int nr_ue_calculate_ssb_rsrp(const NR_DL_FRAME_PARMS *fp,
                              const UE_nr_rxtx_proc_t *proc,
-                             const c16_t rxdataF[][fp->samples_per_slot_wCP],
-                             int symbol_offset,
+                             const c16_t rxdataF[][fp->ofdm_symbol_size],
                              int ssb_start_subcarrier);
 
 void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
-                                 uint8_t gNB_index,
+                                 const int ssb_index,
                                  const UE_nr_rxtx_proc_t *proc,
-                                 c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
                             const UE_nr_rxtx_proc_t *proc,
-                            c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 void phy_adjust_gain_nr(PHY_VARS_NR_UE *ue,
                         uint32_t rx_power_fil_dB,
@@ -152,8 +146,9 @@ void nr_pdsch_ptrs_processing(PHY_VARS_NR_UE *ue,
 float_t get_nr_RSRP(module_id_t Mod_id,uint8_t CC_id,uint8_t gNB_index);
 
 int nr_sl_psbch_rsrp_measurements(sl_nr_ue_phy_params_t *sl_phy_params,
-                                  NR_DL_FRAME_PARMS *fp,
-                                  c16_t rxdataF[][fp->samples_per_slot_wCP],
+                                  const NR_DL_FRAME_PARMS *fp,
+                                  const int symbol,
+                                  const c16_t rxdataF[][fp->ofdm_symbol_size],
                                   bool use_SSS);
 /** @}*/
 #endif

@@ -258,19 +258,18 @@ static int do_pss_sss_extract_nr(
     uint8_t doSss,
     uint8_t subframe,
     int ssb_start_subcarrier,
-    c16_t rxdataF[][frame_parms->samples_per_slot_wCP]) // add flag to indicate extracting only PSS, only SSS, or both
+    const c16_t rxdataF[NR_N_SYMBOLS_SSB][frame_parms->nb_antennas_rx]
+                       [frame_parms->ofdm_symbol_size]) // add flag to indicate extracting only PSS, only SSS, or both
 {
   AssertFatal(frame_parms->nb_antennas_rx > 0, "UB as sss_ext is not set to any value\n");
 
   for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-    int pss_symbol = 0;
-    int sss_symbol = get_softmodem_params()->sl_mode == 0 ?
-                     (SSS_SYMBOL_NB - PSS_SYMBOL_NB) :
-                     (SSS0_SL_SYMBOL_NB - PSS0_SL_SYMBOL_NB) ;
-    unsigned int ofdm_symbol_size = frame_parms->ofdm_symbol_size;
+    const int pss_symbol = 0;
+    const int sss_symbol =
+        get_softmodem_params()->sl_mode == 0 ? (SSS_SYMBOL_NB - PSS_SYMBOL_NB) : (SSS0_SL_SYMBOL_NB - PSS0_SL_SYMBOL_NB);
 
-    c16_t *pss_rxF = rxdataF[aarx] + pss_symbol * ofdm_symbol_size;
-    c16_t *sss_rxF = rxdataF[aarx] + sss_symbol * ofdm_symbol_size;
+    const c16_t *pss_rxF = rxdataF[pss_symbol][aarx];
+    const c16_t *sss_rxF = rxdataF[sss_symbol][aarx];
 
     c16_t *pss_rxF_ext = pss_ext[aarx];
     c16_t *sss_rxF_ext = sss_ext[aarx];
@@ -335,7 +334,7 @@ static int pss_sss_extract_nr(const NR_DL_FRAME_PARMS *frame_parms,
                               c16_t sss_ext[NB_ANTENNAS_RX][LENGTH_SSS_NR],
                               uint8_t subframe,
                               int ssb_start_subcarrier,
-                              c16_t rxdataF[][frame_parms->samples_per_slot_wCP])
+                              const c16_t rxdataF[NR_N_SYMBOLS_SSB][frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size])
 {
   return do_pss_sss_extract_nr(frame_parms,
                                pss_ext,
@@ -368,7 +367,7 @@ bool rx_sss_nr(const NR_DL_FRAME_PARMS *frame_parms,
                int32_t *tot_metric,
                uint8_t *phase_max,
                int *freq_offset_sss,
-               c16_t rxdataF[][frame_parms->samples_per_slot_wCP])
+               c16_t rxdataF[NR_N_SYMBOLS_SSB][frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size])
 {
   uint8_t i;
   c16_t pss_ext[NB_ANTENNAS_RX][LENGTH_PSS_NR] = {0};

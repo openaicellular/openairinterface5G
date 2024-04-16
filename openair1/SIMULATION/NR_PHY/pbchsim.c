@@ -779,10 +779,6 @@ int main(int argc, char **argv)
         UE_nr_rxtx_proc_t proc={0};
 
         uint8_t ssb_index = 0;
-        const int estimateSz = frame_parms->symbols_per_slot * frame_parms->ofdm_symbol_size;
-        __attribute__((aligned(32))) struct complex16 dl_ch_estimates[frame_parms->nb_antennas_rx][estimateSz];
-        __attribute__((
-            aligned(32))) struct complex16 dl_ch_estimates_time[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
         while (!((SSB_positions >> ssb_index) & 0x01))
           ssb_index++; // to select the first transmitted ssb
         UE->symbol_offset = nr_get_ssb_start_symbol(frame_parms, ssb_index);
@@ -790,42 +786,51 @@ int main(int argc, char **argv)
         int ssb_slot = (UE->symbol_offset/14)+(n_hf*(frame_parms->slots_per_frame>>1));
         proc.nr_slot_rx = ssb_slot;
         proc.gNB_id = 0;
+        int16_t pbch_e_rx[NR_POLAR_PBCH_E];
         for (int i = UE->symbol_offset + 1; i < UE->symbol_offset + 4; i++) {
           nr_slot_fep(UE, frame_parms, &proc, i % frame_parms->symbols_per_slot, rxdataF, link_type_dl);
+          __attribute__((aligned(32))) struct complex16 rxdataF_symb[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
+          __attribute__((aligned(32))) struct complex16 dl_ch_estimates[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
 
-          nr_pbch_channel_estimation(&UE->frame_parms,
-                                     &UE->SL_UE_PHY_PARAMS,
-                                     estimateSz,
-                                     dl_ch_estimates,
-                                     dl_ch_estimates_time,
-                                     &proc,
-                                     i % frame_parms->symbols_per_slot,
-                                     i - (UE->symbol_offset + 1),
-                                     ssb_index % 8,
-                                     n_hf,
-                                     frame_parms->ssb_start_subcarrier,
-                                     rxdataF,
-                                     false,
-                                     frame_parms->Nid_cell);
+          for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
+            memcpy(rxdataF_symb[aarx],
+                   &rxdataF[0][i * frame_parms->ofdm_symbol_size],
+                   sizeof(c16_t) * frame_parms->ofdm_symbol_size);
+            nr_pbch_channel_estimation(frame_parms,
+                                       &UE->SL_UE_PHY_PARAMS,
+                                       &proc,
+                                       i - (UE->symbol_offset + 1),
+                                       ssb_index % 8,
+                                       n_hf,
+                                       false,
+                                       frame_parms->Nid_cell,
+                                       frame_parms->ssb_start_subcarrier,
+                                       rxdataF_symb[aarx],
+                                       dl_ch_estimates[aarx]);
+          }
+          nr_generate_pbch_llr(UE,
+                               frame_parms,
+                               i - UE->symbol_offset,
+                               ssb_index % 8,
+                               Nid_cell,
+                               frame_parms->ssb_start_subcarrier,
+                               rxdataF_symb,
+                               dl_ch_estimates,
+                               pbch_e_rx);
         }
         fapiPbch_t result;
         int ret_ssb_idx;
         int ret_symbol_offset;
-        ret = nr_rx_pbch(UE,
-                         &proc,
-                         true,
-                         estimateSz,
-                         dl_ch_estimates,
-                         frame_parms,
-                         ssb_index % 8,
-                         frame_parms->ssb_start_subcarrier,
-                         Nid_cell,
-                         &result,
-                         &n_hf,
-                         &ret_ssb_idx,
-                         &ret_symbol_offset,
-                         frame_parms->samples_per_frame_wCP,
-                         rxdataF);
+        ret = nr_pbch_decode(UE,
+                             frame_parms,
+                             &proc,
+                             ssb_index % 8,
+                             Nid_cell,
+                             pbch_e_rx,
+                             &n_hf,
+                             &ret_ssb_idx,
+                             &ret_symbol_offset,
+                             &result);
 
         if (ret == 0) {
           // UE->rx_ind.rx_indication_body->mib_pdu.ssb_index;  //not yet detected automatically

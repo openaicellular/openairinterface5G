@@ -359,59 +359,6 @@ void nr_ue_measurement_procedures(uint16_t l,
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_MEASUREMENT_PROCEDURES, VCD_FUNCTION_OUT);
 }
 
-static int nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
-                                 const UE_nr_rxtx_proc_t *proc,
-                                 int estimateSz,
-                                 struct complex16 dl_ch_estimates[][estimateSz],
-                                 c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
-{
-  int ret = 0;
-  DevAssert(ue);
-
-  int frame_rx = proc->frame_rx;
-  int nr_slot_rx = proc->nr_slot_rx;
-  int gNB_id = proc->gNB_id;
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_PBCH_PROCEDURES, VCD_FUNCTION_IN);
-
-  LOG_D(PHY,"[UE  %d] Frame %d Slot %d, Trying PBCH (NidCell %d, gNB_id %d)\n",ue->Mod_id,frame_rx,nr_slot_rx,ue->frame_parms.Nid_cell,gNB_id);
-  fapiPbch_t result;
-  int hf_frame_bit, ssb_index, symb_offset;
-  ret = nr_rx_pbch(ue,
-                   proc,
-                   ue->is_synchronized,
-                   estimateSz,
-                   dl_ch_estimates,
-                   &ue->frame_parms,
-                   (ue->frame_parms.ssb_index) & 7,
-                   ue->frame_parms.ssb_start_subcarrier,
-                   ue->frame_parms.Nid_cell,
-                   &result,
-                   &hf_frame_bit,
-                   &ssb_index,
-                   &symb_offset,
-                   ue->frame_parms.samples_per_frame_wCP,
-                   rxdataF);
-
-  if (ret==0) {
-
-#ifdef DEBUG_PHY_PROC
-    uint16_t frame_tx;
-    LOG_D(PHY,"[UE %d] frame %d, nr_slot_rx %d, Received PBCH (MIB): frame_tx %d. N_RB_DL %d\n",
-    ue->Mod_id,
-    frame_rx,
-    nr_slot_rx,
-    frame_tx,
-    ue->frame_parms.N_RB_DL);
-#endif
-
-  } else {
-    LOG_E(PHY, "[UE %d] frame %d, nr_slot_rx %d, Error decoding PBCH!\n", ue->Mod_id, frame_rx, nr_slot_rx);
-  }
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_PBCH_PROCEDURES, VCD_FUNCTION_OUT);
-  return ret;
-}
-
 static int nr_ue_pdsch_procedures(PHY_VARS_NR_UE *ue,
                                   const UE_nr_rxtx_proc_t *proc,
                                   NR_UE_DLSCH_t dlsch[2],
@@ -888,12 +835,164 @@ void nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, n
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PDCCH, VCD_FUNCTION_OUT);
 }
 
+int is_ssb_in_symbol(const fapi_nr_config_request_t *cfg,
+                     const int symbIdxInFrame,
+                     const int slot,
+                     const NR_DL_FRAME_PARMS *fp,
+                     const int ssbMask,
+                     const int ssbIndex)
+{
+  /* Skip if current SSB index is not transmitted */
+  if (!((ssbMask >> (31 - (ssbIndex % 32))) & 0x1)) {
+    return false;
+  }
+
+  const int startPbchSymb = nr_get_ssb_start_symbol(fp, ssbIndex) + 1;
+  const int startPbchSymbHf = (cfg->ssb_table.ssb_period == 0) ? (startPbchSymb + (fp->slots_per_frame * NR_SYMBOLS_PER_SLOT / 2))
+                                                               : (fp->slots_per_frame * NR_SYMBOLS_PER_SLOT);
+
+  /* Skip if no SSB in current symbol */
+  if ((symbIdxInFrame >= startPbchSymb && symbIdxInFrame < (startPbchSymb + NB_SYMBOLS_PBCH))
+      || (symbIdxInFrame >= startPbchSymbHf && symbIdxInFrame < (startPbchSymbHf + NB_SYMBOLS_PBCH))) {
+    return true;
+  }
+
+  return false;
+}
+
+int get_ssb_index_in_symbol(const fapi_nr_config_request_t *cfg,
+                            const NR_DL_FRAME_PARMS *fp,
+                            const int symbIdxInFrame,
+                            const int slot,
+                            const int frame)
+{
+  /* checking if current frame is compatible with SSB periodicity */
+  if (cfg->ssb_table.ssb_period != 0 && (frame % (1 << (cfg->ssb_table.ssb_period - 1)))) {
+    return -1;
+  }
+
+  /* Find the SSB index corresponding to current symbol */
+  for (int ssbIndex = 0; ssbIndex < fp->Lmax; ssbIndex++) {
+    const int ssbMask = cfg->ssb_table.ssb_mask_list[ssbIndex / 32].ssb_mask;
+    if (is_ssb_in_symbol(cfg, symbIdxInFrame, slot, fp, ssbMask, ssbIndex))
+      return ssbIndex;
+  }
+
+  return -1;
+}
+
+/* Description: Generates PBCH LLRs from frequency domain signal for one OFDM symbol.
+                Generates PBCH time domain channel response.
+   Returns    : SSB index if symbol contains SSB. Else returns -1. */
+int nr_process_pbch_symbol(
+    PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const int symbol,
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
+    const int ssbIndexIn,
+    c16_t dl_ch_estimates_time[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
+    int16_t pbch_e_rx[NR_POLAR_PBCH_E])
+{
+  NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
+  const fapi_nr_config_request_t *cfg = &ue->nrUE_config;
+  const int symbIdxInFrame = symbol + NR_SYMBOLS_PER_SLOT * proc->nr_slot_rx;
+
+  /* Search for SSB index if given SSB index is invalid */
+  const int ssbIndex =
+      (ssbIndexIn < 0) ? get_ssb_index_in_symbol(cfg, fp, symbIdxInFrame, proc->nr_slot_rx, proc->frame_rx) : ssbIndexIn;
+
+  if (ssbIndex < 0)
+    return -1;
+
+  LOG_D(PHY, "Frame %d, Slot %d, Symbol %d, SSB Index %d\n", proc->frame_rx, proc->nr_slot_rx, symbol, ssbIndex);
+  const int startPbchSymb = nr_get_ssb_start_symbol(fp, ssbIndex) + 1;
+  const int startPbchSymbHf = startPbchSymb + (fp->slots_per_frame * NR_SYMBOLS_PER_SLOT / 2);
+
+  /* Found PBCH. Process it */
+  c16_t dl_ch_estimates[fp->nb_antennas_rx][fp->ofdm_symbol_size];
+
+  const int relPbchSymb = (symbIdxInFrame > (fp->slots_per_frame * NR_SYMBOLS_PER_SLOT / 2)) ? (symbIdxInFrame - startPbchSymbHf)
+                                                                                             : (symbIdxInFrame - startPbchSymb);
+
+  const int nid = fp->Nid_cell;
+  const int ssb_start_subcarrier = fp->ssb_start_subcarrier;
+  for (int aarx = 0; aarx < fp->nb_antennas_rx; aarx++) {
+    nr_pbch_channel_estimation(&ue->frame_parms,
+                               NULL,
+                               proc,
+                               relPbchSymb,
+                               ssbIndex & 7,
+                               symbIdxInFrame > (fp->slots_per_frame * NR_SYMBOLS_PER_SLOT / 2),
+                               false,
+                               nid,
+                               ssb_start_subcarrier,
+                               rxdataF[aarx],
+                               dl_ch_estimates[aarx]);
+  }
+
+  const int symbIdxInSSB = relPbchSymb + 1;
+  nr_generate_pbch_llr(ue, fp, symbIdxInSSB, ssbIndex, nid, ssb_start_subcarrier, rxdataF, dl_ch_estimates, pbch_e_rx);
+  /* Do measurements on middle symbol of PBCH block */
+  if (relPbchSymb == 1) {
+    nr_ue_ssb_rsrp_measurements(ue, ssbIndex, proc, rxdataF);
+    nr_ue_rrc_measurements(ue, proc, rxdataF);
+    /* resetting ssb index for PBCH detection if there is a stronger SSB index */
+    if (ue->measurements.ssb_rsrp_dBm[ssbIndex] > ue->measurements.ssb_rsrp_dBm[fp->ssb_index]) {
+      fp->ssb_index = ssbIndex;
+    }
+  }
+
+  /* Get channel response to measure timing error */
+  if ((fp->ssb_index == ssbIndex) && (relPbchSymb == NB_SYMBOLS_PBCH - 1)) {
+    // do ifft of channel estimate
+    const idft_size_idx_t idftsizeidx = get_idft(fp->ofdm_symbol_size);
+    idft(idftsizeidx, (int16_t *)&dl_ch_estimates, (int16_t *)dl_ch_estimates_time, 1);
+
+    UEscopeCopy(ue, pbchDlChEstimateTime, (void *)dl_ch_estimates_time, sizeof(c16_t), fp->nb_antennas_rx, fp->ofdm_symbol_size, 0);
+  }
+
+  return ssbIndex;
+}
+
+static int pbch_process(PHY_VARS_NR_UE *UE,
+                        const UE_nr_rxtx_proc_t *proc,
+                        const int symbol,
+                        const c16_t rxdataF[UE->frame_parms.nb_antennas_rx][ALNARS_32_8(UE->frame_parms.ofdm_symbol_size)],
+                        int *ssbIndex,
+                        c16_t pbch_ch_est_time[UE->frame_parms.nb_antennas_rx][ALNARS_32_8(UE->frame_parms.ofdm_symbol_size)],
+                        int16_t pbch_e_rx[NR_POLAR_PBCH_E],
+                        int *pbchSymbCnt)
+{
+  int sampleShift = 0;
+  *ssbIndex = nr_process_pbch_symbol(UE, proc, symbol, rxdataF, *ssbIndex, pbch_ch_est_time, pbch_e_rx);
+  // If valid PBCH symbol, increment symbol count.
+  if (*ssbIndex > -1)
+    (*pbchSymbCnt)++;
+  // In PBCH symbol, decode PBCH.
+  if (*pbchSymbCnt == 3) {
+    if (*ssbIndex == UE->frame_parms.ssb_index) {
+      fapiPbch_t pbchResult; /* TODO: Not used anywhere. To be cleaned later */
+      int hfb, ssb_idx, symb_offset = 0;
+      const int nid = UE->frame_parms.Nid_cell;
+      const int pbchSuccess =
+          nr_pbch_decode(UE, &UE->frame_parms, proc, *ssbIndex, nid, pbch_e_rx, &hfb, &ssb_idx, &symb_offset, &pbchResult);
+      if (pbchSuccess != 0)
+        LOG_E(PHY, "Frame %d, slot %d, SSB Index %d. Error decoding PBCH!\n", proc->frame_rx, proc->nr_slot_rx, *ssbIndex);
+      /* Measure timing offset if PBCH is present in slot */
+      if (UE->no_timing_correction == 0 && pbchSuccess == 0) {
+        sampleShift = nr_adjust_synch_ue(UE, &UE->frame_parms, pbch_ch_est_time, proc->frame_rx, proc->nr_slot_rx, 16384);
+      }
+    }
+    *pbchSymbCnt = 0; /* for next SSB index */
+    *ssbIndex = -1;
+  }
+  return sampleShift;
+}
+
 int pbch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
 {
   int frame_rx = proc->frame_rx;
   int nr_slot_rx = proc->nr_slot_rx;
-  int gNB_id = proc->gNB_id;
-  fapi_nr_config_request_t *cfg = &ue->nrUE_config;
   NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
   int sampleShift = 0;
   nr_ue_dlsch_init(phy_data->dlsch, NR_MAX_NB_LAYERS>4 ? 2:1, ue->max_ldpc_iterations);
@@ -905,80 +1004,29 @@ int pbch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_da
         frame_rx%1024, nr_slot_rx);
 
   const uint32_t rxdataF_sz = ue->frame_parms.samples_per_slot_wCP;
-  __attribute__ ((aligned(32))) c16_t rxdataF[ue->frame_parms.nb_antennas_rx][rxdataF_sz];
-  // checking if current frame is compatible with SSB periodicity
-  if (cfg->ssb_table.ssb_period == 0 || !(frame_rx % (1 << (cfg->ssb_table.ssb_period - 1)))) {
-    const int estimateSz = fp->symbols_per_slot * fp->ofdm_symbol_size;
-    // loop over SSB blocks
-    for(int ssb_index=0; ssb_index<fp->Lmax; ssb_index++) {
-      uint32_t curr_mask = cfg->ssb_table.ssb_mask_list[ssb_index/32].ssb_mask;
-      // check if if current SSB is transmitted
-      if ((curr_mask >> (31-(ssb_index%32))) &0x01) {
-        int ssb_start_symbol = nr_get_ssb_start_symbol(fp, ssb_index);
-        int ssb_slot = ssb_start_symbol/fp->symbols_per_slot;
-        int ssb_slot_2 = (cfg->ssb_table.ssb_period == 0) ? ssb_slot+(fp->slots_per_frame>>1) : -1;
+  __attribute__((aligned(32))) c16_t rxdataF[ue->frame_parms.nb_antennas_rx][rxdataF_sz];
+  {
+    int pbchSymbCnt = 0;
+    __attribute__((aligned(32)))
+    c16_t pbch_ch_est_time[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)];
+    int16_t pbch_e_rx[NR_POLAR_PBCH_E];
 
-        if (ssb_slot == nr_slot_rx || ssb_slot_2 == nr_slot_rx) {
-          VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PBCH, VCD_FUNCTION_IN);
-          LOG_D(PHY," ------  PBCH ChannelComp/LLR: frame.slot %d.%d ------  \n", frame_rx%1024, nr_slot_rx);
-
-          __attribute__ ((aligned(32))) struct complex16 dl_ch_estimates[fp->nb_antennas_rx][estimateSz];
-          __attribute__ ((aligned(32))) struct complex16 dl_ch_estimates_time[fp->nb_antennas_rx][fp->ofdm_symbol_size];
-
-          for (int i=1; i<4; i++) {
-            nr_slot_fep(ue, fp, proc, (ssb_start_symbol + i) % (fp->symbols_per_slot), rxdataF, link_type_dl);
-
-            start_meas(&ue->dlsch_channel_estimation_stats);
-            nr_pbch_channel_estimation(&ue->frame_parms,
-                                       NULL,
-                                       estimateSz,
-                                       dl_ch_estimates,
-                                       dl_ch_estimates_time,
-                                       proc,
-                                       (ssb_start_symbol + i) % (fp->symbols_per_slot),
-                                       i - 1,
-                                       ssb_index & 7,
-                                       ssb_slot_2 == nr_slot_rx,
-                                       fp->ssb_start_subcarrier,
-                                       rxdataF,
-                                       false,
-                                       fp->Nid_cell);
-            stop_meas(&ue->dlsch_channel_estimation_stats);
-
-            if (i - 1 == 2)
-              UEscopeCopy(ue,
-                          pbchDlChEstimateTime,
-                          (void *)dl_ch_estimates_time,
-                          sizeof(c16_t),
-                          fp->nb_antennas_rx,
-                          fp->ofdm_symbol_size,
-                          0);
-          }
-
-          nr_ue_ssb_rsrp_measurements(ue, ssb_index, proc, rxdataF);
-
-          // resetting ssb index for PBCH detection if there is a stronger SSB index
-          if(ue->measurements.ssb_rsrp_dBm[ssb_index] > ue->measurements.ssb_rsrp_dBm[fp->ssb_index])
-            fp->ssb_index = ssb_index;
-
-          if(ssb_index == fp->ssb_index) {
-
-            LOG_D(PHY," ------  Decode MIB: frame.slot %d.%d ------  \n", frame_rx%1024, nr_slot_rx);
-            const int pbchSuccess = nr_ue_pbch_procedures(ue, proc, estimateSz, dl_ch_estimates, rxdataF);
-
-            if (ue->no_timing_correction==0 && pbchSuccess == 0) {
-              LOG_D(PHY,"start adjust sync slot = %d no timing %d\n", nr_slot_rx, ue->no_timing_correction);
-              sampleShift =
-                  nr_adjust_synch_ue(fp, ue, gNB_id, fp->ofdm_symbol_size, dl_ch_estimates_time, frame_rx, nr_slot_rx, 16384);
-            }
-          }
-          LOG_D(PHY, "Doing N0 measurements in %s\n", __FUNCTION__);
-          nr_ue_rrc_measurements(ue, proc, rxdataF);
-          VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PBCH, VCD_FUNCTION_OUT);
-        }
-      }
+    int ssbIndex = -1;
+    // TODO: In later commit, the following OFDM demod and buffer restructuring will be removed because
+    // this OFDM demod is called elsewhere outside this function with the correct buffer structure.
+    for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+      nr_slot_fep(ue, fp, proc, symbol, rxdataF, link_type_dl);
+      __attribute__((aligned(32)))
+      c16_t rxdataF_symb[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)];
+      // Buffer restructuring (to be removed later)
+      for (int ant = 0; ant < ue->frame_parms.nb_antennas_rx; ant++)
+        memcpy(rxdataF_symb[ant],
+               &rxdataF[ant][symbol * ue->frame_parms.ofdm_symbol_size],
+               sizeof(c16_t) * ue->frame_parms.ofdm_symbol_size);
+      sampleShift = pbch_process(ue, proc, symbol, rxdataF_symb, &ssbIndex, pbch_ch_est_time, pbch_e_rx, &pbchSymbCnt);
     }
   }
+  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PBCH, VCD_FUNCTION_OUT);
 
   // Check for PRS slot - section 7.4.1.7.4 in 3GPP rel16 38.211
   for(int gNB_id = 0; gNB_id < ue->prs_active_gNBs; gNB_id++)

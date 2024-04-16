@@ -54,10 +54,12 @@ extern "C" {
 
 #define CEILIDIV(a,b) ((a+b-1)/b)
 #define ROUNDIDIV(a,b) (((a<<1)+b)/(b<<1))
+#define ALIGNARRAYSIZE(a, b) (((a + b - 1) / b) * b)
+#define ALNARS_32_8(a) ALIGNARRAYSIZE(a, 8)
 
-  typedef struct complexd {
-    double r;
-    double i;
+typedef struct complexd {
+  double r;
+  double i;
   } cd_t;
 
   typedef struct complexf {
