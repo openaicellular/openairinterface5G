@@ -73,17 +73,19 @@
 #define LOG_I(A, B...) printf(B)
 #endif
 
-static void nr_pdcch_demapping_deinterleaving(c16_t *llr,
+
+
+static void nr_pdcch_demapping_deinterleaving(const c16_t *llr,
                                               c16_t *e_rx,
-                                              uint8_t coreset_time_dur,
-                                              uint8_t start_symbol,
-                                              uint32_t coreset_nbr_rb,
-                                              uint8_t reg_bundle_size_L,
-                                              uint8_t coreset_interleaver_size_R,
-                                              uint8_t n_shift,
-                                              uint8_t number_of_candidates,
-                                              uint16_t *CCE,
-                                              uint8_t *L)
+                                              const uint8_t coreset_time_dur,
+                                              const uint8_t start_symbol,
+                                              const uint32_t coreset_nbr_rb,
+                                              const uint8_t reg_bundle_size_L_in,
+                                              const uint8_t coreset_interleaver_size_R,
+                                              const uint8_t n_shift,
+                                              const uint8_t number_of_candidates,
+                                              const uint16_t *CCE,
+                                              const uint8_t *L)
 {
   /*
    * This function will do demapping and deinterleaving from llr containing demodulated symbols
@@ -121,44 +123,42 @@ static void nr_pdcch_demapping_deinterleaving(c16_t *llr,
    |   REG 0  (bundle 0)             bundle 0         bundle 0
 
   */
-
-  uint32_t coreset_C = 0;
-  int coreset_interleaved = 0;
   const int N_regs = coreset_nbr_rb * coreset_time_dur;
+  /* interleaving will be done only if reg_bundle_size_L != 0 */
+  const int coreset_C = (reg_bundle_size_L_in != 0) ? (uint32_t)(N_regs / (coreset_interleaver_size_R * reg_bundle_size_L_in)) : 0;
+  const int coreset_interleaved = (reg_bundle_size_L_in != 0) ? 1 : 0;
+  const int reg_bundle_size_L = (reg_bundle_size_L_in != 0) ? reg_bundle_size_L_in : 6;
 
-  if (reg_bundle_size_L != 0) { // interleaving will be done only if reg_bundle_size_L != 0
-    coreset_interleaved = 1;
-    coreset_C = (uint32_t)(N_regs / (coreset_interleaver_size_R * reg_bundle_size_L));
-  } else {
-    reg_bundle_size_L = 6;
-  }
-
-  int B_rb = reg_bundle_size_L / coreset_time_dur; // nb of RBs occupied by each REG bundle
-  int num_bundles_per_cce = 6 / reg_bundle_size_L;
-  int n_cce = N_regs / 6;
-  int max_bundles = n_cce * num_bundles_per_cce;
+  const int B_rb = reg_bundle_size_L / coreset_time_dur; // nb of RBs occupied by each REG bundle
+  const int num_bundles_per_cce = 6 / reg_bundle_size_L;
+  const int n_cce = N_regs / 6;
+  const int max_bundles = n_cce * num_bundles_per_cce;
   int f_bundle_j_list[max_bundles];
-  // for each bundle
-  int c = 0, r = 0, f_bundle_j = 0;
-  for (int nb = 0; nb < max_bundles; nb++) {
-    if (coreset_interleaved == 0)
-      f_bundle_j = nb;
-    else {
-      if (r == coreset_interleaver_size_R) {
-        r = 0;
-        c++;
+  {
+    int c = 0;
+    int r = 0;
+    // for each bundle
+    for (int nb = 0; nb < max_bundles; nb++) {
+      uint16_t f_bundle_j = 0;
+      if (coreset_interleaved == 0)
+        f_bundle_j = nb;
+      else {
+        if (r == coreset_interleaver_size_R) {
+          r = 0;
+          c++;
+        }
+        f_bundle_j = ((r * coreset_C) + c + n_shift) % (N_regs / reg_bundle_size_L);
+        r++;
       }
-      f_bundle_j = ((r * coreset_C) + c + n_shift) % (N_regs / reg_bundle_size_L);
-      r++;
+      f_bundle_j_list[nb] = f_bundle_j;
     }
-    f_bundle_j_list[nb] = f_bundle_j;
   }
 
   // Get cce_list indices by bundle index in ascending order
   int f_bundle_j_list_ord[number_of_candidates][max_bundles];
-  for (int c_id = 0; c_id < number_of_candidates; c_id++) {
-    int start_bund_cand = CCE[c_id] * num_bundles_per_cce;
-    int max_bund_per_cand = L[c_id] * num_bundles_per_cce;
+  for (int c_id = 0; c_id < number_of_candidates; c_id++ ) {
+    const int start_bund_cand = CCE[c_id] * num_bundles_per_cce;
+    const int max_bund_per_cand = L[c_id] * num_bundles_per_cce;
     int f_bundle_j_list_id = 0;
     for (int nb = 0; nb < max_bundles; nb++) {
       for (int bund_cand = start_bund_cand; bund_cand < start_bund_cand + max_bund_per_cand; bund_cand++) {
@@ -170,16 +170,16 @@ static void nr_pdcch_demapping_deinterleaving(c16_t *llr,
     }
   }
 
+  const int data_sc = 9; // 9 sub-carriers with data per PRB
   int rb_count = 0;
-  int data_sc = 9; // 9 sub-carriers with data per PRB
-  for (int c_id = 0; c_id < number_of_candidates; c_id++) {
-    for (int symbol_idx = start_symbol; symbol_idx < start_symbol + coreset_time_dur; symbol_idx++) {
-      for (int cce_count = 0; cce_count < L[c_id]; cce_count++) {
+  for (int c_id = 0; c_id < number_of_candidates; c_id++ ) {
+    for (int symbol_idx = start_symbol; symbol_idx < start_symbol+coreset_time_dur; symbol_idx++) {
+      for (int cce_count = 0; cce_count < L[c_id]; cce_count ++) {
         for (int k = 0; k < NR_NB_REG_PER_CCE / reg_bundle_size_L; k++) { // loop over REG bundles
           int f = f_bundle_j_list_ord[c_id][k + NR_NB_REG_PER_CCE * cce_count / reg_bundle_size_L];
           for (int rb = 0; rb < B_rb; rb++) { // loop over the RBs of the bundle
             c16_t *out = e_rx + data_sc * rb_count;
-            c16_t *in = llr + (uint16_t)(f * B_rb + rb + symbol_idx * coreset_nbr_rb) * data_sc;
+            const c16_t *in = llr + (f * B_rb + rb + symbol_idx * coreset_nbr_rb) * data_sc;
             for (int i = 0; i < data_sc; i++) {
               out[i] = in[i];
 #ifdef NR_PDCCH_DCI_DEBUG
@@ -214,17 +214,16 @@ static void nr_pdcch_llr(const NR_DL_FRAME_PARMS *frame_parms,
                          c16_t pdcch_llr[llrSize],
                          const uint32_t coreset_nbr_rb)
 {
-  const c16_t *rxF = &rxdataF_comp[0][0];
-  c16_t *pdcch_llrp = &pdcch_llr[rel_symb_monOcc * coreset_nbr_rb * 9];
+  const c16_t *rxF = rxdataF_comp[0];
+  c16_t *pdcch_llrp = pdcch_llr + (rel_symb_monOcc * coreset_nbr_rb * 9);
 
   if (!pdcch_llrp) {
     LOG_E(NR_PHY_DCI, "pdcch_qpsk_llr: llr is null\n");
     return;
   }
 
-  LOG_DDD("llr logs: pdcch qpsk llr for symbol %d (pos %d), llr offset %ld\n",
-          symbol,
-          (symbol * frame_parms->N_RB_DL * 12),
+  LOG_DDD("llr logs: pdcch qpsk llr for symbol (in mon occ) %d, llr offset %ld\n",
+          rel_symb_monOcc,
           pdcch_llrp - pdcch_llr);
 
   for (int i = 0; i < coreset_nbr_rb * 9; i++) {
@@ -235,7 +234,8 @@ static void nr_pdcch_llr(const NR_DL_FRAME_PARMS *frame_parms,
     res.i = min(rxF->i, 31);
     res.i = max(-32, res.i);
     *pdcch_llrp = res;
-    LOG_DDD("llr logs: rb=%d i=%d *rxF:%d => *pdcch_llrp:%d\n",i/18,i,*rxF,*pdcch_llrp);
+
+    LOG_DDD("llr logs: rb=%d i=%d *rxF:%d => *pdcch_llrp:%d\n", i / 18, i, *rxF, *pdcch_llrp);
     rxF++;
     pdcch_llrp++;
   }
@@ -249,16 +249,17 @@ static void nr_pdcch_channel_level(const int32_t rx_size,
                                    const uint8_t nb_rb)
 {
   for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-    //clear average level
+    // clear average level
     simde__m128i avg128P = simde_mm_setzero_si128();
-    simde__m128i *dl_ch128 = (simde__m128i *)&dl_ch_estimates_ext[aarx][0];
+    simde__m128i *dl_ch128 = (simde__m128i *)dl_ch_estimates_ext[aarx];
 
     for (int rb = 0; rb < (nb_rb * 3) >> 2; rb++) {
-      avg128P = simde_mm_add_epi32(avg128P,simde_mm_madd_epi16(dl_ch128[0],dl_ch128[0]));
-      avg128P = simde_mm_add_epi32(avg128P,simde_mm_madd_epi16(dl_ch128[1],dl_ch128[1]));
-      avg128P = simde_mm_add_epi32(avg128P,simde_mm_madd_epi16(dl_ch128[2],dl_ch128[2]));
-      //      for (int i=0;i<24;i+=2) printf("pdcch channel re %d (%d,%d)\n",(rb*12)+(i>>1),((int16_t*)dl_ch128)[i],((int16_t*)dl_ch128)[i+1]);
-      dl_ch128+=3;
+      avg128P = simde_mm_add_epi32(avg128P, simde_mm_madd_epi16(dl_ch128[0], dl_ch128[0]));
+      avg128P = simde_mm_add_epi32(avg128P, simde_mm_madd_epi16(dl_ch128[1], dl_ch128[1]));
+      avg128P = simde_mm_add_epi32(avg128P, simde_mm_madd_epi16(dl_ch128[2], dl_ch128[2]));
+      //      for (int i=0;i<24;i+=2) printf("pdcch channel re %d
+      //      (%d,%d)\n",(rb*12)+(i>>1),((int16_t*)dl_ch128)[i],((int16_t*)dl_ch128)[i+1]);
+      dl_ch128 += 3;
       /*
       if (rb==0) {
       print_shorts("dl_ch128",&dl_ch128[0]);
@@ -272,16 +273,16 @@ static void nr_pdcch_channel_level(const int32_t rx_size,
     avg[aarx] = 0;
     for (int i = 0; i < 4; i++)
       avg[aarx] += ((int32_t *)&avg128P)[i] / (nb_rb * 9);
-    LOG_DDD("Channel level : %d\n",avg[aarx]);
+    LOG_DDD("Channel level : %d\n", avg[aarx]);
   }
 }
 
 // This function will extract the mapped DM-RS PDCCH REs as per 38.211 Section 7.4.1.3.2 (Mapping to physical resources)
-static void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
-                                        c16_t rxdataF[][rxdataF_sz],
-                                        int32_t est_size,
-                                        c16_t dl_ch_estimates[][est_size],
-                                        int32_t rx_size,
+static void nr_pdcch_extract_rbs_single(const uint32_t rxdataF_sz,
+                                        const c16_t rxdataF[][rxdataF_sz],
+                                        const int32_t est_size,
+                                        const c16_t dl_ch_estimates[][est_size],
+                                        const int32_t rx_size,
                                         c16_t rxdataF_ext[][rx_size],
                                         c16_t dl_ch_estimates_ext[][rx_size],
                                         const NR_DL_FRAME_PARMS *frame_parms,
@@ -306,12 +307,12 @@ static void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
   // uint8_t rb_count_bit;
 
   for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-    const c16_t *dl_ch0 = &dl_ch_estimates[aarx][0];
+    const c16_t *dl_ch0 = dl_ch_estimates[aarx];
     const c16_t *rxFbase = rxdataF[aarx];
     LOG_DDD("dl_ch0 = &dl_ch_estimates[aarx = (%d)][0]\n", aarx);
 
-    c16_t *dl_ch0_ext = &dl_ch_estimates_ext[aarx][0];
-    c16_t *rxF_ext = &rxdataF_ext[aarx][0];
+    c16_t *dl_ch0_ext = dl_ch_estimates_ext[aarx];
+    c16_t *rxF_ext = rxdataF_ext[aarx];
 
     /*
      * The following for loop handles treatment of PDCCH contained in table rxdataF (in frequency domain)
@@ -348,7 +349,7 @@ static void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
         // if odd number RBs in system bandwidth and first RB to be treated is higher than middle system bandwidth (around DC)
         // we have to treat the RB in two parts: first part from i=0 to 5, the data is at the end of rxdataF (pointing at the
         // end of the table)
-        c16_t *rxF = rxFbase + frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start);
+        const c16_t *rxF = rxFbase + frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start);
 
         int i = 0, j = 0;
         for (; i < 6; i++) { // treating first part of the RB note that i=5 would correspond to DC. We treat it in NR
@@ -375,7 +376,7 @@ static void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
         }
 
       } else { // treatment of any RB that does not contain the DC
-        c16_t *rxF=NULL;
+        const c16_t *rxF = NULL;
         if ((frame_parms->N_RB_DL & 1) == 0) {
           if ((c_rb + n_BWP_start) < (frame_parms->N_RB_DL >> 1))
             // if RB to be treated is lower than middle system bandwidth then rxdataF pointed
@@ -398,7 +399,7 @@ static void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
             // we point at the 1st part of the rxdataF in symbol
             rxF = rxFbase + 12 * (c_rb + n_BWP_start - (frame_parms->N_RB_DL >> 1)) - 6;
         }
-	AssertFatal(rxF, "bug");
+        AssertFatal(rxF, "bug");
         int j = 0;
 
         for (int i = 0; i < 12; i++) {
@@ -419,7 +420,7 @@ static void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
   }
 }
 
-#define print_shorts(s,x) printf("%s %d,%d,%d,%d,%d,%d,%d,%d\n",s,(x)[0],(x)[1],(x)[2],(x)[3],(x)[4],(x)[5],(x)[6],(x)[7])
+#define print_shorts(s, x) printf("%s %d,%d,%d,%d,%d,%d,%d,%d\n", s, (x)[0], (x)[1], (x)[2], (x)[3], (x)[4], (x)[5], (x)[6], (x)[7])
 
 static void nr_pdcch_channel_compensation(const int32_t rx_size,
                                           const c16_t rxdataF_ext[][rx_size],
@@ -430,9 +431,9 @@ static void nr_pdcch_channel_compensation(const int32_t rx_size,
                                           const uint32_t coreset_nbr_rb)
 {
   for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-    const simde__m128i *dl_ch128 = (simde__m128i *)&dl_ch_estimates_ext[aarx][0];
-    const simde__m128i *rxdataF128 = (simde__m128i *)&rxdataF_ext[aarx][0];
-    simde__m128i *rxdataF_comp128 = (simde__m128i *)&rxdataF_comp[aarx][0];
+    const simde__m128i *dl_ch128 = (simde__m128i *)dl_ch_estimates_ext[aarx];
+    const simde__m128i *rxdataF128 = (simde__m128i *)rxdataF_ext[aarx];
+    simde__m128i *rxdataF_comp128 = (simde__m128i *)rxdataF_comp[aarx];
     // printf("ch compensation dl_ch ext addr %p \n", &dl_ch_estimates_ext[(aatx<<1)+aarx][symbol*20*12]);
     // printf("rxdataf ext addr %p symbol %d\n", &rxdataF_ext[aarx][symbol*20*12], symbol);
     // printf("rxdataf_comp addr %p\n",&rxdataF_comp[(aatx<<1)+aarx][symbol*20*12]);
@@ -440,61 +441,61 @@ static void nr_pdcch_channel_compensation(const int32_t rx_size,
     for (int rb = 0; rb < (coreset_nbr_rb * 3) >> 2; rb++) {
       // multiply by conjugated channel
       simde__m128i mmtmpP0 = simde_mm_madd_epi16(dl_ch128[0], rxdataF128[0]);
-      //print_ints("re",&mmtmpP0);
-      // mmtmpP0 contains real part of 4 consecutive outputs (32-bit)
+      // print_ints("re",&mmtmpP0);
+      //  mmtmpP0 contains real part of 4 consecutive outputs (32-bit)
       simde__m128i mmtmpP1 = simde_mm_shufflelo_epi16(dl_ch128[0], SIMDE_MM_SHUFFLE(2, 3, 0, 1));
-      mmtmpP1 = simde_mm_shufflehi_epi16(mmtmpP1, SIMDE_MM_SHUFFLE(2,3,0,1));
-      mmtmpP1 = simde_mm_sign_epi16(mmtmpP1,*(simde__m128i *)&conjugate[0]);
-      //print_ints("im",&mmtmpP1);
-      mmtmpP1 = simde_mm_madd_epi16(mmtmpP1,rxdataF128[0]);
+      mmtmpP1 = simde_mm_shufflehi_epi16(mmtmpP1, SIMDE_MM_SHUFFLE(2, 3, 0, 1));
+      mmtmpP1 = simde_mm_sign_epi16(mmtmpP1, *(simde__m128i *)&conjugate[0]);
+      // print_ints("im",&mmtmpP1);
+      mmtmpP1 = simde_mm_madd_epi16(mmtmpP1, rxdataF128[0]);
       // mmtmpP1 contains imag part of 4 consecutive outputs (32-bit)
-      mmtmpP0 = simde_mm_srai_epi32(mmtmpP0,output_shift);
+      mmtmpP0 = simde_mm_srai_epi32(mmtmpP0, output_shift);
       //  print_ints("re(shift)",&mmtmpP0);
-      mmtmpP1 = simde_mm_srai_epi32(mmtmpP1,output_shift);
+      mmtmpP1 = simde_mm_srai_epi32(mmtmpP1, output_shift);
       //  print_ints("im(shift)",&mmtmpP1);
       simde__m128i mmtmpP2 = simde_mm_unpacklo_epi32(mmtmpP0, mmtmpP1);
       simde__m128i mmtmpP3 = simde_mm_unpackhi_epi32(mmtmpP0, mmtmpP1);
-      //print_ints("c0",&mmtmpP2);
-      //print_ints("c1",&mmtmpP3);
-      rxdataF_comp128[0] = simde_mm_packs_epi32(mmtmpP2,mmtmpP3);
-//      print_shorts("rx:",(int16_t*)rxdataF128);
-//      print_shorts("ch:",(int16_t*)dl_ch128);
-//      print_shorts("pack:",(int16_t*)rxdataF_comp128);
+      // print_ints("c0",&mmtmpP2);
+      // print_ints("c1",&mmtmpP3);
+      rxdataF_comp128[0] = simde_mm_packs_epi32(mmtmpP2, mmtmpP3);
+      //      print_shorts("rx:",(int16_t*)rxdataF128);
+      //      print_shorts("ch:",(int16_t*)dl_ch128);
+      //      print_shorts("pack:",(int16_t*)rxdataF_comp128);
       // multiply by conjugated channel
-      mmtmpP0 = simde_mm_madd_epi16(dl_ch128[1],rxdataF128[1]);
+      mmtmpP0 = simde_mm_madd_epi16(dl_ch128[1], rxdataF128[1]);
       // mmtmpP0 contains real part of 4 consecutive outputs (32-bit)
-      mmtmpP1 = simde_mm_shufflelo_epi16(dl_ch128[1], SIMDE_MM_SHUFFLE(2,3,0,1));
-      mmtmpP1 = simde_mm_shufflehi_epi16(mmtmpP1, SIMDE_MM_SHUFFLE(2,3,0,1));
-      mmtmpP1 = simde_mm_sign_epi16(mmtmpP1,*(simde__m128i *)&conjugate[0]);
-      mmtmpP1 = simde_mm_madd_epi16(mmtmpP1,rxdataF128[1]);
+      mmtmpP1 = simde_mm_shufflelo_epi16(dl_ch128[1], SIMDE_MM_SHUFFLE(2, 3, 0, 1));
+      mmtmpP1 = simde_mm_shufflehi_epi16(mmtmpP1, SIMDE_MM_SHUFFLE(2, 3, 0, 1));
+      mmtmpP1 = simde_mm_sign_epi16(mmtmpP1, *(simde__m128i *)&conjugate[0]);
+      mmtmpP1 = simde_mm_madd_epi16(mmtmpP1, rxdataF128[1]);
       // mmtmpP1 contains imag part of 4 consecutive outputs (32-bit)
-      mmtmpP0 = simde_mm_srai_epi32(mmtmpP0,output_shift);
-      mmtmpP1 = simde_mm_srai_epi32(mmtmpP1,output_shift);
-      mmtmpP2 = simde_mm_unpacklo_epi32(mmtmpP0,mmtmpP1);
-      mmtmpP3 = simde_mm_unpackhi_epi32(mmtmpP0,mmtmpP1);
-      rxdataF_comp128[1] = simde_mm_packs_epi32(mmtmpP2,mmtmpP3);
-      //print_shorts("rx:",rxdataF128+1);
-      //print_shorts("ch:",dl_ch128+1);
-      //print_shorts("pack:",rxdataF_comp128+1);
-      // multiply by conjugated channel
-      mmtmpP0 = simde_mm_madd_epi16(dl_ch128[2],rxdataF128[2]);
+      mmtmpP0 = simde_mm_srai_epi32(mmtmpP0, output_shift);
+      mmtmpP1 = simde_mm_srai_epi32(mmtmpP1, output_shift);
+      mmtmpP2 = simde_mm_unpacklo_epi32(mmtmpP0, mmtmpP1);
+      mmtmpP3 = simde_mm_unpackhi_epi32(mmtmpP0, mmtmpP1);
+      rxdataF_comp128[1] = simde_mm_packs_epi32(mmtmpP2, mmtmpP3);
+      // print_shorts("rx:",rxdataF128+1);
+      // print_shorts("ch:",dl_ch128+1);
+      // print_shorts("pack:",rxdataF_comp128+1);
+      //  multiply by conjugated channel
+      mmtmpP0 = simde_mm_madd_epi16(dl_ch128[2], rxdataF128[2]);
       // mmtmpP0 contains real part of 4 consecutive outputs (32-bit)
-      mmtmpP1 = simde_mm_shufflelo_epi16(dl_ch128[2], SIMDE_MM_SHUFFLE(2,3,0,1));
-      mmtmpP1 = simde_mm_shufflehi_epi16(mmtmpP1, SIMDE_MM_SHUFFLE(2,3,0,1));
-      mmtmpP1 = simde_mm_sign_epi16(mmtmpP1,*(simde__m128i *)&conjugate[0]);
-      mmtmpP1 = simde_mm_madd_epi16(mmtmpP1,rxdataF128[2]);
+      mmtmpP1 = simde_mm_shufflelo_epi16(dl_ch128[2], SIMDE_MM_SHUFFLE(2, 3, 0, 1));
+      mmtmpP1 = simde_mm_shufflehi_epi16(mmtmpP1, SIMDE_MM_SHUFFLE(2, 3, 0, 1));
+      mmtmpP1 = simde_mm_sign_epi16(mmtmpP1, *(simde__m128i *)&conjugate[0]);
+      mmtmpP1 = simde_mm_madd_epi16(mmtmpP1, rxdataF128[2]);
       // mmtmpP1 contains imag part of 4 consecutive outputs (32-bit)
-      mmtmpP0 = simde_mm_srai_epi32(mmtmpP0,output_shift);
-      mmtmpP1 = simde_mm_srai_epi32(mmtmpP1,output_shift);
-      mmtmpP2 = simde_mm_unpacklo_epi32(mmtmpP0,mmtmpP1);
-      mmtmpP3 = simde_mm_unpackhi_epi32(mmtmpP0,mmtmpP1);
-      rxdataF_comp128[2] = simde_mm_packs_epi32(mmtmpP2,mmtmpP3);
+      mmtmpP0 = simde_mm_srai_epi32(mmtmpP0, output_shift);
+      mmtmpP1 = simde_mm_srai_epi32(mmtmpP1, output_shift);
+      mmtmpP2 = simde_mm_unpacklo_epi32(mmtmpP0, mmtmpP1);
+      mmtmpP3 = simde_mm_unpackhi_epi32(mmtmpP0, mmtmpP1);
+      rxdataF_comp128[2] = simde_mm_packs_epi32(mmtmpP2, mmtmpP3);
       ///////////////////////////////////////////////////////////////////////////////////////////////
-      //print_shorts("rx:",rxdataF128+2);
-      //print_shorts("ch:",dl_ch128+2);
-      //print_shorts("pack:",rxdataF_comp128+2);
+      // print_shorts("rx:",rxdataF128+2);
+      // print_shorts("ch:",dl_ch128+2);
+      // print_shorts("pack:",rxdataF_comp128+2);
 
-      for (int i=0; i<12 ; i++)
+      for (int i = 0; i < 12; i++)
         LOG_DDD("rxdataF128[%d]=(%d,%d) X dlch[%d]=(%d,%d) rxdataF_comp128[%d]=(%d,%d)\n",
                 (rb * 12) + i,
                 ((c16_t *)rxdataF128)[i].r,
@@ -516,12 +517,13 @@ static void nr_pdcch_channel_compensation(const int32_t rx_size,
 static void nr_pdcch_detection_mrc(const NR_DL_FRAME_PARMS *frame_parms, const int32_t rx_size, c16_t rxdataF_comp[][rx_size])
 {
   if (frame_parms->nb_antennas_rx > 1) {
-    simde__m128i *rxdataF_comp128_0 = (simde__m128i *)&rxdataF_comp[0][0];
-    simde__m128i *rxdataF_comp128_1 = (simde__m128i *)&rxdataF_comp[1][0];
+    simde__m128i *rxdataF_comp128_0 = (simde__m128i *)rxdataF_comp[0];
+    simde__m128i *rxdataF_comp128_1 = (simde__m128i *)rxdataF_comp[1];
     const int sz = frame_parms->N_RB_DL * 3;
     // MRC on each re of rb
     for (int i = 0; i < sz; i++) {
-      rxdataF_comp128_0[i] = simde_mm_adds_epi16(simde_mm_srai_epi16(rxdataF_comp128_0[i],1),simde_mm_srai_epi16(rxdataF_comp128_1[i],1));
+      rxdataF_comp128_0[i] =
+          simde_mm_adds_epi16(simde_mm_srai_epi16(rxdataF_comp128_0[i], 1), simde_mm_srai_epi16(rxdataF_comp128_1[i], 1));
     }
   }
 }
@@ -553,8 +555,6 @@ static void nr_rx_pdcch_symbol(const PHY_VARS_NR_UE *ue,
                               pdcch_dl_ch_estimates,
                               rxdataF);
 
-  // for (int i=0; i<pdcch_est_size; i++) printf("%d: %d.%d\n", i, ((int16_t *)&pdcch_dl_ch_estimates[0])[i*2], ((int16_t
-  // *)&pdcch_dl_ch_estimates[0])[i*2+1]);
   const int32_t rx_size = ((4 * fp->N_RB_DL * 12 + 31) >> 5) << 5;
   __attribute__((aligned(32))) c16_t rxdataF_ext[fp->nb_antennas_rx][rx_size];
   __attribute__((aligned(32))) c16_t rxdataF_comp[fp->nb_antennas_rx][rx_size];
@@ -636,7 +636,6 @@ static void nr_dci_decoding_procedure(const PHY_VARS_NR_UE *ue,
                                       const UE_nr_rxtx_proc_t *proc,
                                       c16_t *pdcch_e_rx,
                                       const fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15,
-                                      int *dci_thres,
                                       fapi_nr_dci_indication_t *dci_ind);
 
 /* Decode DCI from LLRs */
@@ -680,7 +679,7 @@ void nr_pdcch_decode(const UE_nr_rxtx_proc_t *proc,
                                       rel15->CCE,
                                       rel15->L);
 
-    nr_dci_decoding_procedure(ue, proc, pdcch_e_rx, rel15, &ue->dci_thres, dci_ind);
+    nr_dci_decoding_procedure(ue, proc, pdcch_e_rx, rel15, dci_ind);
   }
 }
 
@@ -795,18 +794,18 @@ static void nr_pdcch_unscrambling(c16_t *e_rx,
   }
 }
 
-void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
-                               const UE_nr_rxtx_proc_t *proc,
-                               c16_t *pdcch_e_rx,
-                               fapi_nr_dci_indication_t *dci_ind,
-                               fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15)
+static void nr_dci_decoding_procedure(const PHY_VARS_NR_UE *ue,
+                                      const UE_nr_rxtx_proc_t *proc,
+                                      c16_t *pdcch_e_rx,
+                                      const fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15,
+                                      fapi_nr_dci_indication_t *dci_ind)
 {
   int e_rx_cand_idx = 0;
   *dci_ind = (fapi_nr_dci_indication_t){.SFN = proc->frame_rx, .slot = proc->nr_slot_rx};
 
   for (int j = 0; j < rel15->number_of_candidates; j++) {
-    int CCEind = rel15->CCE[j];
-    int L = rel15->L[j];
+    const int CCEind = rel15->CCE[j];
+    const int L = rel15->L[j];
 
     // Loop over possible DCI lengths
     

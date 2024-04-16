@@ -209,7 +209,7 @@ uint32_t to_nrarfcn(int nr_bandP, uint64_t dl_CarrierFreq, uint8_t scs_index, ui
 int get_first_ul_slot(int nrofDownlinkSlots, int nrofDownlinkSymbols, int nrofUplinkSymbols);
 int cce_to_reg_interleaving(const int R, int k, int n_shift, const int C, int L, const int N_regs);
 int get_SLIV(uint8_t S, uint8_t L);
-void get_coreset_rballoc(uint8_t *FreqDomainResource,int *n_rb,int *rb_offset);
+void get_coreset_rballoc(const uint8_t *FreqDomainResource, int *n_rb, int *rb_offset);
 int get_nr_table_idx(int nr_bandP, uint8_t scs_index);
 int32_t get_delta_duplex(int nr_bandP, uint8_t scs_index);
 frame_type_t get_frame_type(uint16_t nr_bandP, uint8_t scs_index);
