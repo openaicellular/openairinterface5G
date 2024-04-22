@@ -499,15 +499,16 @@ void clean_UE_harq(PHY_VARS_NR_UE *UE)
 }
 
 
-void init_N_TA_offset(PHY_VARS_NR_UE *ue){
-
+void init_N_TA_offset(PHY_VARS_NR_UE *ue)
+{
   NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
 
   // No timing offset for Sidelink, refer to 3GPP 38.211 Section 8.5
   if (fp->frame_type == FDD || ue->sl_mode == 2) {
     ue->N_TA_offset = 0;
   } else {
-    int N_TA_offset = fp->ul_CarrierFreq < 6e9 ? 400 : 431; // reference samples  for 25600Tc @ 30.72 Ms/s for FR1, same @ 61.44 Ms/s for FR2
+    // reference samples  for 25600Tc @ 30.72 Ms/s for FR1, same @ 61.44 Ms/s for FR2
+    int N_TA_offset = fp->ul_CarrierFreq < 6e9 ? 400 : 431;
 
     double factor = 1.0;
     switch (fp->numerology_index) {
@@ -538,7 +539,9 @@ void init_N_TA_offset(PHY_VARS_NR_UE *ue){
     ue->ta_frame = -1;
     ue->ta_slot = -1;
 
-    LOG_I(PHY,"UE %d Setting N_TA_offset to %d samples (factor %f, UL Freq %lu, N_RB %d, mu %d)\n", ue->Mod_id, ue->N_TA_offset, factor, fp->ul_CarrierFreq, fp->N_RB_DL, fp->numerology_index);
+    LOG_I(PHY,
+          "UE %d Setting N_TA_offset to %d samples (factor %f, UL Freq %lu, N_RB %d, mu %d)\n",
+          ue->Mod_id, ue->N_TA_offset, factor, fp->ul_CarrierFreq, fp->N_RB_DL, fp->numerology_index);
   }
 }
 
