@@ -2368,7 +2368,7 @@ if (${T_TRACER})
         nr_ulschsim ldpctest polartest smallblocktest cu_test du_test
         #all "add_library" definitions
         ITTI lte_rrc nr_rrc s1ap x2ap m2ap m3ap f1ap
-        oai_usrpdevif oai_bladerfdevif oai_lmssdrdevif oai_iqplayer
+        oai_bladerfdevif oai_lmssdrdevif oai_iqplayer
         oai_eth_transpro oai_mobipass coding HASHTABLE UTIL OMG_SUMO
         SECURITY SCHED_LIB SCHED_NR_LIB SCHED_RU_LIB SCHED_UE_LIB SCHED_NR_UE_LIB default_sched remote_sched RAL
         NFAPI_COMMON_LIB NFAPI_LIB NFAPI_PNF_LIB NFAPI_VNF_LIB NFAPI_USER_LIB
