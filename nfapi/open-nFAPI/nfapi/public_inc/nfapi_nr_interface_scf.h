@@ -1722,6 +1722,11 @@ typedef struct {
 } nfapi_srs_report_tlv_t;
 
 typedef struct {
+  uint16_t num_rbs;
+  uint8_t* rbSNR;
+}nfapi_srs_report_reported_symbol_t;
+
+typedef struct {
   uint32_t handle;                      // The handle passed to the PHY in the the UL_TTI.request SRS PDU.
   uint16_t rnti;                        // The RNTI passed to the PHY in the UL_TTI.request SRS PDU. Value: 1 -> 65535.
   uint16_t timing_advance_offset;       // Timing advance TA measured for the UE in multiples of 16 * 64 * Tc / (2^u) [TS 38.213, Section 4.2]. Value: 0 -> 63. 0xffff will be set if this field is invalid.
@@ -1729,6 +1734,13 @@ typedef struct {
   uint8_t srs_usage;                    // 0 – beamManagement; 1 – codebook; 2 – nonCodebook; 3 – antennaSwitching; 4 – 255: reserved; Note: This field matches the SRS usage field of the SRS PDU to which this report is linked.
   uint8_t report_type;                  // The type of report included in or pointed to by Report TLV depends on the SRS usage: Beam management (1: Beamforming report); Codebook (1: Normalized Channel I/Q Matrix); nonCodebook (1: Normalized Channel I/Q Matrix); antennaSwitch (1: Channel SVD Representation); all (0: null report)
   nfapi_srs_report_tlv_t report_tlv;
+
+  //Members to allow compatibility with SCF222 10.02
+  uint16_t timing_advance;
+  uint8_t num_symbols;
+  uint8_t wideband_snr;
+  uint8_t num_reported_symbols;
+  nfapi_srs_report_reported_symbol_t* reported_symbols;
 } nfapi_nr_srs_indication_pdu_t;
 
 typedef struct {

@@ -781,7 +781,21 @@ int aerial_phy_nr_srs_indication(nfapi_nr_srs_indication_t *ind)
     gNB->UL_INFO.srs_ind.pdu_list = malloc(sizeof(nfapi_nr_srs_indication_pdu_t) * ind->number_of_pdus);
 
   for (int i = 0; i < ind->number_of_pdus; i++) {
-    memcpy(&gNB->UL_INFO.srs_ind.pdu_list[i], &ind->pdu_list[i], sizeof(ind->pdu_list[0]));
+    //copy PDU
+    gNB->UL_INFO.srs_ind.pdu_list[i].timing_advance = ind->pdu_list[i].timing_advance;
+    gNB->UL_INFO.srs_ind.pdu_list[i].num_symbols = ind->pdu_list[i].num_symbols;
+    gNB->UL_INFO.srs_ind.pdu_list[i].wideband_snr = ind->pdu_list[i].wideband_snr;
+    gNB->UL_INFO.srs_ind.pdu_list[i].num_reported_symbols = ind->pdu_list[i].num_reported_symbols;
+    gNB->UL_INFO.srs_ind.pdu_list[i].reported_symbols = calloc(gNB->UL_INFO.srs_ind.pdu_list[i].num_reported_symbols, sizeof(nfapi_srs_report_reported_symbol_t));
+    for (int j = 0; j < gNB->UL_INFO.srs_ind.pdu_list[i].num_reported_symbols; ++j) {
+      gNB->UL_INFO.srs_ind.pdu_list[i].reported_symbols[j].num_rbs = ind->pdu_list[i].reported_symbols[j].num_rbs;
+      gNB->UL_INFO.srs_ind.pdu_list[i].reported_symbols[j].rbSNR = calloc(gNB->UL_INFO.srs_ind.pdu_list[i].reported_symbols[j].num_rbs, sizeof(uint8_t));
+      for (int k = 0; k < gNB->UL_INFO.srs_ind.pdu_list[i].reported_symbols[j].num_rbs; ++k) {
+        gNB->UL_INFO.srs_ind.pdu_list[i].reported_symbols[j].rbSNR[k] = ind->pdu_list[i].reported_symbols[j].rbSNR[k];
+      }
+    }
+
+    //memcpy(&gNB->UL_INFO.srs_ind.pdu_list[i], &ind->pdu_list[i], sizeof(ind->pdu_list[0]));
 
     LOG_D(MAC,
           "%s() NFAPI SFN/Slot:%d.%d SRS_IND:number_of_pdus:%d UL_INFO:pdus:%d\n",
@@ -979,9 +993,45 @@ uint8_t aerial_unpack_nr_uci_indication(uint8_t **ppReadPackedMsg, uint8_t *end,
   return unpack_nr_uci_indication(ppReadPackedMsg, end, msg, config);
 }
 
+static uint8_t aerial_unpack_nr_srs_indication_body(nfapi_nr_srs_indication_pdu_t *value, uint8_t **ppReadPackedMsg, uint8_t *end) {
+
+  if(!(pull32(ppReadPackedMsg, &value->handle, end) &&
+        pull16(ppReadPackedMsg, &value->rnti, end) &&
+        pull16(ppReadPackedMsg, &value->timing_advance, end) &&
+        pull8(ppReadPackedMsg, &value->num_symbols, end) &&
+        pull8(ppReadPackedMsg, &value->wideband_snr, end) &&
+        pull8(ppReadPackedMsg, &value->num_reported_symbols, end))) {
+    return 0;
+  }
+  value->reported_symbols = calloc(value->num_reported_symbols, sizeof(nfapi_srs_report_reported_symbol_t));
+  for (int i = 0; i < value->num_reported_symbols; ++i) {
+    pull16(ppReadPackedMsg, &value->reported_symbols[i].num_rbs, end);
+    value->reported_symbols[i].rbSNR = calloc(value->reported_symbols[i].num_rbs, sizeof(uint8_t));
+    for (int j = 0; j < value->reported_symbols[i].num_rbs; ++j) {
+      pull8(ppReadPackedMsg, &value->reported_symbols[i].rbSNR[j], end);
+    }
+  }
+
+  return 1;
+}
+
 uint8_t aerial_unpack_nr_srs_indication(uint8_t **ppReadPackedMsg, uint8_t *end, void *msg, nfapi_p7_codec_config_t *config)
 {
-  return unpack_nr_srs_indication(ppReadPackedMsg, end, msg, config);
+  //Aerial supports SRS.indication in accordance to version 10.02 of SCF222
+  nfapi_nr_srs_indication_t *pNfapiMsg = (nfapi_nr_srs_indication_t *)msg;
+  if (!(pull16(ppReadPackedMsg,&pNfapiMsg->sfn, end) &&
+        pull16(ppReadPackedMsg,&pNfapiMsg->slot, end) &&
+        pull8(ppReadPackedMsg,&pNfapiMsg->number_of_pdus, end))) {
+    return 0;
+  }
+
+  for(int i=0; i<pNfapiMsg->number_of_pdus; i++) {
+    if (!aerial_unpack_nr_srs_indication_body(&pNfapiMsg->pdu_list[i], ppReadPackedMsg, end)) {
+      return 0;
+    }
+  }
+
+  return 1;
 }
 
 uint8_t aerial_unpack_nr_rach_indication(uint8_t **ppReadPackedMsg,
