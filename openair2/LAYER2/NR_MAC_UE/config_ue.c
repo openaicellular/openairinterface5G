@@ -1566,7 +1566,12 @@ static void configure_timeAlignmentTimer(NR_UE_MAC_INST_t *mac, NR_TimeAlignment
   }
   // length of slot is (1/2^scs)ms
   uint32_t n_slots = timer_ms != UINT_MAX ? (timer_ms << scs) : UINT_MAX;
+  bool timer_was_active = false;
+  if (is_nr_timer_active(mac->time_alignment_timer))
+    timer_was_active = true;
   nr_timer_setup(&mac->time_alignment_timer, n_slots, 1); // 1 slot update rate
+  if (timer_was_active)
+    nr_timer_start(&mac->time_alignment_timer);
 }
 
 void nr_rrc_mac_config_req_reset(module_id_t module_id,

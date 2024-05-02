@@ -2966,6 +2966,11 @@ void nr_ue_send_sdu(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info, in
       // DCCH logical channel, or CCCH logical channel
       if (mac->data_inactivity_timer)
         nr_timer_start(mac->data_inactivity_timer);
+      // DL data arrival during RRC_CONNECTED when UL synchronisation status is "non-synchronised"
+      if (!is_nr_timer_active(mac->time_alignment_timer) && mac->state == UE_CONNECTED && !get_softmodem_params()->phy_test) {
+        trigger_MAC_UE_RA(mac);
+        break;
+      }
       nr_ue_process_mac_pdu(mac, dl_info, pdu_id);
       break;
     case FAPI_NR_RX_PDU_TYPE_RAR :
