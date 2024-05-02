@@ -49,6 +49,7 @@
 #include "common_lib.h"
 #include "fapi_nr_ue_interface.h"
 #include "assertions.h"
+#include "common/utils/task_manager/thread_pool/task_manager.h"
 
 #ifdef MEX
   #define msg mexPrintf
@@ -642,6 +643,7 @@ typedef struct nr_rxtx_thread_data_s {
   nr_phy_data_t phy_data;
   int tx_wait_for_dlsch;
   int rx_offset;
+  notifiedFIFO_elt_t * elt;
 } nr_rxtx_thread_data_t;
 
 typedef struct LDPCDecode_ue_s {
@@ -668,6 +670,7 @@ typedef struct LDPCDecode_ue_s {
   time_stats_t ts_rate_unmatch;
   time_stats_t ts_ldpc_decode;
   UE_nr_rxtx_proc_t proc;
+  task_ans_t* ans;
 } ldpcDecode_ue_t;
 
 #include "SIMULATION/ETH_TRANSPORT/defs.h"

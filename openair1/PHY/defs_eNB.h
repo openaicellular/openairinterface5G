@@ -66,7 +66,7 @@
 #include "PHY/LTE_TRANSPORT/transport_eNB.h"
 #include "openair2/PHY_INTERFACE/IF_Module.h"
 #include "common/openairinterface5g_limits.h"
-
+#include "common/utils/task_manager/task_manager_gen.h"
 
 #define PBCH_A 24
 #define MAX_NUM_RU_PER_eNB 64
@@ -252,7 +252,7 @@ typedef struct {
   pthread_cond_t cond_RUs;
   /// mutex for RXn-TXnp4 processing thread
   pthread_mutex_t mutex_RUs;
-  tpool_t *threadPool;
+  task_manager_t* man; // non-owning ptr
   int nbDecode;
   notifiedFIFO_t *respDecode;
   pthread_mutex_t mutex_emulateRF;
@@ -787,6 +787,7 @@ typedef struct TurboDecode_s {
     int offset;
     int maxIterations;
     int decodeIterations;
+    task_ans_t* ans;
 } turboDecode_t;
 
 #define TURBO_SIMD_SOFTBITS   96+12+3+3*6144
@@ -803,6 +804,7 @@ typedef struct turboEncode_s {
   time_stats_t *rm_stats;
   time_stats_t *te_stats;
   time_stats_t *i_stats;
+  task_ans_t* ans;
 } turboEncode_t;
 
 

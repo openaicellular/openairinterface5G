@@ -54,6 +54,8 @@
 
 #include <executables/softmodem-common.h>
 
+#include "common/utils/task_manager/task_manager_gen.h"
+
 #ifdef SMBV
 #include "PHY/TOOLS/smbv.h"
 unsigned short config_frames[4] = {2,9,11,13};
@@ -1873,14 +1875,18 @@ void init_NR_RU(configmodule_interface_t *cfg, char *rf_config_file)
       int threadCnt = ru->num_tpcores;
       if (threadCnt < 2) LOG_E(PHY,"Number of threads for gNB should be more than 1. Allocated only %d\n",threadCnt);
       else LOG_I(PHY,"RU Thread pool size %d\n",threadCnt);
-      char pool[80];
+      char pool[512] = {0};
       int s_offset = sprintf(pool,"%d",ru->tpcores[0]);
       for (int icpu=1; icpu<threadCnt; icpu++) {
          s_offset+=sprintf(pool+s_offset,",%d",ru->tpcores[icpu]);
       }
       LOG_I(PHY,"RU thread-pool core string %s\n",pool);
-      ru->threadPool = (tpool_t*)malloc(sizeof(tpool_t));
-      initTpool(pool, ru->threadPool, cpumeas(CPUMEAS_GETSTATE));
+
+      int core_id[128] = {0};
+      span_core_id_t out = {.cap = 128, .core_id = core_id};
+      parse_num_threads(pool, &out);
+      init_task_manager(&ru->man, out.core_id, out.sz); 
+
       // FEP RX result FIFO
       ru->respfeprx = (notifiedFIFO_t*) malloc(sizeof(notifiedFIFO_t));
       initNotifiedFIFO(ru->respfeprx);

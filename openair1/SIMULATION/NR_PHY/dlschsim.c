@@ -49,6 +49,7 @@
 #include "openair2/LAYER2/NR_MAC_COMMON/nr_mac_common.h"
 #include "executables/nr-uesoftmodem.h"
 #include "nfapi/oai_integration/vendor_ext.h"
+#include "common/utils/task_manager/task_manager_gen.h"
 
 //#define DEBUG_NR_DLSCHSIM
 
@@ -372,10 +373,17 @@ int main(int argc, char **argv)
 	RC.gNB = (PHY_VARS_gNB **) malloc(sizeof(PHY_VARS_gNB *));
 	RC.gNB[0] = calloc(1, sizeof(PHY_VARS_gNB));
 	gNB = RC.gNB[0];
-	initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
-        initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
-	//gNB_config = &gNB->gNB_config;
-	frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
+
+  int core_id[128] = {0};
+  span_core_id_t out = {.cap = 128, .core_id = core_id};
+  parse_num_threads(gNBthreads, &out);
+  init_task_manager(&gNB->man, out.core_id, out.sz);
+
+  int lst_core_id[8] = {-1,-1,-1,-1,-1,-1,-1,-1 };
+  assert(dlsch_threads < 8);
+  init_task_manager(&nrUE_params.man, lst_core_id, max(dlsch_threads, 1));
+
+  frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
 	frame_parms->nb_antennas_tx = n_tx;
 	frame_parms->nb_antennas_rx = n_rx;
 	frame_parms->N_RB_DL = N_RB_DL;
@@ -653,6 +661,10 @@ int main(int argc, char **argv)
   for (int i = 0; i < nb_slots_to_set; ++i)
     free(gNB->gNB_config.tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list);
   free(gNB->gNB_config.tdd_table.max_tdd_periodicity_list);
+
+  void (*clean)(task_t*) = NULL;
+  free_task_manager(&nrUE_params.man, clean);
+  free_task_manager(&gNB->man, clean);
 
   phy_free_nr_gNB(gNB);
   free(RC.gNB[0]);
