@@ -1533,6 +1533,42 @@ static void configure_common_BWP_ul(NR_UE_MAC_INST_t *mac, int bwp_id, NR_BWP_Up
   }
 }
 
+static void configure_timeAlignmentTimer(NR_UE_MAC_INST_t *mac, NR_TimeAlignmentTimer_t timer_config, int scs)
+{
+  uint32_t timer_ms = 0;
+  switch (timer_config) {
+    case NR_TimeAlignmentTimer_ms500 :
+      timer_ms = 500;
+      break;
+    case NR_TimeAlignmentTimer_ms750 :
+      timer_ms = 750;
+      break;
+    case NR_TimeAlignmentTimer_ms1280 :
+      timer_ms = 1280;
+      break;
+    case NR_TimeAlignmentTimer_ms1920 :
+      timer_ms = 1920;
+      break;
+    case NR_TimeAlignmentTimer_ms2560 :
+      timer_ms = 2560;
+      break;
+    case NR_TimeAlignmentTimer_ms5120 :
+      timer_ms = 5120;
+      break;
+    case NR_TimeAlignmentTimer_ms10240 :
+      timer_ms = 10240;
+      break;
+    case NR_TimeAlignmentTimer_infinity :
+      timer_ms = UINT_MAX;
+      break;
+    default :
+      AssertFatal(false, "Invalid timeAlignmentTimer\n");
+  }
+  // length of slot is (1/2^scs)ms
+  uint32_t n_slots = timer_ms != UINT_MAX ? (timer_ms << scs) : UINT_MAX;
+  nr_timer_setup(&mac->time_alignment_timer, n_slots, 1); // 1 slot update rate
+}
+
 void nr_rrc_mac_config_req_reset(module_id_t module_id,
                                  NR_UE_MAC_reset_cause_t cause)
 {
@@ -1565,6 +1601,8 @@ void nr_rrc_mac_config_req_reset(module_id_t module_id,
       nr_ue_mac_default_configs(mac);
       nr_ue_reset_sync_state(mac);
       release_mac_configuration(mac, cause);
+      // apply the timeAlignmentTimerCommon included in SIB1
+      configure_timeAlignmentTimer(mac, mac->timeAlignmentTimerCommon, mac->current_UL_BWP->scs);
       // new sync with old cell ID (re-establishment on the same cell)
       sync_req.target_Nid_cell = mac->physCellId;
       sync_req.ssb_bw_scan = false;
@@ -1625,6 +1663,7 @@ void nr_rrc_mac_config_req_sib1(module_id_t module_id,
     AssertFatal(mac->current_DL_BWP, "Couldn't find DL-BWP0\n");
     mac->current_UL_BWP = get_ul_bwp_structure(mac, 0, false);
     AssertFatal(mac->current_UL_BWP, "Couldn't find DL-BWP0\n");
+    configure_timeAlignmentTimer(mac, mac->timeAlignmentTimerCommon, mac->current_UL_BWP->scs);
   }
 
   // Setup the SSB to Rach Occasions mapping according to the config
@@ -2475,6 +2514,12 @@ void nr_rrc_mac_config_req_cg(module_id_t module_id,
 
   if (cell_group_config->mac_CellGroupConfig)
     configure_maccellgroup(mac, cell_group_config->mac_CellGroupConfig);
+
+  for (int j = 0; j < mac->TAG_list.count; j++) {
+    // apply the Timing Advance Command for the indicated TAG
+    if (mac->TAG_list.array[j]->tag_Id == mac->tag_Id)
+      configure_timeAlignmentTimer(mac, mac->TAG_list.array[j]->timeAlignmentTimer, mac->current_UL_BWP->scs);
+  }
 
   configure_logicalChannelBearer(mac,
                                  cell_group_config->rlc_BearerToAddModList,

@@ -201,6 +201,7 @@ void reset_mac_inst(NR_UE_MAC_INST_t *nr_mac)
   }
   if (nr_mac->data_inactivity_timer)
     nr_timer_stop(nr_mac->data_inactivity_timer);
+  nr_timer_stop(&nr_mac->time_alignment_timer);
   nr_timer_stop(&nr_mac->ra.contention_resolution_timer);
   nr_timer_stop(&nr_mac->scheduling_info.sr_DelayTimer);
   nr_timer_stop(&nr_mac->scheduling_info.retxBSR_Timer);
@@ -208,7 +209,7 @@ void reset_mac_inst(NR_UE_MAC_INST_t *nr_mac)
     nr_timer_stop(&nr_mac->scheduling_info.sr_info[i].prohibitTimer);
 
   // consider all timeAlignmentTimers as expired and perform the corresponding actions in clause 5.2
-  // TODO
+  handle_time_alignment_timer_expired(nr_mac);
 
   // set the NDIs for all uplink HARQ processes to the value 0
   for (int k = 0; k < NR_MAX_HARQ_PROCESSES; k++)
