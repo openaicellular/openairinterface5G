@@ -60,6 +60,15 @@ void process_nsa_message(NR_UE_RRC_INST_t *rrc, nsa_message_t nsa_message_type, 
 
 void nr_rrc_cellgroup_configuration(NR_UE_RRC_INST_t *rrc, NR_CellGroupConfig_t *cellGroupConfig);
 
+/**\brief Send measurements to RRC to perform the L3 measurements
+   \param module_id  module id
+   \param gNB_index  gNB index
+   \param Nid_cell  Nid_cell
+   \param meas_type
+   \param is_neighboring_cell  (0) false, (1) true
+   \param rsrp_dBm   reference signal received power*/
+int8_t nr_mac_rrc_meas_ind_ue(module_id_t module_id, uint32_t gNB_index, uint16_t Nid_cell, bool csi_meas, bool is_neighboring_cell, uint8_t rsrp_dBm);
+
 /**\brief interface between MAC and RRC thru SRB0 (RLC TM/no PDCP)
    \param module_id  module id
    \param CC_id      component carrier id
@@ -116,6 +125,7 @@ void init_SI_timers(NR_UE_RRC_SI_INFO *SInfo);
 void nr_ue_rrc_timer_trigger(int module_id, int frame, int gnb_id);
 void handle_t300_expiry(NR_UE_RRC_INST_t *rrc);
 
+int get_time_to_trigger(const long time_to_trigger);
 void reset_rlf_timers_and_constants(NR_UE_Timers_Constants_t *tac);
 void set_default_timers_and_constants(NR_UE_Timers_Constants_t *tac);
 void nr_rrc_set_sib1_timers_and_constants(NR_UE_Timers_Constants_t *tac, NR_SIB1_t *sib1);

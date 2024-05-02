@@ -186,10 +186,10 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
         }
       }
     break;
-    case FAPI_NR_CSIRS_IND:
-      memcpy(&rx_ind->rx_indication_body[n_pdus - 1].csirs_measurements,
-             (fapi_nr_csirs_measurements_t*)typeSpecific,
-             sizeof(*(fapi_nr_csirs_measurements_t*)typeSpecific));
+    case FAPI_NR_MEAS_IND:
+      memcpy(&rx_ind->rx_indication_body[n_pdus - 1].l1_measurements,
+             (fapi_nr_l1_measurements_t*)typeSpecific,
+             sizeof(*(fapi_nr_l1_measurements_t*)typeSpecific));
       break;
     default:
     break;
@@ -833,6 +833,26 @@ static bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
   return dec;
 }
 
+bool check_meas_to_perform(PHY_VARS_NR_UE *ue, int nr_slot_rx)
+{
+  if (nr_slot_rx != 0) {
+    return false;
+  }
+
+  if (ue->measurements.meas_running == true) {
+    return false;
+  }
+
+  for (int cell_idx = 0; cell_idx < NUMBER_OF_NEIGHBORING_CELLs_MAX; cell_idx++) {
+    fapi_nr_neighboring_cell_t *nr_neighboring_cell = &PHY_vars_UE_g[ue->Mod_id][ue->CC_id]->nrUE_config.meas_config.nr_neighboring_cell[cell_idx];
+    if (nr_neighboring_cell->active == 1) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
 {
   int frame_rx = proc->frame_rx;
@@ -935,6 +955,13 @@ int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_
       } // for i
     } // for rsc_id
   } // for gNB_id
+
+  PHY_NR_MEASUREMENTS *measurements = &ue->measurements;
+  if (check_meas_to_perform(ue, nr_slot_rx) == true) {
+    measurements->meas_proc = proc;
+    int ret = pthread_create(&measurements->meas_thread, NULL, nr_ue_meas_neighboring_cell, (void *)ue);
+    AssertFatal(ret == 0, "%s: Thread for neighboring measurements was not created, errno: %d\n", __FUNCTION__, errno);
+  }
 
   if ((frame_rx%64 == 0) && (nr_slot_rx==0)) {
     LOG_I(NR_PHY,"============================================\n");

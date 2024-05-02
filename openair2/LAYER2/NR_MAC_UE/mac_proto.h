@@ -91,6 +91,7 @@ void nr_rrc_mac_config_req_sib1(module_id_t module_id,
                                 NR_ServingCellConfigCommonSIB_t *scc);
 
 void nr_rrc_mac_config_req_reset(module_id_t module_id, NR_UE_MAC_reset_cause_t cause);
+void nr_rrc_mac_config_req_meas(module_id_t module_id, const NR_MeasConfig_t *measConfig);
 
 /**\brief initialization NR UE MAC instance(s)*/
 NR_UE_MAC_INST_t * nr_l2_init_ue(int nb_inst);
@@ -119,10 +120,8 @@ int8_t nr_ue_get_SR(NR_UE_MAC_INST_t *mac, frame_t frame, slot_t slot, NR_Schedu
 
 nr_dci_format_t nr_ue_process_dci_indication_pdu(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, fapi_nr_dci_indication_pdu_t *dci);
 
-int8_t nr_ue_process_csirs_measurements(NR_UE_MAC_INST_t *mac,
-                                        frame_t frame,
-                                        int slot,
-                                        fapi_nr_csirs_measurements_t *csirs_measurements);
+int8_t nr_ue_process_l1_measurements(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, fapi_nr_l1_measurements_t *l1_measurements);
+
 void nr_ue_aperiodic_srs_scheduling(NR_UE_MAC_INST_t *mac, long resource_trigger, int frame, int slot);
 
 bool trigger_periodic_scheduling_request(NR_UE_MAC_INST_t *mac,

@@ -27,6 +27,7 @@
 
 #define NFAPI_UE_MAX_NUM_CB 8
 #define NFAPI_MAX_NUM_UL_PDU 255
+#define NUMBER_OF_NEIGHBORING_CELLs_MAX 1
 
 /*
   typedef unsigned int	   uint32_t;
@@ -60,16 +61,23 @@ typedef enum {
   NFAPI_NR_FORMAT_0_1_AND_1_1,
 } nfapi_nr_dci_formats_e;
 
+typedef enum {
+  NFAPI_NR_CSI_MEAS,
+  NFAPI_NR_SS_MEAS
+} nfapi_nr_meas_type_e;
 
 typedef struct {
-  uint32_t rsrp;
-  int rsrp_dBm;
+  uint32_t gNB_index;
+  uint16_t Nid_cell;
+  nfapi_nr_meas_type_e meas_type;
+  bool is_neighboring_cell;
+  uint8_t rsrp_dBm;
   uint8_t rank_indicator;
   uint8_t i1;
   uint8_t i2;
   uint8_t cqi;
   rlm_t radiolink_monitoring;
-} fapi_nr_csirs_measurements_t;
+} fapi_nr_l1_measurements_t;
 
 typedef struct {
   /// frequency_domain_resource;
@@ -154,7 +162,7 @@ typedef struct {
     fapi_nr_pdsch_pdu_t pdsch_pdu;
     fapi_nr_ssb_pdu_t ssb_pdu;
     fapi_nr_sib_pdu_t sib_pdu;
-    fapi_nr_csirs_measurements_t csirs_measurements;
+    fapi_nr_l1_measurements_t l1_measurements;
   };
 } fapi_nr_rx_indication_body_t;
 
@@ -687,12 +695,21 @@ typedef struct
 } fapi_nr_prach_config_t;
 
 typedef struct {
+  uint16_t Nid_cell;
+  uint8_t active;
+  uint8_t perform_validation;
+} fapi_nr_neighboring_cell_t;
+
+typedef struct {
+  fapi_nr_neighboring_cell_t nr_neighboring_cell[NUMBER_OF_NEIGHBORING_CELLs_MAX];
+} fapi_nr_meas_config_t;
+
+typedef struct {
   int16_t target_Nid_cell;
 } fapi_nr_synch_request_t;
 
 typedef struct {
   uint32_t config_mask;
-
   fapi_nr_ue_carrier_config_t carrier_config;
   fapi_nr_cell_config_t cell_config;
   fapi_nr_ssb_config_t ssb_config;
@@ -700,7 +717,7 @@ typedef struct {
   fapi_nr_tdd_table_t tdd_table_1;
   fapi_nr_tdd_table_t *tdd_table_2;
   fapi_nr_prach_config_t prach_config;
-
+  fapi_nr_meas_config_t meas_config;
 } fapi_nr_config_request_t;
 
 #endif

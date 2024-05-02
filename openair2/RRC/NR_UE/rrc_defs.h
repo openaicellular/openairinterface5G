@@ -161,6 +161,7 @@ typedef struct NR_UE_Timers_Constants_s {
   NR_timer_t T325;
   NR_timer_t T380;
   NR_timer_t T390;
+  NR_timer_t TA3;
   // counters
   uint32_t N310_cnt;
   uint32_t N311_cnt;
@@ -168,6 +169,23 @@ typedef struct NR_UE_Timers_Constants_s {
   uint32_t N310_k;
   uint32_t N311_k;
 } NR_UE_Timers_Constants_t;
+
+typedef struct meas_s {
+  uint16_t Nid_cell;
+  int ss_rsrp_dBm;
+  bool ss_rsrp_dBm_initialized;
+  int csi_rsrp_dBm;
+  bool csi_rsrp_dBm_initialized;
+} meas_t;
+
+typedef struct l3_measurements_s {
+  double filter_coeff_rsrp;
+  meas_t active_cell;
+  meas_t neighboring_cell[1];
+  long trigger_to_measid;
+  long trigger_quantity;
+  long rs_type;
+} l3_measurements_t;
 
 typedef enum {
   OUT_OF_SYNC = 0,
@@ -190,6 +208,8 @@ typedef struct rrcPerNB {
 typedef struct NR_UE_RRC_INST_s {
   instance_t ue_id;
   rrcPerNB_t perNB[NB_CNX_UE];
+  NR_MeasurementReport_t *measurementReport;
+  l3_measurements_t l3_measurements;
 
   rnti_t rnti;
   uint32_t phyCellID;

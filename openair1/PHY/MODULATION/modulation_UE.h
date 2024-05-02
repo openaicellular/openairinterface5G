@@ -69,6 +69,14 @@ int nr_slot_fep_init_sync(PHY_VARS_NR_UE *ue,
                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP],
                           int link_type);
 
+int nr_slot_fep_meas(PHY_VARS_NR_UE *ue,
+                     int Ns,
+                     unsigned char symbol,
+                     int sample_offset,
+                     uint32_t rxdata_size,
+                     int rxdata[][rxdata_size],
+                     c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+
 int slot_fep_mbsfn(PHY_VARS_UE *phy_vars_ue,
                    unsigned char l,
                    int subframe,

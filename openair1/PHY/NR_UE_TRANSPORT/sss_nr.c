@@ -65,6 +65,21 @@
 
 static int16_t d_sss[N_ID_2_NUMBER][N_ID_1_NUMBER][LENGTH_SSS_NR];
 
+int16_t *get_d_sss(const int nid2, const int nid1)
+{
+  return d_sss[nid2][nid1];
+}
+
+const int16_t *get_phase_re_nr()
+{
+  return phase_re_nr;
+}
+
+const int16_t *get_phase_im_nr()
+{
+  return phase_im_nr;
+}
+
 void init_context_sss_nr(int amp)
 {
   int16_t x0[LENGTH_SSS_NR];

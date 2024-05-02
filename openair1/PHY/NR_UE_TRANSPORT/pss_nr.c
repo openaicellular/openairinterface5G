@@ -59,6 +59,11 @@ int16_t *get_primary_synchro_nr2(const int nid2)
   return primary_synchro_nr2[nid2];
 }
 
+c16_t *get_primary_synchro_time_nr(const int nid2)
+{
+  return primary_synchro_time_nr[nid2];
+}
+
 /*******************************************************************
 *
 * NAME :         generate_pss_nr

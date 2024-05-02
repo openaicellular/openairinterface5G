@@ -231,6 +231,7 @@ static void nr_rrc_ue_process_rrcReconfiguration(NR_UE_RRC_INST_t *rrc,
       if (ie->measConfig != NULL) {
         LOG_I(NR_RRC, "Measurement Configuration is present\n");
         nr_rrc_ue_process_measConfig(rrcNB, ie->measConfig, &rrc->timers_and_constants);
+        nr_rrc_mac_config_req_meas(rrc->ue_id, ie->measConfig);
       }
       if (ie->lateNonCriticalExtension != NULL) {
         //  unuse now
@@ -953,6 +954,23 @@ static void nr_rrc_process_rrcsetup(NR_UE_RRC_INST_t *rrc,
   // set the content of RRCSetupComplete message
   // TODO procedues described in 5.3.3.4 seems more complex than what we actualy do
   rrc_ue_generate_RRCSetupComplete(rrc, rrcSetup->rrc_TransactionIdentifier);
+}
+
+void rrc_ue_generate_measurementReport(NR_UE_RRC_INST_t *rrc)
+{
+  uint8_t buffer[100];
+
+  if (rrc->measurementReport == NULL) {
+    rrc->measurementReport = calloc(1, sizeof(struct NR_MeasurementReport));
+  }
+
+  uint8_t size = do_nrMeasurementReport_SA(rrc->measurementReport,
+                                           &rrc->l3_measurements,
+                                           buffer,
+                                           sizeof(buffer));
+
+  int srb_id = 1; // possibly TODO in SRB3 in some cases
+  nr_pdcp_data_req_srb(rrc->ue_id, srb_id, 0, size, buffer, deliver_pdu_srb_rlc, NULL);
 }
 
 static int8_t nr_rrc_ue_decode_ccch(NR_UE_RRC_INST_t *rrc,
@@ -1686,6 +1704,115 @@ static int nr_rrc_ue_decode_dcch(NR_UE_RRC_INST_t *rrc,
   return 0;
 }
 
+void nr_ue_meas_filtering(NR_UE_RRC_INST_t *rrc, bool is_neighboring_cell, uint16_t Nid_cell, bool csi_meas, int rsrp_dBm)
+{
+  l3_measurements_t *l3_measurements = &rrc->l3_measurements;
+
+  meas_t *meas_cell = NULL;
+  if (is_neighboring_cell) {
+    meas_cell = &l3_measurements->neighboring_cell[0];
+  } else {
+    meas_cell = &l3_measurements->active_cell;
+  }
+
+  meas_cell->Nid_cell = Nid_cell;
+
+  double a = l3_measurements->filter_coeff_rsrp;
+  if (!csi_meas) {
+    if (meas_cell->ss_rsrp_dBm_initialized == true) {
+      meas_cell->ss_rsrp_dBm = (1.0 - a) * meas_cell->ss_rsrp_dBm + a * rsrp_dBm;
+    } else {
+      meas_cell->ss_rsrp_dBm = rsrp_dBm;
+      meas_cell->ss_rsrp_dBm_initialized = true;
+    }
+  } else {
+    if (meas_cell->csi_rsrp_dBm_initialized == true) {
+      meas_cell->csi_rsrp_dBm = (1.0 - a) * meas_cell->csi_rsrp_dBm + a * rsrp_dBm;
+    } else {
+      meas_cell->csi_rsrp_dBm = rsrp_dBm;
+      meas_cell->csi_rsrp_dBm_initialized = true;
+    }
+  }
+}
+
+void nr_ue_ckeck_meas_report(NR_UE_RRC_INST_t *rrc, const uint8_t gnb_index)
+{
+  l3_measurements_t *l3_measurements = &rrc->l3_measurements;
+  rrcPerNB_t *nb = &rrc->perNB[gnb_index];
+
+  for (int i = 0; i < MAX_MEAS_CONFIG; i++) {
+    NR_ReportConfigToAddMod_t *report_config = nb->ReportConfig[i];
+    if (report_config == NULL) {
+      continue;
+    }
+
+    if (report_config->reportConfig.present == NR_ReportConfigToAddMod__reportConfig_PR_reportConfigNR) {
+      NR_ReportConfigNR_t *report_config_nr = report_config->reportConfig.choice.reportConfigNR;
+
+      if (report_config_nr->reportType.present == NR_ReportConfigNR__reportType_PR_eventTriggered) {
+        NR_EventTriggerConfig_t *event_trigger_config = report_config_nr->reportType.choice.eventTriggered;
+
+        if (event_trigger_config->eventId.present == NR_EventTriggerConfig__eventId_PR_eventA3) {
+          struct NR_EventTriggerConfig__eventId__eventA3 *event_A3 = event_trigger_config->eventId.choice.eventA3;
+
+          if (event_A3->a3_Offset.present == NR_MeasTriggerQuantityOffset_PR_rsrp) {
+            meas_t *active_cell = &l3_measurements->active_cell;
+            meas_t *neighboring_cell = &l3_measurements->neighboring_cell[0];
+
+            int active_cell_rsrp = INT_MAX;
+            if (active_cell->ss_rsrp_dBm_initialized == true) {
+              active_cell_rsrp = active_cell->ss_rsrp_dBm;
+            } else if (active_cell->csi_rsrp_dBm_initialized == true) {
+              active_cell_rsrp = active_cell->csi_rsrp_dBm;
+            } else {
+              LOG_E(NR_RRC, "There are no RSRP measurements taken for the active cell\n");
+            }
+
+            int neighboring_cell_rsrp = INT_MIN;
+            if (neighboring_cell->ss_rsrp_dBm_initialized == true && event_trigger_config->rsType == NR_NR_RS_Type_ssb) {
+              neighboring_cell_rsrp = neighboring_cell->ss_rsrp_dBm;
+            }
+
+            int rsrp_offset = event_A3->a3_Offset.choice.rsrp >> 1;
+            int rsrp_hysteresis = event_A3->hysteresis;
+            NR_UE_Timers_Constants_t *timers = &rrc->timers_and_constants;
+            if (neighboring_cell_rsrp > active_cell_rsrp + rsrp_offset + rsrp_hysteresis) {
+              if (!is_nr_timer_active(timers->TA3)) {
+                nr_timer_setup(&timers->TA3, get_time_to_trigger(event_A3->timeToTrigger), 10);
+                nr_timer_start(&timers->TA3);
+                int report_config_id = report_config->reportConfigId;
+                int meas_id = -1;
+                for (int j = 0; j < MAX_MEAS_ID; j++) {
+                  NR_MeasIdToAddMod_t *meas_id_toAddMod = nb->MeasId[j];
+                  if (meas_id_toAddMod == NULL) {
+                    continue;
+                  }
+                  if (meas_id_toAddMod->reportConfigId == report_config_id) {
+                    meas_id = meas_id_toAddMod->measId;
+                  }
+                }
+                AssertFatal(meas_id > 0, "meas_id did not found for report_config_id %i\n", report_config_id);
+
+                l3_measurements->trigger_to_measid = meas_id;
+                l3_measurements->trigger_quantity = event_A3->a3_Offset.present;
+                l3_measurements->rs_type = event_trigger_config->rsType;
+
+                LOG_W(NR_RRC, "(neighboring_cell_rsrp) %i > (active_cell_rsrp %i) + (rsrp_offset) %i + (rsrp_hysteresis) %i\n",
+                      neighboring_cell_rsrp,
+                      active_cell_rsrp,
+                      rsrp_offset,
+                      rsrp_hysteresis);
+              }
+            } else {
+              nr_timer_stop(&timers->TA3);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void nr_rrc_handle_ra_indication(NR_UE_RRC_INST_t *rrc, bool ra_succeeded)
 {
   NR_UE_Timers_Constants_t *timers = &rrc->timers_and_constants;
@@ -1767,6 +1894,21 @@ void *rrc_nrue(void *notUsed)
     
     nr_rrc_ue_decode_NR_SBCCH_SL_BCH_Message(rrc, sbcch->gnb_index,sbcch->frame, sbcch->slot, sbcch->sdu,
                                              sbcch->sdu_size, sbcch->rx_slss_id);
+  case NR_RRC_MAC_MEAS_DATA_IND:
+
+    LOG_D(NR_RRC, "[%s][Nid_cell %i] Received %s measurements: RSRP = %i (dBm)\n",
+          NR_RRC_MAC_MEAS_DATA_IND(msg_p).is_neighboring_cell? "Neighboring cell" : "Active cell",
+          NR_RRC_MAC_MEAS_DATA_IND(msg_p).Nid_cell,
+          NR_RRC_MAC_MEAS_DATA_IND(msg_p).is_csi_meas ? "CSI meas" : "SSB meas",
+          NR_RRC_MAC_MEAS_DATA_IND(msg_p).rsrp_dBm - 157);
+
+    nr_ue_meas_filtering(rrc,
+                         NR_RRC_MAC_MEAS_DATA_IND(msg_p).is_neighboring_cell,
+                         NR_RRC_MAC_MEAS_DATA_IND(msg_p).Nid_cell,
+                         NR_RRC_MAC_MEAS_DATA_IND(msg_p).is_csi_meas,
+                         NR_RRC_MAC_MEAS_DATA_IND(msg_p).rsrp_dBm - 157);
+
+    nr_ue_ckeck_meas_report(rrc, NR_RRC_MAC_MEAS_DATA_IND(msg_p).gnb_index);
     break;
 
   case NR_RRC_MAC_CCCH_DATA_IND: {

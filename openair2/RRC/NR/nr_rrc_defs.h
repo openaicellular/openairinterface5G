@@ -62,7 +62,7 @@
 #include "NR_CellGroupConfig.h"
 #include "NR_ServingCellConfigCommon.h"
 #include "NR_EstablishmentCause.h"
-
+#include "NR_MeasurementReport.h"
 //-------------------
 
 #include "intertask_interface.h"

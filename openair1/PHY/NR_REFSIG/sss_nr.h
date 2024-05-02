@@ -101,5 +101,10 @@ bool rx_sss_nr(PHY_VARS_NR_UE *ue,
                uint8_t *phase_max,
                int *freq_offset_sss,
                c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+
+const int16_t *get_phase_re_nr();
+const int16_t *get_phase_im_nr();
+int16_t *get_d_sss(const int nid2, const int nid1);
+
 #endif /* SSS_NR_H */
 

@@ -37,6 +37,9 @@
 #include "PHY/phy_extern_nr_ue.h"
 #include "common/utils/LOG/log.h"
 #include "PHY/sse_intrin.h"
+#include "PHY/NR_REFSIG/sss_nr.h"
+#include "PHY/MODULATION/modulation_UE.h"
+#include "SCHED_NR_UE/defs.h"
 
 //#define k1 1000
 #define k1 ((long long int) 1000)
@@ -45,6 +48,7 @@
 //#define DEBUG_MEAS_RRC
 //#define DEBUG_MEAS_UE
 //#define DEBUG_RANK_EST
+//#define DEBUG_MEAS_NEIGHBORING_CELL
 
 uint32_t get_nr_rx_total_gain_dB (module_id_t Mod_id,uint8_t CC_id)
 {
@@ -229,6 +233,220 @@ void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
     ssb_index,
     ue->measurements.ssb_rsrp_dBm[ssb_index],
     rsrp);
+
+  // Send SS measurements to MAC
+  fapi_nr_l1_measurements_t l1_measurements;
+  l1_measurements.gNB_index = proc->gNB_id;
+  l1_measurements.meas_type = NFAPI_NR_SS_MEAS;
+  l1_measurements.Nid_cell = ue->frame_parms.Nid_cell;
+  l1_measurements.is_neighboring_cell = false;
+  if (ue->measurements.ssb_rsrp_dBm[ssb_index] < -140) {
+    l1_measurements.rsrp_dBm = 16;
+  } else if (ue->measurements.ssb_rsrp_dBm[ssb_index] > -44) {
+    l1_measurements.rsrp_dBm = 113;
+  } else {
+    l1_measurements.rsrp_dBm = ue->measurements.ssb_rsrp_dBm[ssb_index] + 157; // TS 38.133 - Table 10.1.6.1-1
+  }
+  nr_downlink_indication_t dl_indication;
+  fapi_nr_rx_indication_t *rx_ind = calloc(sizeof(*rx_ind),1);
+  nr_fill_dl_indication(&dl_indication, NULL, rx_ind, proc, ue, NULL);
+  nr_fill_rx_indication(rx_ind, FAPI_NR_MEAS_IND, ue, NULL, NULL, 1, proc, (void *)&l1_measurements, NULL);
+  if (ue->if_inst && ue->if_inst->dl_indication) {
+    ue->if_inst->dl_indication(&dl_indication);
+  } else {
+    free(rx_ind);
+  }
+}
+
+void *nr_ue_meas_neighboring_cell(void *param)
+{
+
+  PHY_VARS_NR_UE *ue = (PHY_VARS_NR_UE *)param;
+  const UE_nr_rxtx_proc_t *proc = ue->measurements.meas_proc;
+  NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
+
+  // Copy rxdata, because this function is running in a separate thread, and rxdata will be changed in another thread, before this function finishes measuring.
+  uint32_t rxdata_size = (2 * (frame_parms->samples_per_frame) + frame_parms->ofdm_symbol_size);
+  int rxdata[frame_parms->nb_antennas_rx][rxdata_size];
+  for (int i = 0; i < frame_parms->nb_antennas_rx; i++) {
+    memcpy(rxdata[i], ue->common_vars.rxdata[i], rxdata_size * sizeof(int32_t));
+  }
+
+  const uint32_t rxdataF_sz = ue->frame_parms.samples_per_slot_wCP;
+
+  for (int cell_idx = 0; cell_idx < NUMBER_OF_NEIGHBORING_CELLs_MAX; cell_idx++) {
+
+    fapi_nr_neighboring_cell_t *nr_neighboring_cell = &PHY_vars_UE_g[ue->Mod_id][ue->CC_id]->nrUE_config.meas_config.nr_neighboring_cell[cell_idx];
+    if (nr_neighboring_cell->active == 0) {
+      continue;
+    }
+    ue->measurements.meas_running = true;
+
+    __attribute__((aligned(32))) c16_t rxdataF[ue->frame_parms.nb_antennas_rx][rxdataF_sz];
+    neighboring_cell_info_t *neighboring_cell_info = &ue->measurements.neighboring_cell_info[cell_idx];
+
+    // performing the correlation on a frame length plus one symbol for the first of the two frame
+    // to take into account the possibility of PSS between the two frames
+    if (neighboring_cell_info->pss_search_length == 0) {
+      neighboring_cell_info->pss_search_length = frame_parms->samples_per_frame + (2 * frame_parms->ofdm_symbol_size);
+    }
+    int length = neighboring_cell_info->pss_search_length;
+    int start = neighboring_cell_info->pss_search_start;
+
+    // Search pss in the received buffer each 8 samples
+    int pss_index = GET_NID2(nr_neighboring_cell->Nid_cell);
+    c16_t *pss_time = get_primary_synchro_time_nr(pss_index);
+    int maxval = 0;
+    for (int i = 0; i < IQ_SIZE * (frame_parms->ofdm_symbol_size); i++) {
+      maxval = max(maxval, abs(pss_time[i].r));
+      maxval = max(maxval, abs(pss_time[i].i));
+    }
+    int shift = log2_approx(maxval);
+    int peak_position = -1;
+    int64_t peak_value = 0;
+    int64_t avg = 0;
+    for (int n = start; n < start + length; n += 8) {
+      int64_t pss_corr_ue = 0;
+      for (int ar = 0; ar < frame_parms->nb_antennas_rx; ar++) {
+        const c32_t result = dot_product(pss_time, (c16_t *)&(rxdata[ar][n]), frame_parms->ofdm_symbol_size, shift);
+        const c64_t r64 = {.r = result.r, .i = result.i};
+        pss_corr_ue += squaredMod(r64);
+      }
+      avg += pss_corr_ue;
+      if (pss_corr_ue > peak_value) {
+        peak_value = pss_corr_ue;
+        peak_position = n;
+      }
+    }
+    avg /= (length / 4);
+    int ssb_offset = peak_position - frame_parms->nb_prefix_samples;
+
+    LOG_D(NR_PHY,
+          "PSS Peak found at pos %d (SSB offset %d), val = %llu (%d dB) avg %d dB\n",
+          peak_position,
+          ssb_offset,
+          (unsigned long long)peak_value,
+          dB_fixed64(peak_value),
+          dB_fixed64(avg));
+
+    if (peak_position == -1) {
+      continue;
+    }
+
+    // Validation using the SSS correlation
+
+    unsigned int k = 0;
+    uint8_t sss_symbol = SSS_SYMBOL_NB - PSS_SYMBOL_NB;
+    nr_slot_fep_meas(ue, 0, sss_symbol, ssb_offset, rxdata_size, rxdata, rxdataF);
+    c16_t *sss_rx = &rxdataF[0][frame_parms->ofdm_symbol_size * sss_symbol];
+
+    if (nr_neighboring_cell->perform_validation == 1) {
+
+      int sss_index = GET_NID1(nr_neighboring_cell->Nid_cell);
+      int16_t *sss_seq = get_d_sss(pss_index, sss_index);
+      k = frame_parms->first_carrier_offset + frame_parms->ssb_start_subcarrier + 56;
+      if (k >= frame_parms->ofdm_symbol_size) {
+        k -= frame_parms->ofdm_symbol_size;
+      }
+      int32_t metric = 0;
+      const int16_t *phase_re_nr = get_phase_re_nr();
+      const int16_t *phase_im_nr = get_phase_im_nr();
+      for (uint8_t phase = 0; phase < PHASE_HYPOTHESIS_NUMBER; phase++) {
+        int32_t metric_re = 0;
+        for (int i = 0; i < LENGTH_SSS_NR; i++) {
+          metric_re += sss_seq[i] * (((phase_re_nr[phase] * sss_rx[k].r) >> SCALING_METRIC_SSS_NR) - ((phase_im_nr[phase] * sss_rx[k].i) >> SCALING_METRIC_SSS_NR));
+          k++;
+          if (k == frame_parms->ofdm_symbol_size) {
+            k = 0;
+          }
+        }
+        if (metric_re > metric) {
+          metric = metric_re;
+        }
+      }
+
+#ifdef DEBUG_MEAS_NEIGHBORING_CELL
+      LOG_I(NR_PHY, "SSS metric = %i\n", metric);
+#endif
+
+      if (metric < 15000) {
+        continue;
+      } else {
+        nr_neighboring_cell->perform_validation = 0;
+      }
+    }
+
+    neighboring_cell_info->pss_search_start = peak_position - 16;
+    neighboring_cell_info->pss_search_length = 32;
+
+#ifdef DEBUG_MEAS_NEIGHBORING_CELL
+    LOG_I(NR_PHY, "Received symbol with PBCH 0...0 SSS 0...0 PBCH:\n");
+    k = frame_parms->first_carrier_offset + frame_parms->ssb_start_subcarrier;
+    if (k >= frame_parms->ofdm_symbol_size) {
+      k -= frame_parms->ofdm_symbol_size;
+    }
+    for (int i = 0; i < 20 * 12; i++) {
+      LOG_I(NR_PHY, "SSB[%i][%3i] = (%4i, %4i)\n", sss_symbol, i, sss_rx[k].r, sss_rx[k].i);
+      k++;
+      if (k == frame_parms->ofdm_symbol_size) {
+        k = 0;
+      }
+    }
+#endif
+
+    // RSRP measurements
+    uint32_t rsrp_sum = 0;
+    int nb_re = 0;
+    k = frame_parms->first_carrier_offset + frame_parms->ssb_start_subcarrier + 56;
+    if (k >= frame_parms->ofdm_symbol_size) {
+      k -= frame_parms->ofdm_symbol_size;
+    }
+    for (int aarx = 0; aarx < ue->frame_parms.nb_antennas_rx; aarx++) {
+      sss_rx = &rxdataF[aarx][frame_parms->ofdm_symbol_size * sss_symbol];
+      for (int i = 0; i < LENGTH_SSS_NR; i++) {
+        rsrp_sum += (((int32_t)sss_rx[k].r * sss_rx[k].r) + ((int32_t)sss_rx[k].i * sss_rx[k].i));
+        nb_re++;
+        k++;
+        if (k == frame_parms->ofdm_symbol_size) {
+          k = 0;
+        }
+      }
+    }
+    neighboring_cell_info->ssb_rsrp = rsrp_sum / nb_re;
+    neighboring_cell_info->ssb_rsrp_dBm = 10 * log10(neighboring_cell_info->ssb_rsrp) + 30
+                                          - 10 * log10(pow(2, 30))
+                                          - ((int)openair0_cfg[0].rx_gain[0] - (int)openair0_cfg[0].rx_gain_offset[0])
+                                          - dB_fixed(ue->frame_parms.ofdm_symbol_size);
+#ifdef DEBUG_MEAS_NEIGHBORING_CELL
+    LOG_I(NR_PHY, "[Nid_cell %i] SSB RSRP = %u (%i dBm)\n", nr_neighboring_cell->Nid_cell, neighboring_cell_info->ssb_rsrp, neighboring_cell_info->ssb_rsrp_dBm);
+#endif
+
+    // Send SS measurements to MAC
+    fapi_nr_l1_measurements_t l1_measurements;
+    l1_measurements.gNB_index = proc->gNB_id;
+    l1_measurements.meas_type = NFAPI_NR_SS_MEAS;
+    l1_measurements.Nid_cell = nr_neighboring_cell->Nid_cell;
+    l1_measurements.is_neighboring_cell = true;
+    if (neighboring_cell_info->ssb_rsrp_dBm < -140) {
+      l1_measurements.rsrp_dBm = 16;
+    } else if (neighboring_cell_info->ssb_rsrp_dBm > -44) {
+      l1_measurements.rsrp_dBm = 113;
+    } else {
+      l1_measurements.rsrp_dBm = neighboring_cell_info->ssb_rsrp_dBm + 157; // TS 38.133 - Table 10.1.6.1-1
+    }
+    nr_downlink_indication_t dl_indication;
+    fapi_nr_rx_indication_t *rx_ind = calloc(sizeof(*rx_ind),1);
+    nr_fill_dl_indication(&dl_indication, NULL, rx_ind, proc, ue, NULL);
+    nr_fill_rx_indication(rx_ind, FAPI_NR_MEAS_IND, ue, NULL, NULL, 1, proc, (void *)&l1_measurements, NULL);
+    if (ue->if_inst && ue->if_inst->dl_indication) {
+      ue->if_inst->dl_indication(&dl_indication);
+    } else {
+      free(rx_ind);
+    }
+  }
+  ue->measurements.meas_running = false;
+  pthread_detach(ue->measurements.meas_thread);
+  return NULL;
 }
 
 // This function computes the received noise power

@@ -42,6 +42,7 @@
 #include <asn_application.h>
 
 #include "RRC/NR/nr_rrc_config.h"
+#include "RRC/NR_UE/rrc_defs.h"
 
 /*
  * The variant of the above function which dumps the BASIC-XER (XER_F_BASIC)
@@ -114,6 +115,11 @@ uint8_t do_RRCSetupComplete(uint8_t *buffer,
                             const char *dedicatedInfoNAS);
 
 int do_RRCSetupRequest(uint8_t *buffer, size_t buffer_size, uint8_t *rv);
+
+uint16_t do_nrMeasurementReport_SA(NR_MeasurementReport_t *measurementReport,
+                                   l3_measurements_t *l3_measurements,
+                                   uint8_t *buffer,
+                                   size_t buffer_size);
 
 uint8_t do_NR_RRCReconfigurationComplete_for_nsa(uint8_t *buffer, size_t buffer_size, NR_RRC_TransactionIdentifier_t Transaction_id);
 

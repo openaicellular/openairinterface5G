@@ -1292,12 +1292,17 @@ nr_dci_format_t nr_ue_process_dci_indication_pdu(NR_UE_MAC_INST_t *mac, frame_t 
   return format;
 }
 
-int8_t nr_ue_process_csirs_measurements(NR_UE_MAC_INST_t *mac,
-                                        frame_t frame,
-                                        int slot,
-                                        fapi_nr_csirs_measurements_t *csirs_measurements) {
-  LOG_D(NR_MAC,"(%d.%d) Received CSI-RS measurements\n", frame, slot);
-  memcpy(&mac->csirs_measurements, csirs_measurements, sizeof(*csirs_measurements));
+int8_t nr_ue_process_l1_measurements(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, fapi_nr_l1_measurements_t *l1_measurements)
+{
+  LOG_D(NR_MAC, "(%d.%d) Received CSI-RS measurements\n", frame, slot);
+  memcpy(&mac->l1_measurements, l1_measurements, sizeof(*l1_measurements));
+  bool csi_meas = l1_measurements->meas_type == NFAPI_NR_CSI_MEAS;
+  nr_mac_rrc_meas_ind_ue(mac->ue_id,
+                         l1_measurements->gNB_index,
+                         l1_measurements->Nid_cell,
+                         csi_meas,
+                         l1_measurements->is_neighboring_cell,
+                         l1_measurements->rsrp_dBm);
   return 0;
 }
 
@@ -2761,9 +2766,9 @@ uint8_t get_csirs_RI_PMI_CQI_payload(NR_UE_MAC_INST_t *mac,
 
           int cri_bitlen = csi_report->csi_meas_bitlen.cri_bitlen;
           int ri_bitlen = csi_report->csi_meas_bitlen.ri_bitlen;
-          int pmi_x1_bitlen = csi_report->csi_meas_bitlen.pmi_x1_bitlen[mac->csirs_measurements.rank_indicator];
-          int pmi_x2_bitlen = csi_report->csi_meas_bitlen.pmi_x2_bitlen[mac->csirs_measurements.rank_indicator];
-          int cqi_bitlen = csi_report->csi_meas_bitlen.cqi_bitlen[mac->csirs_measurements.rank_indicator];
+          int pmi_x1_bitlen = csi_report->csi_meas_bitlen.pmi_x1_bitlen[mac->l1_measurements.rank_indicator];
+          int pmi_x2_bitlen = csi_report->csi_meas_bitlen.pmi_x2_bitlen[mac->l1_measurements.rank_indicator];
+          int cqi_bitlen = csi_report->csi_meas_bitlen.cqi_bitlen[mac->l1_measurements.rank_indicator];
           int padding_bitlen = n_bits - (cri_bitlen + ri_bitlen + pmi_x1_bitlen + pmi_x2_bitlen + cqi_bitlen);
 
           if (get_softmodem_params()->emulate_l1) {
@@ -2772,16 +2777,16 @@ uint8_t get_csirs_RI_PMI_CQI_payload(NR_UE_MAC_INST_t *mac,
             CHECK_INDEX(nr_bler_data, NR_NUM_MCS - 1);
             int mcs = get_mcs_from_sinr(nr_bler_data, (mac->nr_ue_emul_l1.cqi - 640) * 0.1);
             CHECK_INDEX(mcs_to_cqi, mcs);
-            mac->csirs_measurements.rank_indicator = mac->nr_ue_emul_l1.ri;
-            mac->csirs_measurements.i1 = mac->nr_ue_emul_l1.pmi;
-            mac->csirs_measurements.cqi = mcs_to_cqi[mcs];
+            mac->l1_measurements.rank_indicator = mac->nr_ue_emul_l1.ri;
+            mac->l1_measurements.i1 = mac->nr_ue_emul_l1.pmi;
+            mac->l1_measurements.cqi = mcs_to_cqi[mcs];
           }
 
           // TODO: Improvements will be needed to cri_bitlen>0 and pmi_x1_bitlen>0
-          temp_payload = (mac->csirs_measurements.rank_indicator<<(cri_bitlen+cqi_bitlen+pmi_x2_bitlen+padding_bitlen+pmi_x1_bitlen)) |
-                         (mac->csirs_measurements.i1<<(cri_bitlen+cqi_bitlen+pmi_x2_bitlen)) |
-                         (mac->csirs_measurements.i2<<(cri_bitlen+cqi_bitlen)) |
-                         (mac->csirs_measurements.cqi<<cri_bitlen) |
+          temp_payload = (mac->l1_measurements.rank_indicator<<(cri_bitlen+cqi_bitlen+pmi_x2_bitlen+padding_bitlen+pmi_x1_bitlen)) |
+                         (mac->l1_measurements.i1<<(cri_bitlen+cqi_bitlen+pmi_x2_bitlen)) |
+                         (mac->l1_measurements.i2<<(cri_bitlen+cqi_bitlen)) |
+                         (mac->l1_measurements.cqi<<cri_bitlen) |
                          0;
 
           reverse_n_bits((uint8_t *)&temp_payload, n_bits);
@@ -2836,16 +2841,7 @@ uint8_t get_csirs_RSRP_payload(NR_UE_MAC_INST_t *mac,
           }
 
           // TODO: Improvements will be needed to cri_ssbri_bitlen>0
-          // TS 38.133 - Table 10.1.6.1-1
-          int rsrp_dBm = mac->csirs_measurements.rsrp_dBm;
-          if (rsrp_dBm < -140) {
-            temp_payload = 16;
-          } else if (rsrp_dBm > -44) {
-            temp_payload = 113;
-          } else {
-            temp_payload = mac->csirs_measurements.rsrp_dBm + 157;
-          }
-
+          temp_payload = mac->l1_measurements.rsrp_dBm;
           reverse_n_bits((uint8_t *)&temp_payload, n_bits);
 
           LOG_D(NR_MAC, "cri_ssbri_bitlen = %d\n", cri_ssbri_bitlen);

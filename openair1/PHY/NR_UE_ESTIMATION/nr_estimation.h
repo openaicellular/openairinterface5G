@@ -115,6 +115,8 @@ void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
                                  const UE_nr_rxtx_proc_t *proc,
                                  c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
 
+void *nr_ue_meas_neighboring_cell(void *param);
+
 void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
                             const UE_nr_rxtx_proc_t *proc,
                             c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);

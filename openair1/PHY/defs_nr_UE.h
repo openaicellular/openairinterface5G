@@ -123,6 +123,31 @@ typedef enum {
 
 #define debug_msg if (((mac_xface->frame%100) == 0) || (mac_xface->frame < 50)) msg
 
+#define NUMBER_OF_NEIGHBORING_CELLs_MAX 1
+
+typedef struct {
+  openair0_timestamp timestamp_tx;
+  int gNB_id;
+  /// NR slot index within frame_tx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_tx;
+  int rx_slot_type;
+  /// NR slot index within frame_rx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_rx;
+  int tx_slot_type;
+  //#endif
+  /// frame to act upon for transmission
+  int frame_tx;
+  /// frame to act upon for reception
+  int frame_rx;
+} UE_nr_rxtx_proc_t;
+
+typedef struct {
+  int pss_search_start;
+  int pss_search_length;
+  uint32_t ssb_rsrp;
+  int ssb_rsrp_dBm;
+} neighboring_cell_info_t;
+
 typedef struct {
 
   // RRC measurements
@@ -206,7 +231,11 @@ typedef struct {
   unsigned char  nb_antennas_rx;
   /// DLSCH error counter
   // short          dlsch_errors;
-
+  /// Info about neighboring cells to perform the measurements
+  neighboring_cell_info_t neighboring_cell_info[NUMBER_OF_NEIGHBORING_CELLs_MAX];
+  const UE_nr_rxtx_proc_t *meas_proc;
+  pthread_t meas_thread;
+  bool meas_running;
 } PHY_NR_MEASUREMENTS;
 
 typedef struct {
@@ -597,22 +626,6 @@ typedef struct PHY_VARS_NR_UE_s {
   sl_nr_sidelink_mode_t sl_mode;
   sl_nr_ue_phy_params_t SL_UE_PHY_PARAMS;
 } PHY_VARS_NR_UE;
-
-typedef struct {
-  openair0_timestamp timestamp_tx;
-  int gNB_id;
-  /// NR slot index within frame_tx [0 .. slots_per_frame - 1] to act upon for transmission
-  int nr_slot_tx;
-  int rx_slot_type;
-  /// NR slot index within frame_rx [0 .. slots_per_frame - 1] to act upon for transmission
-  int nr_slot_rx;
-  int tx_slot_type;
-  //#endif
-  /// frame to act upon for transmission
-  int frame_tx;
-  /// frame to act upon for reception
-  int frame_rx;
-} UE_nr_rxtx_proc_t;
 
 typedef struct nr_phy_data_tx_s {
   NR_UE_ULSCH_t ulsch;

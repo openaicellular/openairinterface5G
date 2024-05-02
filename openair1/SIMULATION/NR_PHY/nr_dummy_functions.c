@@ -42,6 +42,17 @@ void rrc_data_ind(const protocol_ctxt_t *const ctxt_pP,
                   const uint8_t   *const       buffer_pP) { }
 
 typedef uint32_t channel_t;
+
+int8_t nr_mac_rrc_meas_ind_ue(module_id_t module_id,
+                              uint32_t gNB_index,
+                              uint16_t Nid_cell,
+                              uint8_t meas_type,
+                              uint8_t is_neighboring_cell,
+                              uint8_t rsrp_dBm)
+{
+  return 0;
+}
+
 int8_t nr_mac_rrc_data_ind_ue(const module_id_t module_id,
                               const int CC_id,
                               const uint8_t gNB_index,
