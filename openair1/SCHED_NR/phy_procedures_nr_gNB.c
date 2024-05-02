@@ -39,6 +39,7 @@
 #include "nfapi/oai_integration/vendor_ext.h"
 #include "assertions.h"
 #include <time.h>
+#include <stdint.h>
 
 //#define DEBUG_RXDATA
 //#define SRS_IND_DEBUG
@@ -266,9 +267,9 @@ void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_gNB_TX + gNB->CC_id, 0);
 }
 
-static void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req)
+
+static void nr_postDecode(PHY_VARS_gNB *gNB, ldpcDecode_t *rdata)
 {
-  ldpcDecode_t *rdata = (ldpcDecode_t*) NotifiedFifoData(req);
   NR_UL_gNB_HARQ_t *ulsch_harq = rdata->ulsch_harq;
   NR_gNB_ULSCH_t *ulsch = rdata->ulsch;
   int r = rdata->segment_r;
@@ -339,7 +340,8 @@ static void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req)
       //      dumpsig=1;
     }
     ulsch->last_iteration_cnt = rdata->decodeIterations;
-    /*
+    
+    /* 
         if (ulsch_harq->ulsch_pdu.mcs_index == 0 && dumpsig==1) {
           int off = ((ulsch_harq->ulsch_pdu.rb_size&1) == 1)? 4:0;
 
@@ -376,12 +378,15 @@ static void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req)
 
         }
     */
+   
+    
     ulsch->last_iteration_cnt = rdata->decodeIterations;
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_gNB_ULSCH_DECODING,0);
   }
 }
 
-static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH_id, uint8_t harq_pid)
+
+static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH_id, uint8_t harq_pid, thread_info_tm_t* t_info)
 {
   NR_DL_FRAME_PARMS *frame_parms = &gNB->frame_parms;
   nfapi_nr_pusch_pdu_t *pusch_pdu = &gNB->ulsch[ULSCH_id].harq_process->ulsch_pdu;
@@ -432,9 +437,8 @@ static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int
    * measurement per processed TB.*/
   if (gNB->max_nb_pusch == 1)
     start_meas(&gNB->ulsch_decoding_stats);
-  int nbDecode =
-      nr_ulsch_decoding(gNB, ULSCH_id, gNB->pusch_vars[ULSCH_id].llr, frame_parms, pusch_pdu, frame_rx, slot_rx, harq_pid, G);
 
+  int const nbDecode = nr_ulsch_decoding(gNB, ULSCH_id, gNB->pusch_vars[ULSCH_id].llr, frame_parms, pusch_pdu, frame_rx, slot_rx, harq_pid, G, t_info);
   return nbDecode;
 }
 
@@ -808,6 +812,11 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
     }
   }
 
+  ldpcDecode_t arr[64]; 
+  task_ans_t ans[64] = {0};
+  thread_info_tm_t t_info = {.buf = (uint8_t*)arr, .len = 0, .cap = 64, .ans = ans};
+
+  //int64_t const t0 = time_now_ns();
   int totalDecode = 0;
   for (int ULSCH_id = 0; ULSCH_id < gNB->max_nb_pusch; ULSCH_id++) {
     NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ULSCH_id];
@@ -905,27 +914,26 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
       // LOG_M("rxdataF_comp.m","rxF_comp",gNB->pusch_vars[0]->rxdataF_comp[0],6900,1,1);
       // LOG_M("rxdataF_ext.m","rxF_ext",gNB->pusch_vars[0]->rxdataF_ext[0],6900,1,1);
       VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_ULSCH_PROCEDURES_RX, 1);
-      int const tasks_added = nr_ulsch_procedures(gNB, frame_rx, slot_rx, ULSCH_id, ulsch->harq_pid);
+      int const tasks_added = nr_ulsch_procedures(gNB, frame_rx, slot_rx, ULSCH_id, ulsch->harq_pid, &t_info);
       if (tasks_added > 0)
         totalDecode += tasks_added; 
-
       VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_ULSCH_PROCEDURES_RX, 0);
     }
   }
-    while (totalDecode > 0) {
-      notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
-      if (req == NULL)
-        break; // Tpool has been stopped
-      nr_postDecode(gNB, req);
-      delNotifiedFIFO_elt(req);
-      totalDecode--;
-    }
+  
+  assert(totalDecode == t_info.len);
+
+  join_task_ans(t_info.ans, t_info.len);
+  for(int i = 0; i < t_info.len; ++i){
+     nr_postDecode(gNB, &arr[i]); 
+  } 
   /* Do ULSCH decoding time measurement only when number of PUSCH is limited to 1
    * (valid for unitary physical simulators). ULSCH processing loop is then executed
    * only once, which ensures exactly one start and stop of the ULSCH decoding time
    * measurement per processed TB.*/
   if (gNB->max_nb_pusch == 1)
     stop_meas(&gNB->ulsch_decoding_stats);
+
   for (int i = 0; i < gNB->max_nb_srs; i++) {
     NR_gNB_SRS_t *srs = &gNB->srs[i];
     if (srs) {

@@ -653,7 +653,11 @@ add_library(UTIL
   ${OPENAIR_DIR}/common/utils/LOG/vcd_signal_dumper.c
   ${OPENAIR2_DIR}/UTIL/MATH/oml.c
   ${OPENAIR2_DIR}/UTIL/OPT/probe.c
-  ${OPENAIR_DIR}/common/utils/threadPool/thread-pool.c
+  ${OPENAIR_DIR}/common/utils/task_manager/task.c 
+  ${OPENAIR_DIR}/common/utils/task_manager/task_ans.c 
+  ${OPENAIR_DIR}/common/utils/task_manager/thread_pool/task_manager.c
+  ${OPENAIR_DIR}/common/utils/task_manager/threadPool/thread-pool.c
+  ${OPENAIR_DIR}/common/utils/task_manager/C-Thread-Pool/thpool.c 
   ${OPENAIR_DIR}/common/utils/utils.c
   ${OPENAIR_DIR}/common/utils/system.c
   ${OPENAIR_DIR}/common/utils/time_meas.c
@@ -1943,7 +1947,7 @@ add_executable(nfapi_test
   )
 
 add_executable(measurement_display
-  ${OPENAIR_DIR}/common/utils/threadPool/measurement_display.c)
+  ${OPENAIR_DIR}/common/utils/task_manager/threadPool/measurement_display.c)
 target_link_libraries (measurement_display minimal_lib)
 
 add_executable(test5Gnas
@@ -2058,6 +2062,7 @@ add_executable(nr-softmodem
   ${rrc_h}
   ${nr_rrc_h}
   ${s1ap_h}
+#  ${OPENAIR_BIN_DIR}/messages_xml.h
   ${OPENAIR_DIR}/executables/nr-gnb.c
   ${OPENAIR_DIR}/executables/nr-ru.c
   ${OPENAIR_DIR}/executables/nr-softmodem.c

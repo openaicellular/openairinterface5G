@@ -30,6 +30,8 @@
 #include "common/utils/nr/nr_common.h"
 #include "common/utils/var_array.h"
 #include "common/utils/LOG/log.h"
+#include "common/utils/task_manager/task_manager_gen.h"
+
 #include "LAYER2/NR_MAC_gNB/nr_mac_gNB.h"
 #include "LAYER2/NR_MAC_UE/mac_defs.h"
 #include "LAYER2/NR_MAC_UE/mac_extern.h"
@@ -72,6 +74,7 @@
 #include <executables/softmodem-common.h>
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include <executables/nr-uesoftmodem.h>
+#include "common/utils/task_manager/task_manager_gen.h"
 
 const char *__asan_default_options()
 {
@@ -854,9 +857,11 @@ int main(int argc, char **argv)
   unsigned char *test_input_bit;
   unsigned int errors_bit = 0;
 
-  initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
+  int lst_core_id[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
+  assert(dlsch_threads < 9);
+  init_task_manager(&nrUE_params.man, lst_core_id, max(1, dlsch_threads));
 
-  test_input_bit = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
+  test_input_bit       = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
   estimated_output_bit = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
   
   // generate signal
@@ -883,7 +888,11 @@ int main(int argc, char **argv)
   //NR_COMMON_channels_t *cc = RC.nrmac[0]->common_channels;
   int n_errs = 0;
 
-  initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
+  int core_id[128] = {0};
+  span_core_id_t out = {.cap = 128, .core_id = core_id};
+  parse_num_threads(gNBthreads, &out); 
+  init_task_manager(&gNB->man, out.core_id, out.sz);
+
   initNotifiedFIFO(&gNB->L1_tx_free);
   initNotifiedFIFO(&gNB->L1_tx_filled);
   initNotifiedFIFO(&gNB->L1_tx_out);
@@ -1291,6 +1300,10 @@ int main(int argc, char **argv)
     free(r_re[i]);
     free(r_im[i]);
   }
+
+  void (*clean)(task_t*) = NULL;
+  free_task_manager(&nrUE_params.man, clean);
+  free_task_manager(&gNB->man, clean);
 
   free(s_re);
   free(s_im);

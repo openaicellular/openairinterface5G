@@ -37,7 +37,7 @@
 //#include "openair1/PHY/LTE_TRANSPORT/transport_eNB.h"
 #include "nfapi_interface.h"
 #include "common/platform_types.h"
-#include <common/utils/threadPool/thread-pool.h>
+#include <common/utils/task_manager/threadPool/thread-pool.h>
 #include <radio/COMMON/common_lib.h>
 
 #define MAX_NUM_DL_PDU 100
