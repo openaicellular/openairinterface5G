@@ -24,7 +24,7 @@ pipeline {
               [$class: 'UsernamePasswordMultiBinding', credentialsId: "${params.ColosseumCredentials}", usernameVariable: 'col_username', passwordVariable: 'col_password'],
             ]) {
               try {
-                sh "./colosseum_scripts/connect-vpn.sh ${col_username} ${col_password}"
+                sh "./ci-scripts/colosseum_scripts/connect-vpn.sh ${col_username} ${col_password}"
               } catch (Exception e) {
                 echo 'Exception occurred: ' + e.toString()
                 
@@ -34,7 +34,7 @@ pipeline {
                 sh "sleep 10"
 
                 echo 'Retry to open VPN connection to Colosseum'
-                sh "./colosseum_scripts/connect-vpn.sh ${col_username} ${col_password}"
+                sh "./ci-scripts/colosseum_scripts/connect-vpn.sh ${col_username} ${col_password}"
               }
             }
           }
@@ -57,7 +57,7 @@ pipeline {
                 git_Branch = params.eNB_Branch
               }
 
-              sh "./colosseum_scripts/launch-job.sh ${col_username} ${col_password} ${currentBuild.number} ${params.eNB_Repository} ${git_Branch}"
+              sh "./ci-scripts/colosseum_scripts/launch-job.sh ${col_username} ${col_password} ${currentBuild.number} ${params.eNB_Repository} ${git_Branch}"
             }
           }
         }
@@ -71,7 +71,7 @@ pipeline {
               [$class: 'UsernamePasswordMultiBinding', credentialsId: "${params.ColosseumCredentials}", usernameVariable: 'col_username', passwordVariable: 'col_password'],
             ]) {
               timeout (time: 2, unit: 'HOURS') {
-                sh "./colosseum_scripts/wait-job-end.sh ${col_username} ${col_password}"
+                sh "./ci-scripts/colosseum_scripts/wait-job-end.sh ${col_username} ${col_password}"
               }
             }
           }
@@ -85,7 +85,7 @@ pipeline {
             withCredentials([
               [$class: 'UsernamePasswordMultiBinding', credentialsId: "${params.ColosseumCredentials}", usernameVariable: 'col_username', passwordVariable: 'col_password'],
             ]) {
-              sh "./colosseum_scripts/get-test-results.sh ${col_username} ${col_password}"
+              sh "./ci-scripts/colosseum_scripts/get-test-results.sh ${col_username} ${col_password}"
             }
 
             if(fileExists("results.tar.xz")) {
@@ -99,7 +99,7 @@ pipeline {
               }
 
               // check if test passed
-              sh "./colosseum_scripts/check-results.sh results/test_summary.html"
+              sh "./ci-scripts/colosseum_scripts/check-results.sh results/test_summary.html"
 
               sh "rm -Rf ./results"
             }
@@ -112,7 +112,7 @@ pipeline {
         lock (resource) {
           script {
             echo 'Disconnect Colosseum VPN client'
-            sh "./colosseum_scripts/disconnect-vpn.sh"
+            sh "./ci-scripts/colosseum_scripts/disconnect-vpn.sh"
           }
         }
       }
@@ -122,7 +122,7 @@ pipeline {
         lock (resource) {
           script {
             echo 'Set job status'
-            sh "./colosseum_scripts/set-job-status.sh"
+            sh "./ci-scripts/colosseum_scripts/set-job-status.sh"
           }
         }
       }
