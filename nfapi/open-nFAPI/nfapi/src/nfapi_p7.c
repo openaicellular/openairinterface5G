@@ -1943,7 +1943,7 @@ void dump_ul_dci_pdu_list_value(nfapi_nr_ul_dci_request_pdus_t *r)
     printf("powerControlOffsetSS %d\n", dci->powerControlOffsetSS);
     printf("PayloadSizeBits %d\n", dci->PayloadSizeBits);
     printf(" ***** DCI payload: ");
-    dump_dci_payload(dci->Payload, dci->PayloadSizeBits);
+    //dump_dci_payload(dci->Payload, dci->PayloadSizeBits);
   }
   //nfapi_nr_dl_dci_pdu_t dci_pdu[MAX_DCI_CORESET];
 
