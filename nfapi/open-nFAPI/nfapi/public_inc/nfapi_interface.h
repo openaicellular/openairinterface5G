@@ -132,7 +132,7 @@ typedef struct {
 #define NFAPI_SFNSLOTDEC2SLOT(_sfnslot_dec) ((_sfnslot_dec) % 20)
 #define NFAPI_SFNSLOT2HEX(_sfn,_slot) ((_sfn << 6) | (_slot & 0x3F))
 
-#define NFAPI_MAX_SFNSLOTDEC 1024*20 // 20 is for numerology 1
+#define NFAPI_MAX_SFNSLOTDEC 20480 // 1024*20 // 20 is for numerology 1
 
 // Convenience methods to convert between SFN/SFN formats
 #define NFAPI_SFNSF2DEC(_sfnsf) ((((_sfnsf) >> 4) * 10) + ((_sfnsf) & 0xF))
