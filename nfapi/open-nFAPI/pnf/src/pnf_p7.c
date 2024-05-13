@@ -1333,8 +1333,7 @@ uint8_t is_p7_request_in_window(uint16_t sfnsf, const char* name, pnf_p7_t* phy)
 
 
 // P7 messages
-static void cp_nr_dl_tti_pdcch_pdu(nfapi_nr_dl_tti_pdcch_pdu_rel15_t* dst_pdcch_pdu,
-                                   const nfapi_nr_dl_tti_pdcch_pdu_rel15_t* src_pdcch_pdu)
+static void cp_nr_dl_tti_pdcch_pdu(nfapi_nr_dl_tti_pdcch_pdu_rel15_t* dst_pdcch_pdu, const nfapi_nr_dl_tti_pdcch_pdu_rel15_t* src_pdcch_pdu)
 {
   if (dst_pdcch_pdu == NULL || src_pdcch_pdu == NULL) {
     return;
@@ -1358,8 +1357,7 @@ static void cp_nr_dl_tti_pdcch_pdu(nfapi_nr_dl_tti_pdcch_pdu_rel15_t* dst_pdcch_
   }
 }
 
-static void cp_nr_dl_tti_pdsch_pdu(nfapi_nr_dl_tti_pdsch_pdu_rel15_t* dst_pdsch_pdu,
-                                   const nfapi_nr_dl_tti_pdsch_pdu_rel15_t* src_pdsch_pdu)
+static void cp_nr_dl_tti_pdsch_pdu(nfapi_nr_dl_tti_pdsch_pdu_rel15_t* dst_pdsch_pdu, const nfapi_nr_dl_tti_pdsch_pdu_rel15_t* src_pdsch_pdu)
 {
   if (dst_pdsch_pdu == NULL || src_pdsch_pdu == NULL) {
     return;
@@ -1404,8 +1402,7 @@ static void cp_nr_dl_tti_pdsch_pdu(nfapi_nr_dl_tti_pdsch_pdu_rel15_t* dst_pdsch_
   dst_pdsch_pdu->maintenance_parms_v3 = src_pdsch_pdu->maintenance_parms_v3;
 }
 
-static void cp_nr_dl_tti_csi_rs_pdu(nfapi_nr_dl_tti_csi_rs_pdu_rel15_t* dst_csi_rs_pdu,
-                                    const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t* src_csi_rs_pdu)
+static void cp_nr_dl_tti_csi_rs_pdu(nfapi_nr_dl_tti_csi_rs_pdu_rel15_t* dst_csi_rs_pdu, const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t* src_csi_rs_pdu)
 {
   if (dst_csi_rs_pdu == NULL || src_csi_rs_pdu == NULL) {
     return;
@@ -1647,8 +1644,7 @@ void cp_nr_ul_tti_req_prach_pdu(const nfapi_nr_prach_pdu_t* src_prach_pdu, nfapi
   dst_prach_pdu->beamforming.prg_size = src_prach_pdu->beamforming.prg_size;
   dst_prach_pdu->beamforming.dig_bf_interface = src_prach_pdu->beamforming.dig_bf_interface;
   if (src_prach_pdu->beamforming.num_prgs > 0) {
-    dst_prach_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
-        src_prach_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+	dst_prach_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx = src_prach_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;			
   }
 }
 void cp_nr_ul_tti_req_pusch_pdu(const nfapi_nr_pusch_pdu_t* src_pusch_pdu, nfapi_nr_pusch_pdu_t* dst_pusch_pdu)
@@ -1711,8 +1707,7 @@ void cp_nr_ul_tti_req_pusch_pdu(const nfapi_nr_pusch_pdu_t* src_pusch_pdu, nfapi
   dst_pusch_pdu->beamforming.prg_size = src_pusch_pdu->beamforming.prg_size;
   dst_pusch_pdu->beamforming.dig_bf_interface = src_pusch_pdu->beamforming.dig_bf_interface;
   if (src_pusch_pdu->beamforming.num_prgs > 0)
-    dst_pusch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
-        src_pusch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+    dst_pusch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx = src_pusch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
 
   memcpy(&dst_pusch_pdu->maintenance_parms_v3,
          &src_pusch_pdu->maintenance_parms_v3,
@@ -1759,8 +1754,7 @@ void cp_nr_ul_tti_req_pucch_pdu(const nfapi_nr_pucch_pdu_t* src_pucch_pdu, nfapi
   dst_pucch_pdu->beamforming.dig_bf_interface = src_pucch_pdu->beamforming.dig_bf_interface;
 
   if (src_pucch_pdu->beamforming.num_prgs > 0)
-    dst_pucch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
-        src_pucch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+    dst_pucch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx = src_pucch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
 }
 
 void cp_nr_ul_tti_req_srs_pdu(const nfapi_nr_srs_pdu_t* src_srs_pdu, nfapi_nr_srs_pdu_t* dst_srs_pdu)
@@ -1795,8 +1789,7 @@ void cp_nr_ul_tti_req_srs_pdu(const nfapi_nr_srs_pdu_t* src_srs_pdu, nfapi_nr_sr
   dst_srs_pdu->beamforming.dig_bf_interface = src_srs_pdu->beamforming.dig_bf_interface;
   dst_srs_pdu->beamforming.prgs_list = src_srs_pdu->beamforming.prgs_list;
   if (src_srs_pdu->beamforming.num_prgs > 0)
-    dst_srs_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
-        src_srs_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+    dst_srs_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =src_srs_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
 
   // srs_parameters_v4
   dst_srs_pdu->srs_parameters_v4.srs_bandwidth_size = src_srs_pdu->srs_parameters_v4.srs_bandwidth_size;
