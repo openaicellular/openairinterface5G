@@ -470,6 +470,7 @@ typedef struct f1ap_ue_context_setup_s {
   //uint8_t *du_to_cu_rrc_information;
   du_to_cu_rrc_information_t *du_to_cu_rrc_information;
   uint32_t  du_to_cu_rrc_information_length;
+  uint16_t *crnti;
   f1ap_drb_to_be_setup_t *drbs_to_be_setup;
   uint8_t  drbs_to_be_setup_length;
   f1ap_drb_to_be_setup_t *drbs_to_be_modified;
