@@ -560,6 +560,7 @@ typedef struct NR_UE_UL_BWP {
   uint16_t BWPSize;
   uint16_t BWPStart;
   NR_RACH_ConfigCommon_t *rach_ConfigCommon;
+  NR_MsgA_ConfigCommon_r16_t *msgA_ConfigCommon_r16;
   NR_PUSCH_TimeDomainResourceAllocationList_t *tdaList_Common;
   NR_ConfiguredGrantConfig_t *configuredGrantConfig;
   NR_PUSCH_Config_t *pusch_Config;
