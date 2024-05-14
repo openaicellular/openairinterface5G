@@ -186,11 +186,6 @@ typedef enum {
   RE_ESTABLISHMENT
 } NR_UE_MAC_reset_cause_t;
 
-typedef enum {
-  RA_2STEP = 0,
-  RA_4STEP
-} nr_ra_type_e;
-
 typedef struct {
   // after multiplexing buffer remain for each lcid
   int32_t LCID_buffer_remain;
@@ -286,7 +281,7 @@ typedef struct {
   ///
   uint8_t RA_SCALING_FACTOR_BI;
   /// Indicating whether it is 2-step or 4-step RA
-  nr_ra_type_e RA_TYPE;
+  nr_ra_type_t RA_TYPE;
   /// UE configured maximum output power
   int RA_PCMAX;
 } NR_PRACH_RESOURCES_t;
@@ -299,6 +294,8 @@ typedef struct {
   nrRA_UE_state_t ra_state;
   /// RA contention type
   uint8_t cfra;
+  /// RA type
+  nr_ra_type_t ra_type;
   /// RA rx frame offset: compensate RA rx offset introduced by OAI gNB.
   uint8_t RA_offset;
   /// RA-rnti

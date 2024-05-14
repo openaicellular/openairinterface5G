@@ -103,15 +103,19 @@ void init_RA(NR_UE_MAC_INST_t *mac,
   prach_resources->POWER_OFFSET_2STEP_RA = 0;
   prach_resources->RA_SCALING_FACTOR_BI = 1;
 
+
+  // Contention Free
   if (rach_ConfigDedicated) {
     if (rach_ConfigDedicated->cfra){
-      LOG_I(NR_MAC, "Initialization of 2-step contention-free random access procedure\n");
-      prach_resources->RA_TYPE = RA_2STEP;
+      LOG_I(MAC, "Initialization of 4-Step CFRA procedure\n");
+      prach_resources->RA_TYPE = RA_4_STEP;
+      ra->ra_type = RA_4_STEP;
       ra->cfra = 1;
     } else if (rach_ConfigDedicated->ext1){
-      if (rach_ConfigDedicated->ext1->cfra_TwoStep_r16){
-        LOG_I(NR_MAC, "Setting RA type to 2-step...\n");
-        prach_resources->RA_TYPE = RA_2STEP;
+      if (rach_ConfigDedicated->ext1->cfra_TwoStep_r16) { // if 2 step CFRA is configured in SIB1
+        LOG_I(MAC, "Initialization of 2-Step CFRA procedure\n");
+        prach_resources->RA_TYPE = RA_2_STEP;
+        ra->ra_type = RA_2_STEP;
         ra->cfra = 1;
       } else {
         LOG_E(NR_MAC, "Config not handled\n");
@@ -119,10 +123,20 @@ void init_RA(NR_UE_MAC_INST_t *mac,
     } else {
       LOG_E(NR_MAC, "Config not handled\n");
     }
-  } else {
-    LOG_I(NR_MAC, "Initialization of 4-step contention-based random access procedure\n");
-    prach_resources->RA_TYPE = RA_4STEP;
+    // Contention Based
+  } else if (mac->current_UL_BWP->msgA_ConfigCommon_r16) {
+    LOG_I(MAC, "Initialization of 2-Step CBRA procedure\n");
+    prach_resources->RA_TYPE = RA_2_STEP;
+    ra->ra_type = RA_2_STEP;
     ra->cfra = 0;
+  } else if (nr_rach_ConfigCommon) {
+    LOG_I(MAC, "Initialization of 4-Step CBRA procedure\n");
+    prach_resources->RA_TYPE = RA_4_STEP;
+    ra->ra_type = RA_4_STEP;
+    ra->cfra = 0;
+  } else {
+    LOG_E(MAC, "Config not handled\n");
+    AssertFatal(false, "In %s: config not handled\n", __FUNCTION__);
   }
 
   switch (rach_ConfigGeneric->powerRampingStep){ // in dB

@@ -621,5 +621,10 @@ typedef struct NR_tda_info {
   bool valid_tda;
 } NR_tda_info_t;
 
+typedef enum {
+  RA_4_STEP = 0,
+  RA_2_STEP = 1,
+} nr_ra_type_t;
+
 #endif /*__LAYER2_MAC_H__ */
 
