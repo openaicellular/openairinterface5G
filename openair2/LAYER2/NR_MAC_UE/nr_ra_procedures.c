@@ -806,8 +806,7 @@ void nr_ue_get_rach(NR_UE_MAC_INST_t *mac, int CC_id, frame_t frame, uint8_t gNB
           nr_ra_succeeded(mac, gNB_id, frame, nr_slot_tx);
         }
 
-      } else if (ra->RA_window_cnt == 0 && !ra->RA_RAPID_found) {
-
+      } else if (ra->RA_window_cnt == 0 && !ra->RA_RAPID_found && ra->ra_state != nrRA_WAIT_MSGB) {
         LOG_W(MAC, "[UE %d][%d:%d] RAR reception failed \n", mac->ue_id, frame, nr_slot_tx);
 
         nr_ra_failed(mac, CC_id, prach_resources, frame, nr_slot_tx);
@@ -965,6 +964,15 @@ void nr_ra_succeeded(NR_UE_MAC_INST_t *mac, const uint8_t gNB_index, const frame
   if (ra->cfra) {
     LOG_I(MAC, "[UE %d][%d.%d][RAPROC] RA procedure succeeded. CFRA: RAR successfully received.\n", mac->ue_id, frame, slot);
     ra->RA_window_cnt = -1;
+  } else if (ra->ra_type == RA_2_STEP) {
+    LOG_A(MAC,
+          "[UE %d][%d.%d][RAPROC] 2-Step RA procedure succeeded. CBRA: Contention Resolution is successful.\n",
+          mac->ue_id,
+          frame,
+          slot);
+    mac->crnti = ra->t_crnti;
+    ra->t_crnti = 0;
+    LOG_D(MAC, "[UE %d][%d.%d] CBRA: cleared response window timer...\n", mac->ue_id, frame, slot);
   } else {
     LOG_A(MAC,
           "[UE %d][%d.%d][RAPROC] 4-Step RA procedure succeeded. CBRA: Contention Resolution is successful.\n",

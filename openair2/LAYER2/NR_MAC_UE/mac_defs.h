@@ -299,10 +299,17 @@ typedef struct {
   nr_ra_type_t ra_type;
   /// RA rx frame offset: compensate RA rx offset introduced by OAI gNB.
   uint8_t RA_offset;
-  /// RA-RNTI
-  rnti_t ra_rnti;
-  /// MsgB-RNTI
-  rnti_t MsgB_rnti;
+  /// MsgB SuccessRAR MAC subheader
+  int8_t MsgB_R;
+  int8_t MsgB_CH_ACESS_CPEXT;
+  uint8_t MsgB_TPC;
+  int8_t MsgB_HARQ_FTI;
+  uint16_t timing_advance_command;
+  int8_t PUCCH_RI;
+  /// RA-rnti
+  uint16_t ra_rnti;
+  /// MsgB RNTI
+  uint16_t MsgB_rnti;
   /// Temporary CRNTI
   uint16_t t_crnti;
   /// number of attempt for rach
