@@ -727,7 +727,7 @@ typedef struct {
   NR_UE_NR_Capability_t *capability;
   // UE selected beam index
   uint8_t UE_beam_index;
-  bool Msg4_ACKed;
+  bool Msg4_MsgB_ACKed;
   float ul_thr_ue;
   float dl_thr_ue;
   long pdsch_HARQ_ACK_Codebook;

@@ -325,7 +325,7 @@ void nr_get_prach_resources(NR_UE_MAC_INST_t *mac,
                             NR_PRACH_RESOURCES_t *prach_resources,
                             NR_RACH_ConfigDedicated_t * rach_ConfigDedicated);
 
-void prepare_msg4_feedback(NR_UE_MAC_INST_t *mac, int pid, int ack_nack);
+void prepare_msg4_msgb_feedback(NR_UE_MAC_INST_t *mac, int pid, int ack_nack);
 void configure_initial_pucch(PUCCH_sched_t *pucch, int res_ind);
 void release_PUCCH_SRS(NR_UE_MAC_INST_t *mac);
 void nr_ue_reset_sync_state(NR_UE_MAC_INST_t *mac);

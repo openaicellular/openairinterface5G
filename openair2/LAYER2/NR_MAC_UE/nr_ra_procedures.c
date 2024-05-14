@@ -654,7 +654,7 @@ static uint8_t *fill_msg3_crnti_pdu(RA_config_t *ra, uint8_t *pdu, uint16_t crnt
 static uint8_t *fill_msg3_pdu_from_rlc(NR_UE_MAC_INST_t *mac, uint8_t *pdu, int TBS_max)
 {
   RA_config_t *ra = &mac->ra;
-  // regular MSG3 with PDU coming from higher layers
+  // regular Msg3/MsgA_PUSCH with PDU coming from higher layers
   *(NR_MAC_SUBHEADER_FIXED *)pdu = (NR_MAC_SUBHEADER_FIXED){.LCID = UL_SCH_LCID_CCCH};
   pdu += sizeof(NR_MAC_SUBHEADER_FIXED);
   tbs_size_t len = mac_rlc_data_req(mac->ue_id,
@@ -668,7 +668,7 @@ static uint8_t *fill_msg3_pdu_from_rlc(NR_UE_MAC_INST_t *mac, uint8_t *pdu, int 
                                     (char *)pdu,
                                     0,
                                     0);
-  AssertFatal(len > 0, "no data for Msg.3\n");
+  AssertFatal(len > 0, "no data for Msg3/MsgA_PUSCH\n");
   // UE Contention Resolution Identity
   // Store the first 48 bits belonging to the uplink CCCH SDU within Msg3 to determine whether or not the
   // Random Access Procedure has been successful after reception of Msg4
@@ -694,7 +694,7 @@ void nr_get_Msg3_MsgA_PUSCH_payload(NR_UE_MAC_INST_t *mac, uint8_t *buf, int TBS
   else
     pdu = fill_msg3_pdu_from_rlc(mac, pdu, TBS_max);
 
-  AssertFatal(TBS_max >= pdu - buf, "Allocated resources are not enough for Msg3!\n");
+  AssertFatal(TBS_max >= pdu - buf, "Allocated resources are not enough for Msg3/MsgA_PUSCH!\n");
   // Padding: fill remainder with 0
   LOG_D(NR_MAC, "Remaining %ld bytes, filling with padding\n", pdu - buf);
   while (pdu < buf + TBS_max - sizeof(NR_MAC_SUBHEADER_FIXED)) {
@@ -1047,7 +1047,7 @@ void schedule_RA_after_SR_failure(NR_UE_MAC_INST_t *mac)
   // TODO we don't have semi-persistent CSI reporting
 }
 
-void prepare_msg4_feedback(NR_UE_MAC_INST_t *mac, int pid, int ack_nack)
+void prepare_msg4_msgb_feedback(NR_UE_MAC_INST_t *mac, int pid, int ack_nack)
 {
   NR_UE_HARQ_STATUS_t *current_harq = &mac->dl_harq_info[pid];
   int sched_slot = current_harq->ul_slot;

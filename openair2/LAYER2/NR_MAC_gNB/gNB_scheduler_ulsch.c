@@ -907,7 +907,7 @@ static void _nr_rx_sdu(const module_id_t gnb_mod_idP,
 
           // The UE identified by C-RNTI still exists at the gNB
           // Reset Msg4_ACKed to not schedule ULSCH and DLSCH before RRC Reconfiguration
-          UE->Msg4_ACKed = false;
+          UE->Msg4_MsgB_ACKed = false;
           nr_mac_reset_ul_failure(&UE->UE_sched_ctrl);
           // Reset HARQ processes
           reset_dl_harq_list(&UE->UE_sched_ctrl);
@@ -1778,7 +1778,7 @@ static void pf_ul(module_id_t module_id,
   UE_iterator(UE_list, UE) {
 
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-    if (UE->Msg4_ACKed != true || sched_ctrl->ul_failure)
+    if (!UE->Msg4_MsgB_ACKed || sched_ctrl->ul_failure)
       continue;
 
     LOG_D(NR_MAC,"pf_ul: preparing UL scheduling for UE %04x\n",UE->rnti);
