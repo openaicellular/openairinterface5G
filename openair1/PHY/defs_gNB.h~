@@ -343,13 +343,13 @@ typedef struct {
   /// \f$\log_2(\max|H_i|^2)\f$
   int16_t log2_maxh;
   /// measured RX power based on DRS
-  uint32_t ulsch_power[8];
+  int ulsch_power[8];
   /// total signal over antennas
-  uint32_t ulsch_power_tot;
+  int ulsch_power_tot;
   /// measured RX noise power
   int ulsch_noise_power[8];
   /// total noise over antennas
-  uint32_t ulsch_noise_power_tot;
+  int ulsch_noise_power_tot;
   /// \brief llr values.
   /// - first index: ? [0..1179743] (hard coded)
   int16_t *llr;
@@ -622,6 +622,9 @@ typedef struct PHY_VARS_gNB_s {
   /// PUSCH DMRS
   uint32_t ****nr_gold_pusch_dmrs;
 
+  // Mask of occupied RBs, per symbol and PRB
+  uint32_t rb_mask_ul[14][9];
+
   /// PRS sequence
   uint32_t ****nr_gold_prs;
 
@@ -670,6 +673,7 @@ typedef struct PHY_VARS_gNB_s {
   time_stats_t dlsch_modulation_stats;
   time_stats_t dlsch_scrambling_stats;
   time_stats_t dlsch_resource_mapping_stats;
+  time_stats_t dlsch_layer_mapping_stats;
   time_stats_t dlsch_precoding_stats;
   time_stats_t tinput;
   time_stats_t tprep;
@@ -686,7 +690,6 @@ typedef struct PHY_VARS_gNB_s {
   time_stats_t ul_indication_stats;
   time_stats_t slot_indication_stats;
   time_stats_t schedule_response_stats;
-  time_stats_t ulsch_decoding_stats;
   time_stats_t ulsch_ldpc_decoding_stats;
   time_stats_t ulsch_deinterleaving_stats;
   time_stats_t ulsch_channel_estimation_stats;
@@ -713,6 +716,7 @@ typedef struct PHY_VARS_gNB_s {
   notifiedFIFO_t L1_rx_out;
   notifiedFIFO_t resp_RU_tx;
   tpool_t threadPool;
+  int nbSymb;
   int num_pusch_symbols_per_thread;
   int dmrs_num_antennas_per_thread;
   pthread_t L1_rx_thread;
