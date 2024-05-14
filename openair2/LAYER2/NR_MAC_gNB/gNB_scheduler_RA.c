@@ -409,6 +409,10 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
                 AssertFatal(1==0,"Invalid PRACH format");
               }
             }
+            if (scc->uplinkConfigCommon->initialUplinkBWP->ext1
+                && scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16) {
+              schedule_nr_MsgA_pusch(module_idP, frameP, slotP, prach_pdu);
+            }
           }
         }
       }
@@ -423,6 +427,127 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
         vrb_map_UL[bwp_start + rach_ConfigGeneric->msg1_FrequencyStart + i] |= SL_to_bitmap(start_symbol, N_t_slot * N_dur);
     }
   }
+}
+
+void schedule_nr_MsgA_pusch(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, nfapi_nr_prach_pdu_t *prach_pdu)
+{
+  gNB_MAC_INST *gNB = RC.nrmac[module_idP];
+
+  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
+  NR_SCHED_ENSURE_LOCKED(&gNB->sched_lock);
+
+  NR_COMMON_channels_t *cc = gNB->common_channels;
+  NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
+
+  NR_MsgA_PUSCH_Resource_r16_t *msgA_PUSCH_Resource = scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice
+                                                          .setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16;
+
+  int mu;
+  if (scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->rach_ConfigCommonTwoStepRA_r16
+          .msgA_SubcarrierSpacing_r16)
+    mu = (int)*scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->rach_ConfigCommonTwoStepRA_r16
+             .msgA_SubcarrierSpacing_r16;
+  else
+    mu = scc->downlinkConfigCommon->frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
+
+  const int n_slots_frame = nr_slots_per_frame[mu];
+  slot_t msgA_pusch_slot = (slotP + msgA_PUSCH_Resource->msgA_PUSCH_TimeDomainOffset_r16) % n_slots_frame;
+  frame_t msgA_pusch_frame = (frameP + ((slotP + msgA_PUSCH_Resource->msgA_PUSCH_TimeDomainOffset_r16) / n_slots_frame)) % 1024;
+
+  int index = ul_buffer_index((int)msgA_pusch_frame, (int)msgA_pusch_slot, mu, gNB->UL_tti_req_ahead_size);
+  nfapi_nr_ul_tti_request_t *UL_tti_req = &RC.nrmac[module_idP]->UL_tti_req_ahead[0][index];
+
+  UL_tti_req->SFN = msgA_pusch_frame;
+  UL_tti_req->Slot = msgA_pusch_slot;
+  // printf("msgA_pusch_frame = %d\n", msgA_pusch_frame);
+  // printf("msgA_pusch_slot = %d\n", msgA_pusch_slot);
+  AssertFatal(is_xlsch_in_slot(gNB->ulsch_slot_bitmap[msgA_pusch_slot / 64], msgA_pusch_slot),
+              "Slot %d is not an Uplink slot, invalid msgA_PUSCH_TimeDomainOffset_r16 %ld\n",
+              msgA_pusch_slot,
+              msgA_PUSCH_Resource->msgA_PUSCH_TimeDomainOffset_r16);
+
+  UL_tti_req->pdus_list[UL_tti_req->n_pdus].pdu_type = NFAPI_NR_UL_CONFIG_PUSCH_PDU_TYPE;
+  UL_tti_req->pdus_list[UL_tti_req->n_pdus].pdu_size = sizeof(nfapi_nr_pusch_pdu_t);
+  nfapi_nr_pusch_pdu_t *pusch_pdu = &UL_tti_req->pdus_list[UL_tti_req->n_pdus].pusch_pdu;
+  memset(pusch_pdu, 0, sizeof(nfapi_nr_pusch_pdu_t));
+
+  rnti_t ra_rnti = nr_get_ra_rnti(prach_pdu->prach_start_symbol, slotP, prach_pdu->num_ra, 0);
+
+  // Fill PUSCH PDU
+  pusch_pdu->pdu_bit_map = PUSCH_PDU_BITMAP_PUSCH_DATA;
+  pusch_pdu->rnti = ra_rnti;
+  pusch_pdu->handle = 0;
+  pusch_pdu->rb_size = msgA_PUSCH_Resource->nrofPRBs_PerMsgA_PO_r16;
+  pusch_pdu->mcs_table = 0;
+  pusch_pdu->frequency_hopping =
+      msgA_PUSCH_Resource->msgA_IntraSlotFrequencyHopping_r16 ? *msgA_PUSCH_Resource->msgA_IntraSlotFrequencyHopping_r16 : 0;
+  pusch_pdu->dmrs_ports = 1; // 6.2.2 in 38.214 only port 0 to be used
+  int S = 0;
+  int L = 0;
+  if (msgA_PUSCH_Resource->startSymbolAndLengthMsgA_PO_r16) {
+    SLIV2SL((int)*msgA_PUSCH_Resource->startSymbolAndLengthMsgA_PO_r16, &S, &L);
+  } else if (msgA_PUSCH_Resource->msgA_PUSCH_TimeDomainAllocation_r16) {
+    AssertFatal(false, "Not implemented\n");
+  } else {
+    AssertFatal(false, "Either startSymbolAndLengthMsgA_PO_r16 or msgA_PUSCH_TimeDomainAllocation_r16 must be configured\n");
+  }
+  pusch_pdu->start_symbol_index = S;
+  pusch_pdu->nr_of_symbols = L;
+  pusch_pdu->pusch_data.new_data_indicator = 1;
+  pusch_pdu->nrOfLayers = 1;
+  pusch_pdu->num_dmrs_cdm_grps_no_data = 2; // no data in dmrs symbols as in 6.2.2 in 38.214
+  pusch_pdu->ul_dmrs_symb_pos = get_l_prime(3, 0, pusch_dmrs_pos2, pusch_len1, 10, scc->dmrs_TypeA_Position);
+  pusch_pdu->transform_precoding = 0;
+  pusch_pdu->rb_bitmap[0] = 0;
+  pusch_pdu->rb_start = msgA_PUSCH_Resource->frequencyStartMsgA_PUSCH_r16; // rb_start depends on the RO
+  pusch_pdu->bwp_size = NRRIV2BW(scc->uplinkConfigCommon->initialUplinkBWP->genericParameters.locationAndBandwidth, MAX_BWP_SIZE);
+  pusch_pdu->bwp_start =
+      NRRIV2PRBOFFSET(scc->uplinkConfigCommon->initialUplinkBWP->genericParameters.locationAndBandwidth, MAX_BWP_SIZE);
+  pusch_pdu->subcarrier_spacing = 0;
+  pusch_pdu->cyclic_prefix = 0;
+  pusch_pdu->uplink_frequency_shift_7p5khz = 0;
+  pusch_pdu->vrb_to_prb_mapping = 0;
+  pusch_pdu->dmrs_config_type = 0;
+  pusch_pdu->data_scrambling_id = 0;
+  if (msgA_PUSCH_Resource->msgA_DMRS_Config_r16.msgA_ScramblingID0_r16) {
+    pusch_pdu->ul_dmrs_scrambling_id = *msgA_PUSCH_Resource->msgA_DMRS_Config_r16.msgA_ScramblingID0_r16;
+  } else {
+    pusch_pdu->ul_dmrs_scrambling_id = *scc->physCellId;
+  }
+  pusch_pdu->scid =
+      0; // DMRS sequence initialization [TS38.211, sec 6.4.1.1.1]. Should match what is sent in DCI 0_1, otherwise set to 0.
+  pusch_pdu->pusch_identity = 0;
+  pusch_pdu->resource_alloc = 1; // type 1
+  pusch_pdu->tx_direct_current_location = 0;
+  pusch_pdu->mcs_index = msgA_PUSCH_Resource->msgA_MCS_r16;
+  ;
+  pusch_pdu->qam_mod_order = nr_get_Qm_dl(pusch_pdu->mcs_index, pusch_pdu->mcs_table);
+
+  int num_dmrs_symb = 0;
+  for (int i = 10; i < 10 + 3; i++)
+    num_dmrs_symb += (pusch_pdu->ul_dmrs_symb_pos >> i) & 1;
+  int TBS = 0;
+  AssertFatal(0 < 28, "Exceeding MCS limit for MsgA PUSCH\n");
+  int R = nr_get_code_rate_ul(pusch_pdu->mcs_index, pusch_pdu->mcs_table);
+  pusch_pdu->target_code_rate = R;
+  pusch_pdu->qam_mod_order = nr_get_Qm_ul(pusch_pdu->mcs_index, pusch_pdu->mcs_table);
+  TBS = nr_compute_tbs(pusch_pdu->qam_mod_order,
+                       R,
+                       pusch_pdu->rb_size,
+                       pusch_pdu->nr_of_symbols,
+                       num_dmrs_symb * 12, // nb dmrs set for no data in dmrs symbol
+                       0, // nb_rb_oh
+                       0, // to verify tb scaling
+                       pusch_pdu->nrOfLayers)
+        >> 3;
+
+  pusch_pdu->pusch_data.tb_size = TBS;
+  pusch_pdu->maintenance_parms_v3.ldpcBaseGraph = get_BG(TBS << 3, R);
+  // pusch_pdu->dmrs_config_type = msgA_PUSCH_Resource->msgA_DMRS_Config_r16;
+
+  LOG_D(NR_MAC, "Scheduling MsgA PUSCH in %d.%d\n", msgA_pusch_frame, msgA_pusch_slot);
+
+  UL_tti_req->n_pdus += 1;
 }
 
 static bool ra_contains_preamble(const NR_RA_t *ra, uint16_t preamble_index)
