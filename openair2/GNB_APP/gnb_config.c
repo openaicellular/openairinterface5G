@@ -83,6 +83,7 @@
 #include "NR_ControlResourceSet.h"
 #include "NR_MeasurementTimingConfiguration.h"
 #include "NR_EUTRA-MBSFN-SubframeConfig.h"
+#include "NR_BWP-UplinkCommon.h"
 #include "uper_decoder.h"
 #include "uper_encoder.h"
 #include "common/utils/ds/seq_arr.h"
@@ -219,6 +220,28 @@ void prepare_scc(NR_ServingCellConfigCommon_t *scc) {
   scc->ext2 = CALLOC(1, sizeof(*scc->ext2));
   scc->ext2->ntn_Config_r17 = CALLOC(1, sizeof(*scc->ext2->ntn_Config_r17));
   scc->ext2->ntn_Config_r17->cellSpecificKoffset_r17 = CALLOC(1, sizeof(*scc->ext2->ntn_Config_r17->cellSpecificKoffset_r17));
+}
+void prepare_msgA_scc(NR_ServingCellConfigCommon_t *scc) {
+  NR_BWP_UplinkCommon_t *initialUplinkBWP = scc->uplinkConfigCommon->initialUplinkBWP;
+  // Add the struct ext1
+  initialUplinkBWP->ext1 = calloc(1, sizeof(*initialUplinkBWP->ext1));
+  initialUplinkBWP->ext1->msgA_ConfigCommon_r16 = calloc(1, sizeof(*initialUplinkBWP->ext1->msgA_ConfigCommon_r16));
+  initialUplinkBWP->ext1->msgA_ConfigCommon_r16->present = NR_SetupRelease_MsgA_ConfigCommon_r16_PR_setup;
+  initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup =
+      calloc(1, sizeof(*initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup));
+  NR_MsgA_ConfigCommon_r16_t *NR_MsgA_ConfigCommon_r16 = initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup;
+  NR_MsgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.rach_ConfigGenericTwoStepRA_r16.msgB_ResponseWindow_r16 =
+      calloc(1, sizeof(long));
+  NR_MsgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_RSRP_Threshold_r16 = calloc(1, sizeof(NR_RSRP_Range_t));
+
+  NR_MsgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_CB_PreamblesPerSSB_PerSharedRO_r16 = calloc(1, sizeof(long));
+
+  NR_MsgA_ConfigCommon_r16->msgA_PUSCH_Config_r16 = calloc(1, sizeof(NR_MsgA_PUSCH_Config_r16_t));
+  NR_MsgA_PUSCH_Config_r16_t *msgA_PUSCH_Config_r16 = NR_MsgA_ConfigCommon_r16->msgA_PUSCH_Config_r16;
+  msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16 = calloc(1, sizeof(NR_MsgA_PUSCH_Resource_r16_t));
+  NR_MsgA_PUSCH_Resource_r16_t *msgA_PUSCH_Resource = msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16;
+  msgA_PUSCH_Resource->startSymbolAndLengthMsgA_PO_r16 = calloc(1, sizeof(long));
+  msgA_PUSCH_Config_r16->msgA_TransformPrecoder_r16 = calloc(1, sizeof(long));
 }
 
 void fill_scc_sim(NR_ServingCellConfigCommon_t *scc,uint64_t *ssb_bitmap,int N_RB_DL,int N_RB_UL,int mu_dl,int mu_ul) {
@@ -400,6 +423,13 @@ void fix_scc(NR_ServingCellConfigCommon_t *scc,uint64_t ssbmap) {
   if ((int)*scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->msg1_SubcarrierSpacing == -1) {
     free(scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->msg1_SubcarrierSpacing);
     scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->msg1_SubcarrierSpacing=NULL;
+  }
+
+  if ((int)scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16
+          ->msgA_PUSCH_ResourceGroupA_r16->msgA_PUSCH_TimeDomainOffset_r16
+      == 0) {
+    free(scc->uplinkConfigCommon->initialUplinkBWP->ext1);
+    scc->uplinkConfigCommon->initialUplinkBWP->ext1 = NULL;
   }
 
   if ((int)*scc->n_TimingAdvanceOffset == -1) {
@@ -922,14 +952,20 @@ static NR_ServingCellConfigCommon_t *get_scc_config(configmodule_interface_t *cf
   uint64_t ssb_bitmap=0xff;
   prepare_scc(scc);
   paramdef_t SCCsParams[] = SCCPARAMS_DESC(scc);
+  prepare_msgA_scc(scc);
+  paramdef_t MsgASCCsParams[] = MSGASCCPARAMS_DESC(scc);
   paramlist_def_t SCCsParamList = {GNB_CONFIG_STRING_SERVINGCELLCONFIGCOMMON, NULL, 0};
+  paramlist_def_t MsgASCCsParamList = {GNB_CONFIG_STRING_SERVINGCELLCONFIGCOMMON, NULL, 0};
 
   char aprefix[MAX_OPTNAME_SIZE*2 + 8];
   sprintf(aprefix, "%s.[%i]", GNB_CONFIG_STRING_GNB_LIST, 0);
   config_getlist(cfg, &SCCsParamList, NULL, 0, aprefix);
-  if (SCCsParamList.numelt > 0) {
+  config_getlist(cfg, &MsgASCCsParamList, NULL, 0, aprefix);
+
+  if (SCCsParamList.numelt > 0 || MsgASCCsParamList.numelt > 0) {
     sprintf(aprefix, "%s.[%i].%s.[%i]", GNB_CONFIG_STRING_GNB_LIST,0,GNB_CONFIG_STRING_SERVINGCELLCONFIGCOMMON, 0);
     config_get(cfg, SCCsParams, sizeofArray(SCCsParams), aprefix);
+    config_get(cfg, MsgASCCsParams, sizeofArray(MsgASCCsParams), aprefix);
     struct NR_FrequencyInfoDL *frequencyInfoDL = scc->downlinkConfigCommon->frequencyInfoDL;
     LOG_I(RRC,
           "Read in ServingCellConfigCommon (PhysCellId %d, ABSFREQSSB %d, DLBand %d, ABSFREQPOINTA %d, DLBW "
