@@ -656,6 +656,7 @@ NR_tda_info_t get_dl_tda_info(const NR_UE_DL_BWP_t *dl_BWP,
     case TYPE_CS_RNTI_:
     case TYPE_MCS_C_RNTI_:
     case TYPE_RA_RNTI_:
+    case TYPE_MSGB_RNTI_:
     case TYPE_TC_RNTI_:
       if(tdalist)
         tda_info = set_tda_info_from_list(tdalist, tda_index);

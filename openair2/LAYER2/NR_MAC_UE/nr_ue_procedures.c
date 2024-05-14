@@ -162,6 +162,8 @@ int get_rnti_type(const NR_UE_MAC_INST_t *mac, const uint16_t rnti)
 
   if (rnti == ra->ra_rnti) {
     rnti_type = TYPE_RA_RNTI_;
+  } else if (rnti == ra->MsgB_rnti && (ra->ra_state == nrRA_WAIT_MSGB || ra->ra_state == nrRA_WAIT_CONTENTION_RESOLUTION)) {
+    rnti_type = TYPE_MSGB_RNTI_;
   } else if (rnti == ra->t_crnti && (ra->ra_state == nrRA_WAIT_RAR || ra->ra_state == nrRA_WAIT_CONTENTION_RESOLUTION)) {
     rnti_type = TYPE_TC_RNTI_;
   } else if (rnti == mac->crnti) {
@@ -3336,6 +3338,7 @@ static nr_dci_format_t nr_extract_dci_00_10(NR_UE_MAC_INST_t *mac,
       dci_pdu_rel15->format_indicator = format_indicator;
       break;
     case TYPE_TC_RNTI_ :
+    case TYPE_MSGB_RNTI_:
       // Identifier for DCI formats
       EXTRACT_DCI_ITEM(format_indicator, 1);
       if (format_indicator == 1) {
