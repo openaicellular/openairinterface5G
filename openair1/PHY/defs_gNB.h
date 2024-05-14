@@ -756,25 +756,25 @@ typedef struct ulAntennaProc_s {
 typedef struct {
   PHY_VARS_gNB *gNB;
   int aarx;
-  const int symbol_offset;
+  int symbol_offset;
   c16_t **ul_ch_estimates;
   int nl;
   int ch_offset;
-  const int symbolSize;
+  int symbolSize;
   nfapi_nr_pusch_pdu_t *pusch_pdu;
-  const int chest_freq;
+  int chest_freq;
   c16_t pilot[3280] __attribute__((aligned(32)));
-  const int k0;
-  const int nb_rb_pusch;
+  int k0;
+  int nb_rb_pusch;
   unsigned short p;
-  const int soffset;
+  int soffset;
   int *max_ch;
-  c16_t ul_ls_est[symbolSize];
+  c16_t *ul_ls_est;
   NR_gNB_PUSCH *pusch_vars;
   delay_t *delay;
   uint64_t noise_amp2;
   int nest_count;
-  const int nushift;
+  int nushift;
 } puschAntennaProc_t;
 
 struct puschSymbolReqId {

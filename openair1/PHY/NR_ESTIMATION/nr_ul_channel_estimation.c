@@ -66,7 +66,7 @@ __attribute__((always_inline)) inline c16_t c32x16cumulVectVectWithSteps(c16_t *
 }
 
 
-int inner_channel_estimation(inner_channel_estimation_params *rdata) {
+int inner_channel_estimation(puschAntennaProc_t *rdata) {
   PHY_VARS_gNB *gNB = rdata->gNB;
   int aarx = rdata->aarx;
   const int symbol_offset = rdata->symbol_offset;
@@ -514,9 +514,8 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
 
    rdata->gNB = gNB;
-   rdata->nb_antennas_rx = gNB->frame_parms.nb_antennas_rx
    rdata->symbol_offset = symbol_offset;
-   rtada->ul_ch_estimates = ul_ch_estimates;
+   rdata->ul_ch_estimates = ul_ch_estimates;
    rdata->nl = nl;
    rdata->ch_offset = ch_offset;
    rdata->symbolSize = symbolSize;
