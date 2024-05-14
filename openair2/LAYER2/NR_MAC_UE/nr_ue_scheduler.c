@@ -503,6 +503,28 @@ void ul_ports_config(NR_UE_MAC_INST_t *mac, int *n_front_load_symb, nfapi_nr_ue_
   LOG_D(NR_MAC,"num_dmrs_cdm_grps_no_data %d, dmrs_ports %d\n",pusch_config_pdu->num_dmrs_cdm_grps_no_data,pusch_config_pdu->dmrs_ports);
 }
 
+void print_pusch_pdu(nfapi_nr_ue_pusch_pdu_t *pusch_config_pdu){
+  LOG_W(NR_MAC, "pusch_config_pdu->pdu_bit_map %d\n", pusch_config_pdu->pdu_bit_map);
+  LOG_W(NR_MAC, "pusch_config_pdu->rnti %d\n", pusch_config_pdu->rnti);
+  LOG_W(NR_MAC, "pusch_config_pdu->rb_size %d\n", pusch_config_pdu->rb_size);
+  LOG_W(NR_MAC, "pusch_config_pdu->frequency_hopping %d\n", pusch_config_pdu->frequency_hopping);
+  LOG_W(NR_MAC, "pusch_config_pdu->start_symbol_index %d\n", pusch_config_pdu->start_symbol_index);
+  LOG_W(NR_MAC, "pusch_config_pdu->nr_of_symbols %d\n", pusch_config_pdu->nr_of_symbols);
+  LOG_W(NR_MAC, "pusch_config_pdu->ul_dmrs_symb_pos %d\n", pusch_config_pdu->ul_dmrs_symb_pos);
+  LOG_W(NR_MAC, "pusch_config_pdu->rb_start %d\n", pusch_config_pdu->rb_start);
+  LOG_W(NR_MAC, "pusch_config_pdu->bwp_size %d\n", pusch_config_pdu->bwp_size);
+  LOG_W(NR_MAC, "pusch_config_pdu->bwp_start %d\n", pusch_config_pdu->bwp_start);
+  LOG_W(NR_MAC, "pusch_config_pdu->data_scrambling_id %d\n", pusch_config_pdu->data_scrambling_id);
+  LOG_W(NR_MAC, "pusch_config_pdu->ul_dmrs_scrambling_id %d\n", pusch_config_pdu->ul_dmrs_scrambling_id);
+  LOG_W(NR_MAC, "pusch_config_pdu->mcs_index %d\n", pusch_config_pdu->mcs_index);
+  LOG_W(NR_MAC, "pusch_config_pdu->qam_mod_order %d\n", pusch_config_pdu->qam_mod_order);
+  LOG_W(NR_MAC, "pusch_config_pdu->target_code_rate %d\n", pusch_config_pdu->target_code_rate);
+  LOG_W(NR_MAC, "pusch_config_pdu->pusch_data.tb_size %d\n", pusch_config_pdu->pusch_data.tb_size);
+  LOG_W(NR_MAC, "pusch_config_pdu->transform_precoding %d\n", pusch_config_pdu->transform_precoding);
+
+}
+
+
 // Configuration of Msg3 PDU according to clauses:
 // - 8.3 of 3GPP TS 38.213 version 16.3.0 Release 16
 // - 6.1.2.2 of TS 38.214
@@ -517,7 +539,7 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
                         dci_pdu_rel15_t *dci,
                         csi_payload_t *csi_report,
                         RAR_grant_t *rar_grant,
-                        uint16_t rnti,
+                        rnti_t rnti,
                         int ss_type,
                         const nr_dci_format_t dci_format)
 {
@@ -527,6 +549,7 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
   int rnti_type = get_rnti_type(mac, rnti);
   NR_UE_UL_BWP_t *current_UL_BWP = mac->current_UL_BWP;
   NR_UE_ServingCell_Info_t *sc_info = &mac->sc_info;
+  int scs = current_UL_BWP->scs;
 
   // Common configuration
   pusch_config_pdu->dmrs_config_type = pusch_dmrs_type1;
@@ -539,8 +562,69 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
   int dmrslength = 1;
   NR_PUSCH_Config_t *pusch_Config = current_UL_BWP->pusch_Config;
 
-  if (rar_grant) {
+  AssertFatal(!((mac->ra.ra_state < nrRA_SUCCEEDED && mac->ra.ra_type == RA_2_STEP) && rar_grant), "logic error: Is not possible to have both msgA_pusch_resource and rar_grant\n");
 
+  if (mac->ra.ra_state < nrRA_SUCCEEDED && mac->ra.ra_type == RA_2_STEP) {
+    NR_MsgA_PUSCH_Resource_r16_t *msgA_PUSCH_Resource =
+        current_UL_BWP->msgA_ConfigCommon_r16->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16;
+    int S = 0;
+    int L = 0;
+    SLIV2SL(*msgA_PUSCH_Resource->startSymbolAndLengthMsgA_PO_r16, &S, &L);
+    tda_info->k2 = msgA_PUSCH_Resource->msgA_PUSCH_TimeDomainOffset_r16;
+    tda_info->startSymbolIndex = S;
+    tda_info->nrOfSymbols = L;
+    l_prime_mask = get_l_prime(tda_info->nrOfSymbols,
+                               tda_info->mapping_type,
+                               add_pos,
+                               dmrslength,
+                               tda_info->startSymbolIndex,
+                               mac->dmrs_TypeA_Position);
+    LOG_I(NR_MAC,
+          "MSGA PUSCH start_sym:%d NR Symb:%d mappingtype:%d, DMRS_MASK:%x\n",
+          pusch_config_pdu->start_symbol_index,
+          pusch_config_pdu->nr_of_symbols,
+          tda_info->mapping_type,
+          l_prime_mask);
+
+    LOG_D(NR_MAC,
+          "sc_info->initial_ul_BWPStart = %d  sc_info->initial_ul_BWPSize = %d\n",
+          sc_info->initial_ul_BWPStart,
+          sc_info->initial_ul_BWPSize);
+    pusch_config_pdu->handle = 0;
+    pusch_config_pdu->rb_size = msgA_PUSCH_Resource->nrofPRBs_PerMsgA_PO_r16;
+    pusch_config_pdu->mcs_table = 0;
+    pusch_config_pdu->frequency_hopping = msgA_PUSCH_Resource->msgA_IntraSlotFrequencyHopping_r16 ? *msgA_PUSCH_Resource->msgA_IntraSlotFrequencyHopping_r16 : 0;
+    pusch_config_pdu->dmrs_ports = 1; // is in SIB1 nrofDMRS_Sequences_r16?
+    pusch_config_pdu->pusch_data.new_data_indicator = 1; // new data
+    pusch_config_pdu->num_dmrs_cdm_grps_no_data = 2;
+    pusch_config_pdu->ul_dmrs_symb_pos = get_l_prime(3, 0, pusch_dmrs_pos2, pusch_len1, 10, mac->dmrs_TypeA_Position);
+    pusch_config_pdu->transform_precoding =
+           *mac->current_UL_BWP->msgA_ConfigCommon_r16->msgA_PUSCH_Config_r16->msgA_TransformPrecoder_r16;
+    pusch_config_pdu->rb_bitmap[0] = 0;
+    pusch_config_pdu->rb_start = msgA_PUSCH_Resource->frequencyStartMsgA_PUSCH_r16; // rb_start depends on the RO
+    pusch_config_pdu->bwp_size = sc_info->initial_ul_BWPSize;
+    pusch_config_pdu->bwp_start = sc_info->initial_ul_BWPStart;
+    pusch_config_pdu->subcarrier_spacing = scs;
+    pusch_config_pdu->cyclic_prefix = 0;
+    pusch_config_pdu->uplink_frequency_shift_7p5khz = 0;
+    pusch_config_pdu->vrb_to_prb_mapping = 0;
+    pusch_config_pdu->dmrs_config_type = 0;
+    pusch_config_pdu->data_scrambling_id = mac->physCellId;
+    pusch_config_pdu->ul_dmrs_scrambling_id = mac->physCellId;
+    pusch_config_pdu->scid = 0;
+    pusch_config_pdu->resource_alloc = 1;
+    pusch_config_pdu->tx_direct_current_location = 0;
+    pusch_config_pdu->mcs_index = msgA_PUSCH_Resource->msgA_MCS_r16;
+    pusch_config_pdu->qam_mod_order = nr_get_Qm_dl(pusch_config_pdu->mcs_index, 0);
+    pusch_config_pdu->start_symbol_index = S;
+    pusch_config_pdu->nr_of_symbols = L;
+    pusch_config_pdu->pusch_data.rv_index = 0; // 8.3 in 38.213
+    pusch_config_pdu->pusch_data.harq_process_id = 0;
+    pusch_config_pdu->pusch_data.num_cb = 0;
+    pusch_config_pdu->tbslbrm = 0;
+    pusch_config_pdu->target_code_rate = nr_get_code_rate_ul(pusch_config_pdu->mcs_index, 0);
+
+  } else if (rar_grant) {
     // Note: for Msg3 or MsgA PUSCH transmission the N_PRB_oh is always set to 0
     int ibwp_start = sc_info->initial_ul_BWPStart;
     int ibwp_size = sc_info->initial_ul_BWPSize;
@@ -1410,8 +1494,8 @@ void nr_ue_ul_scheduler(NR_UE_MAC_INST_t *mac, nr_uplink_indication_t *ul_info)
             TBS_bytes,
             ra->ra_state);
       ulcfg_pdu->pusch_config_pdu.tx_request_body.fapiTxPdu = NULL;
-      if (ra->ra_state == nrRA_WAIT_RAR && !ra->cfra) {
-        nr_get_msg3_payload(mac, ulsch_input_buffer, TBS_bytes);
+      if ((ra->ra_state == nrRA_WAIT_RAR || ra->ra_state == nrRA_WAIT_MSGB) && !ra->cfra) {
+        nr_get_Msg3_MsgA_PUSCH_payload(mac, ulsch_input_buffer, TBS_bytes);
         for (int k = 0; k < TBS_bytes; k++) {
           LOG_D(NR_MAC, "(%i): 0x%x\n", k, ulsch_input_buffer[k]);
         }
@@ -1438,6 +1522,9 @@ void nr_ue_ul_scheduler(NR_UE_MAC_INST_t *mac, nr_uplink_indication_t *ul_info)
       if (ra->ra_state == nrRA_WAIT_RAR && !ra->cfra) {
         LOG_A(NR_MAC, "[RAPROC][%d.%d] RA-Msg3 transmitted\n", frame_tx, slot_tx);
         nr_Msg3_transmitted(mac, cc_id, frame_tx, slot_tx, gNB_index);
+      }
+      if (ra->ra_state == nrRA_WAIT_MSGB && !ra->cfra) {
+        LOG_A(NR_MAC, "[RAPROC][%d.%d] RA-MsgA-PUSCH transmitted\n", frame_tx, slot_tx);
       }
     }
     ulcfg_pdu++;
@@ -2719,7 +2806,60 @@ static void nr_ue_prach_scheduler(NR_UE_MAC_INST_t *mac, frame_t frameP, sub_fra
       if(mac->if_module != NULL && mac->if_module->scheduled_response != NULL)
         mac->if_module->scheduled_response(&scheduled_response);
 
-      nr_Msg1_transmitted(mac);
+      if (ra->ra_type == RA_4_STEP) {
+        nr_Msg1_transmitted(mac);
+      } else if (ra->ra_type == RA_2_STEP) {
+        int mu;
+        if (mac->current_UL_BWP->msgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_SubcarrierSpacing_r16)
+          mu = (int)*mac->current_UL_BWP->msgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_SubcarrierSpacing_r16;
+        else
+          mu = mac->current_UL_BWP->scs;
+
+        NR_MsgA_PUSCH_Resource_r16_t *msgA_PUSCH_Resource =
+            mac->current_UL_BWP->msgA_ConfigCommon_r16->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16;
+
+        const int n_slots_frame = nr_slots_per_frame[mu];
+        slot_t msgA_pusch_slot = (slotP + msgA_PUSCH_Resource->msgA_PUSCH_TimeDomainOffset_r16) % n_slots_frame;
+        frame_t msgA_pusch_frame =
+            (frameP + ((slotP + msgA_PUSCH_Resource->msgA_PUSCH_TimeDomainOffset_r16) / n_slots_frame)) % 1024;
+
+        fapi_nr_ul_config_request_pdu_t *pdu =
+            lockGet_ul_config(mac, msgA_pusch_frame, msgA_pusch_slot, FAPI_NR_UL_CONFIG_TYPE_PUSCH);
+        if (!pdu)
+          return;
+
+        // Config Msg3/MsgA-PUSCH PDU
+        NR_tda_info_t tda_info = {0};
+        AssertFatal(msgA_PUSCH_Resource->startSymbolAndLengthMsgA_PO_r16,
+                    "Only SLIV based on startSymbolAndLengthMsgA_PO_r16 implemented\n");
+
+        int ret = nr_config_pusch_pdu(mac,
+                                      &tda_info,
+                                      &pdu->pusch_config_pdu,
+                                      NULL,
+                                      NULL,
+                                      NULL,
+                                      mac->ra.ra_rnti,
+                                      NR_SearchSpace__searchSpaceType_PR_common,
+                                      NR_DCI_NONE);
+
+        if (ret != 0)
+          remove_ul_config_last_item(pdu);
+        release_ul_config(pdu, false);
+
+        // Compute MsgB RNTI
+        ra->MsgB_rnti =
+            nr_get_MsgB_rnti(prach_occasion_info_p->start_symbol, prach_occasion_info_p->slot, prach_occasion_info_p->fdm, 0);
+        LOG_D(NR_MAC, "ra->ra_state %s\n", nrra_ue_text[ra->ra_state]);
+        ra->ra_state = nrRA_WAIT_MSGB;
+        ra->t_crnti = 0;
+        mac->crnti = 0;
+        ra->ra_rnti = 0;
+      } else {
+        AssertFatal(false, "RA type %d not implemented!\n", ra->ra_type);
+      }
+
+      // rnti = ra->t_crnti;
     } // is_nr_prach_slot
   } // if is_nr_UL_slot
 }
