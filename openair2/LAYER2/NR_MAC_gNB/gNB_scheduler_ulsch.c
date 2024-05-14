@@ -571,7 +571,7 @@ void handle_nr_ul_harq(const int CC_idP,
       }
     }
     NR_SCHED_UNLOCK(&nrmac->sched_lock);
-    LOG_E(NR_MAC, "no RA proc for RNTI 0x%04x in Msg3/PUSCH\n", crc_pdu->rnti);
+    LOG_D(NR_MAC, "no RA proc for RNTI 0x%04x in Msg3/MsgA-PUSCH\n", crc_pdu->rnti);
     return;
   }
   if (nrmac->radio_config.disable_harq) {
@@ -794,7 +794,7 @@ static void _nr_rx_sdu(const module_id_t gnb_mod_idP,
      * it. */
     for (int i = 0; i < NR_NB_RA_PROC_MAX; ++i) {
       NR_RA_t *ra = &gNB_mac->common_channels[CC_idP].ra[i];
-      if (ra->ra_state != nrRA_WAIT_Msg3)
+      if (ra->ra_type == RA_4_STEP && ra->ra_state != nrRA_WAIT_Msg3)
         continue;
 
       if (no_sig) {
@@ -802,22 +802,29 @@ static void _nr_rx_sdu(const module_id_t gnb_mod_idP,
         handle_msg3_failed_rx(ra, i, gNB_mac->ul_bler.harq_round_max);
         continue;
       }
-
-      // random access pusch with TC-RNTI
-      if (ra->rnti != current_rnti) {
-        LOG_D(NR_MAC, "expected TC_RNTI %04x to match current RNTI %04x\n", ra->rnti, current_rnti);
-
-        if ((frameP == ra->Msg3_frame) && (slotP == ra->Msg3_slot)) {
-          LOG_W(NR_MAC,
-                "Random Access %i failed at state %s (TC_RNTI %04x RNTI %04x)\n",
-                i,
-                nrra_text[ra->ra_state],
-                ra->rnti,
-                current_rnti);
-          nr_clear_ra_proc(ra);
+      if (ra->ra_type == RA_2_STEP) {
+        // random access pusch with RA-RNTI
+        if (ra->RA_rnti != current_rnti) {
+          LOG_E(NR_MAC, "expected TC_RNTI %04x to match current RNTI %04x\n", ra->RA_rnti, current_rnti);
+          continue;
         }
+      } else {
+        // random access pusch with TC-RNTI
+        if (ra->rnti != current_rnti) {
+          LOG_E(NR_MAC, "expected TC_RNTI %04x to match current RNTI %04x\n", ra->rnti, current_rnti);
 
-        continue;
+          if ((frameP == ra->Msg3_frame) && (slotP == ra->Msg3_slot)) {
+            LOG_W(NR_MAC,
+                  "Random Access %i failed at state %s (TC_RNTI %04x RNTI %04x)\n",
+                  i,
+                  nrra_text[ra->ra_state],
+                  ra->rnti,
+                  current_rnti);
+            nr_clear_ra_proc(ra);
+          }
+
+          continue;
+        }
       }
 
       UE = UE ? UE : add_new_nr_ue(gNB_mac, ra->rnti, ra->CellGroup);
@@ -862,8 +869,13 @@ static void _nr_rx_sdu(const module_id_t gnb_mod_idP,
         process_addmod_bearers_cellGroupConfig(&UE->UE_sched_ctrl, ra->CellGroup->rlc_BearerToAddModList);
         nr_clear_ra_proc(ra);
       } else {
-        LOG_A(NR_MAC, "[RAPROC] RA-Msg3 received (sdu_lenP %d)\n", sdu_lenP);
-        LOG_D(NR_MAC, "[RAPROC] Received Msg3:\n");
+        LOG_A(NR_MAC,
+              "[RAPROC][%d.%d] RA %s received (sdu_lenP %d)\n",
+              frameP,
+              slotP,
+              ra->ra_type == RA_2_STEP ? "MsgA-PUSCH" : "Msg3",
+              sdu_lenP);
+        LOG_D(NR_MAC, "[RAPROC] Received %s:\n", ra->ra_type == RA_2_STEP ? "MsgA-PUSCH" : "Msg3");
         for (uint32_t k = 0; k < sdu_lenP; k++) {
           LOG_D(NR_MAC, "(%i): 0x%x\n", k, sduP[k]);
         }
