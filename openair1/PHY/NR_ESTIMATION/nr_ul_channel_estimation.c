@@ -531,14 +531,14 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    rdata->nushift = nushift;
 
    // Call the inner_channel_estimation function
-   int result = inner_channel_estimation(rdata);
+   inner_channel_estimation(rdata);
 
    // value update of rdata to be passed to the next inner call
    max_ch = rdata->max_ch;  // Placeholder for max channel value update
    noise_amp2 = rdata->noise_amp2;  // Placeholder for noise amplitude squared update
    delay->est_delay = rdata->delay->est_delay;  // Placeholder for estimated delay update
    nest_count = rdata->nest_count;  // Placeholder for nested count update
-   ul_ls_est = rdata->ul_ls_est;
+   // ul_ls_est = rdata->ul_ls_est; // Is this needed?
  }
 
  // Free the allocated memory

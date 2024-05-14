@@ -763,7 +763,7 @@ typedef struct {
   int symbolSize;
   nfapi_nr_pusch_pdu_t *pusch_pdu;
   int chest_freq;
-  c16_t pilot[3280] __attribute__((aligned(32)));
+  c16_t *pilot;
   int k0;
   int nb_rb_pusch;
   unsigned short p;
