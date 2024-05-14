@@ -5244,6 +5244,15 @@ rnti_t nr_get_ra_rnti(uint8_t s_id, uint8_t t_id, uint8_t f_id, uint8_t ul_carri
   return ra_rnti;
 }
 
+rnti_t nr_get_MsgB_rnti(uint8_t s_id, uint8_t t_id, uint8_t f_id, uint8_t ul_carrier_id)
+{
+  // 3GPP TS 38.321 Section 5.1.3a
+  rnti_t MsgB_rnti = 1 + s_id + 14 * t_id + 1120 * f_id + 8960 * ul_carrier_id + 17920;
+  LOG_D(MAC, "f_id %d t_id %d s_id %d ul_carrier_id %d Computed MsgB_RNTI is 0x%04X\n", f_id, t_id, s_id, ul_carrier_id, MsgB_rnti);
+
+  return MsgB_rnti;
+}
+
 int get_FeedbackDisabled(NR_DownlinkHARQ_FeedbackDisabled_r17_t *downlinkHARQ_FeedbackDisabled_r17, int harq_pid)
 {
   if (downlinkHARQ_FeedbackDisabled_r17 == NULL)
