@@ -91,6 +91,22 @@
 #define GNB_CONFIG_STRING_P0NOMINAL                             "p0_nominal"
 #define GNB_CONFIG_STRING_PUCCHRES                              "pucch_ResourceCommon"
 
+#define GNB_CONFIG_STRING_MSGBRESPONSEWINDOW_R16                         "msgB_ResponseWindow_r16"
+#define GNB_CONFIG_STRING_MSGARSRPTHRESHOLD_R16                          "msgA_RSRP_Threshold_r16"
+#define GNB_CONFIG_STRING_MSGACBPREAMBLESPERSHAREDRO_R16                 "msgA_CB_PreamblesPerSSB_PerSharedRO_r16"
+#define GNB_CONFIG_STRING_MSGAMCS_R16                                    "msgA_MCS_r16"
+#define GNB_CONFIG_STRING_NROFSLOTSMSGAPUSCH_R16                         "nrofSlotsMsgA_PUSCH_r16"
+#define GNB_CONFIG_STRING_NROFMSGAPOPERSLOT_R16                          "nrofMsgA_PO_PerSlot_r16"
+#define GNB_CONFIG_STRING_MSGAPUSCHTIMEDOMAINOFFSET_R16                  "msgA_PUSCH_TimeDomainOffset_r16"
+#define GNB_CONFIG_STRING_STARTSYMBOLANDLENGTHMSGA_PO_R16                "startSymbolAndLengthMsgA_PO_r16"
+#define GNB_CONFIG_STRING_MAPPINGTYPEMSGAPUSCH_R16                       "mappingTypeMsgA_PUSCH_r16"
+#define GNB_CONFIG_STRING_GUARDBANDMSGAPUSCH_R16                         "guardBandMsgA_PUSCH_r16"
+#define GNB_CONFIG_STRING_FREQUENCYSTARTMSGAPUSCH_R16                    "frequencyStartMsgA_PUSCH_r16"
+#define GNB_CONFIG_STRING_NROFPRBSPERMSGAPO_R16                          "nrofPRBs_PerMsgA_PO_r16"
+#define GNB_CONFIG_STRING_NROFMSGAPOFDM_R16                              "nrofMsgA_PO_FDM_r16"
+#define GNB_CONFIG_STRING_MSGAPUSCHNROFPORTS_R16                         "msgA_PUSCH_NrofPorts_r16"
+#define GNB_CONFIG_STRING_NROFDMRSSEQUENCES_R16                          "nrofDMRS_Sequences_r16"
+#define GNB_CONFIG_STRING_MSGATRANSFORMPRECODER_R16                      "msgA_TransformPrecoder_r16"
 
 #define GNB_CONFIG_STRING_SSBPOSITIONSINBURSTPR                          "ssb_PositionsInBurst_PR"
 #define GNB_CONFIG_STRING_SSBPOSITIONSINBURST                            "ssb_PositionsInBurst_Bitmap"
@@ -233,7 +249,7 @@
 {GNB_CONFIG_STRING_NROFUPLINKSLOTS2,NULL,0,.i64ptr=&scc->tdd_UL_DL_ConfigurationCommon->pattern2->nrofUplinkSlots,.defint64val=-1,TYPE_INT64,0},\
 {GNB_CONFIG_STRING_NROFUPLINKSYMBOLS2,NULL,0,.i64ptr=&scc->tdd_UL_DL_ConfigurationCommon->pattern2->nrofUplinkSymbols,.defint64val=-1,TYPE_INT64,0},\
 {GNB_CONFIG_STRING_SSPBCHBLOCKPOWER,NULL,0,.i64ptr=&scc->ss_PBCH_BlockPower,.defint64val=20,TYPE_INT64,0}, \
-{GNB_CONFIG_STRING_CELLSPECIFICKOFFSET,NULL,0,.i64ptr=scc->ext2->ntn_Config_r17->cellSpecificKoffset_r17,.defint64val=0,TYPE_INT64,0}, \
+{GNB_CONFIG_STRING_CELLSPECIFICKOFFSET,NULL,0,.i64ptr=scc->ext2->ntn_Config_r17->cellSpecificKoffset_r17,.defint64val=0,TYPE_INT64,0},\
 {GNB_CONFIG_STRING_MSG1SUBCARRIERSPACING,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->msg1_SubcarrierSpacing,.defintval=-1,TYPE_INT64,0}}
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -284,4 +300,25 @@
 {GNB_CONFIG_STRING_LOCATIONANDBANDWIDTH_ULBWP4,NULL,0,.i64ptr=&scd->uplinkConfig->uplinkBWP_ToAddModList->list.array[3]->bwp_Common->genericParameters.locationAndBandwidth,.defint64val=0,TYPE_INT64,0}, \
 {GNB_CONFIG_STRING_DEFAULTDLBWP_ID,NULL,0,.i64ptr=scd->defaultDownlinkBWP_Id,.defint64val=0,TYPE_INT64,0}}
 
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/*                                     Serving Cell Config Common configuration parameters to apply in RA 2-Step                                                                                                    */
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+#define MSGASCCPARAMS_DESC(scc) { \
+{GNB_CONFIG_STRING_MSGBRESPONSEWINDOW_R16,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->rach_ConfigCommonTwoStepRA_r16.rach_ConfigGenericTwoStepRA_r16.msgB_ResponseWindow_r16,.defintval=-1,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_MSGARSRPTHRESHOLD_R16,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->rach_ConfigCommonTwoStepRA_r16.msgA_RSRP_Threshold_r16,.defintval=19,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_MSGAMCS_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->msgA_MCS_r16,.defintval=2,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_NROFSLOTSMSGAPUSCH_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->nrofSlotsMsgA_PUSCH_r16,.defintval=1,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_NROFMSGAPOPERSLOT_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->nrofMsgA_PO_PerSlot_r16,.defintval=NR_MsgA_PUSCH_Resource_r16__nrofMsgA_PO_PerSlot_r16_one,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_MSGAPUSCHTIMEDOMAINOFFSET_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->msgA_PUSCH_TimeDomainOffset_r16,.defintval=0,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_STARTSYMBOLANDLENGTHMSGA_PO_R16,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->startSymbolAndLengthMsgA_PO_r16,.defintval=38,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_MAPPINGTYPEMSGAPUSCH_R16,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->mappingTypeMsgA_PUSCH_r16,.defintval=0,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_GUARDBANDMSGAPUSCH_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->guardBandMsgA_PUSCH_r16,.defintval=0,TYPE_INT64,0}, \
+{GNB_CONFIG_STRING_FREQUENCYSTARTMSGAPUSCH_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->frequencyStartMsgA_PUSCH_r16,.defintval=0,TYPE_INT64,0}, \
+{GNB_CONFIG_STRING_NROFPRBSPERMSGAPO_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->nrofPRBs_PerMsgA_PO_r16,.defintval=8,TYPE_INT64,0}, \
+{GNB_CONFIG_STRING_NROFMSGAPOFDM_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->nrofMsgA_PO_FDM_r16,.defintval=NR_MsgA_PUSCH_Resource_r16__nrofMsgA_PO_FDM_r16_one,TYPE_INT64,0}, \
+{GNB_CONFIG_STRING_MSGAPUSCHNROFPORTS_R16,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->msgA_DMRS_Config_r16.msgA_PUSCH_NrofPorts_r16,.defintval=1,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_NROFDMRSSEQUENCES_R16,NULL,0,.i64ptr=&scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16->nrofDMRS_Sequences_r16,.defintval=1,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_MSGATRANSFORMPRECODER_R16,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->msgA_PUSCH_Config_r16->msgA_TransformPrecoder_r16,.defintval=NR_MsgA_PUSCH_Config_r16__msgA_TransformPrecoder_r16_disabled,TYPE_INT64,0},\
+{GNB_CONFIG_STRING_MSGACBPREAMBLESPERSHAREDRO_R16,NULL,0,.i64ptr=scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->rach_ConfigCommonTwoStepRA_r16.msgA_CB_PreamblesPerSSB_PerSharedRO_r16,.defintval=1,TYPE_INT64,0}}
 #endif
