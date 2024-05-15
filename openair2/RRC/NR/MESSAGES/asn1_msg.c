@@ -771,6 +771,18 @@ int do_RRCReconfiguration(const gNB_RRC_UE_t *UE,
     return((enc_rval.encoded+7)/8);
 }
 
+/**
+ * @brief Encode the RRCSetupRequest message (5.3.3.3 of TS 38.331)
+ *        1) the UE sets the UE identity as follows:
+ *        - If upper layers provide a 5G-S-TMSI (ng-5G-S-TMSI):
+ *        Sets the ue-Identity to ng-5G-S-TMSI-Part1.
+ *        - Otherwise:
+ *        Draws a 39-bit random value in the range 0..239-1
+ *        and sets the ue-Identity to this value.
+ *        2) the UE sets the establishmentCause in accordance
+ *        with the information received from upper layers.
+ * @return length of encoded message in bytes
+ */
 int do_RRCSetupRequest(uint8_t *buffer, size_t buffer_size, uint8_t *rv, uint64_t fiveG_S_TMSI)
 {
   NR_UL_CCCH_Message_t ul_ccch_msg = {0};
@@ -808,8 +820,15 @@ int do_RRCSetupRequest(uint8_t *buffer, size_t buffer_size, uint8_t *rv, uint64_
     for (i = 0; i < str->size - 1; i++) {
       int shift = ((str->size - i - 1) * 8) - str->bits_unused;
       str->buf[i] = (fiveG_S_TMSI_part1 >> shift) & mask;
+#ifdef DEBUG_BITSTRING
+      LOG_D(NR_RRC, "ue-Identity: str->buf[%d] = 0x%02x\n", i, str->buf[i]);
+#endif
     }
     str->buf[i] = (fiveG_S_TMSI_part1 << str->bits_unused) & mask;
+#ifdef DEBUG_BITSTRING
+    /* Revert to long */
+    LOG_I(NR_RRC, "5G-S-TMSI-Part1 = %ld\n", BIT_STRING_to_uint64(str));
+#endif
   }
 
   rrcSetupRequest->rrcSetupRequest.establishmentCause = NR_EstablishmentCause_mo_Signalling; //EstablishmentCause_mo_Data;
