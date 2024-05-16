@@ -202,7 +202,6 @@ typedef struct f1u_tunnel_s {
 
 typedef struct drb_s {
   int status;
-  int defaultDRBid;
   int drb_id;
   int reestablishPDCP;
   int recoverPDCP;
