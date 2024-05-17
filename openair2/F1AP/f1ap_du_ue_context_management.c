@@ -170,11 +170,34 @@ int DU_handle_UE_CONTEXT_SETUP_REQUEST(instance_t instance, sctp_assoc_t assoc_i
       F1AP_ProtocolIE_ID_id_CUtoDURRCInformation, false);
   if(ieCuRrcInfo!=NULL){
     f1ap_ue_context_setup_req->cu_to_du_rrc_information = (cu_to_du_rrc_information_t *)calloc(1,sizeof(cu_to_du_rrc_information_t));
-    if(ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList!=NULL){
-      f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList = (uint8_t *)calloc(1,ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->size);
-      memcpy(f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList, ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->buf, ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->size);
-      f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList_length = ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->size;
+    cu_to_du_rrc_information_t *cu2du = f1ap_ue_context_setup_req->cu_to_du_rrc_information;
+    const F1AP_CUtoDURRCInformation_t *cu2duie = &ieCuRrcInfo->value.choice.CUtoDURRCInformation;
+    if(cu2duie->uE_CapabilityRAT_ContainerList!=NULL){
+      cu2du->uE_CapabilityRAT_ContainerList = calloc(1, cu2duie->uE_CapabilityRAT_ContainerList->size);
+      memcpy(cu2du->uE_CapabilityRAT_ContainerList,
+             cu2duie->uE_CapabilityRAT_ContainerList->buf,
+             cu2duie->uE_CapabilityRAT_ContainerList->size);
+      cu2du->uE_CapabilityRAT_ContainerList_length = cu2duie->uE_CapabilityRAT_ContainerList->size;
       LOG_D(F1AP, "Size f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList_length: %d \n", f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList_length);
+    }
+    if (cu2duie->iE_Extensions != NULL) {
+      const F1AP_ProtocolExtensionContainer_10696P60_t *ext = (const F1AP_ProtocolExtensionContainer_10696P60_t *)cu2duie->iE_Extensions;
+      for (int i = 0; i < ext->list.count; ++i) {
+        const F1AP_CUtoDURRCInformation_ExtIEs_t *cu2du_info = ext->list.array[i];
+        switch (cu2du_info->id) {
+          case F1AP_ProtocolIE_ID_id_HandoverPreparationInformation:
+            DevAssert(cu2du_info->extensionValue.present == F1AP_CUtoDURRCInformation_ExtIEs__extensionValue_PR_HandoverPreparationInformation);
+            const F1AP_HandoverPreparationInformation_t *hopi = &cu2du_info->extensionValue.choice.MeasurementTimingConfiguration;
+            cu2du->handoverPreparationInfo = calloc(1, hopi->size);
+            AssertFatal(cu2du->handoverPreparationInfo != NULL, "out of memory\n");
+            memcpy(cu2du->handoverPreparationInfo, hopi->buf, hopi->size);
+            cu2du->handoverPreparationInfo_length = hopi->size;
+            break;
+          default:
+            LOG_W(F1AP, "unsupported CUtoDURRCInformation_ExtIE %ld encountered, ignoring\n", cu2du_info->id);
+            break;
+        }
+      }
     }
   }
 

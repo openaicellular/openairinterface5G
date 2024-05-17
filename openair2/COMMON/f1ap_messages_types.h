@@ -427,6 +427,8 @@ typedef struct cu_to_du_rrc_information_s {
   uint32_t   uE_CapabilityRAT_ContainerList_length;
   uint8_t * measConfig;
   uint32_t   measConfig_length;
+  uint8_t *handoverPreparationInfo;
+  uint32_t handoverPreparationInfo_length;
 }cu_to_du_rrc_information_t;
 
 typedef struct du_to_cu_rrc_information_s {

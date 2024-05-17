@@ -272,6 +272,21 @@ int CU_send_UE_CONTEXT_SETUP_REQUEST(sctp_assoc_t assoc_id, f1ap_ue_context_setu
       OCTET_STRING_fromBuf(measConfig, (const char*)f1ap_ue_context_setup_req->cu_to_du_rrc_information->measConfig,
         f1ap_ue_context_setup_req->cu_to_du_rrc_information->measConfig_length);
     }
+
+    /* optional */
+    /* HandoverPreparationInformation */
+    if (f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo_length > 0) {
+      DevAssert(f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo != NULL);
+      F1AP_ProtocolExtensionContainer_10696P60_t *p = calloc(1, sizeof(*p));
+      ie6->value.choice.CUtoDURRCInformation.iE_Extensions = (struct F1AP_ProtocolExtensionContainer *)p;
+      asn1cSequenceAdd(p->list, F1AP_CUtoDURRCInformation_ExtIEs_t, ie_ext);
+      ie_ext->id = F1AP_ProtocolIE_ID_id_HandoverPreparationInformation;
+      ie_ext->criticality = F1AP_Criticality_ignore;
+      ie_ext->extensionValue.present = F1AP_CUtoDURRCInformation_ExtIEs__extensionValue_PR_HandoverPreparationInformation;
+      OCTET_STRING_fromBuf(&ie_ext->extensionValue.choice.HandoverPreparationInformation,
+                           (const char *)f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo,
+                           f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo_length);
+    }
   }
 
   /* optional */
