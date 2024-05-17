@@ -294,7 +294,7 @@ static void configure_dlsch(NR_UE_DLSCH_t *dlsch0,
   dlsch0->active = true;
   dlsch0->rnti = rnti;
 
-  LOG_I(PHY,"current_harq_pid = %d\n", current_harq_pid);
+  LOG_D(PHY,"current_harq_pid = %d\n", current_harq_pid);
 
   NR_DL_UE_HARQ_t *dlsch0_harq = &harq_list[current_harq_pid];
 
