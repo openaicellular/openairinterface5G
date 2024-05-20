@@ -459,6 +459,7 @@ ldpc_interface_t ldpc_interface = {0}, ldpc_interface_offload = {0};
 
 int main(int argc, char **argv)
 {
+  uint8_t ue_id = 0;
   start_background_system();
 
   if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == NULL) {
@@ -563,7 +564,7 @@ int main(int argc, char **argv)
       }
 
       UE[CC_id]->sl_mode = get_softmodem_params()->sl_mode;
-      init_nr_ue_vars(UE[CC_id], 0, abstraction_flag);
+      init_nr_ue_vars(UE[CC_id], ue_id, abstraction_flag);
 
       if (UE[CC_id]->sl_mode) {
         AssertFatal(UE[CC_id]->sl_mode == 2, "Only Sidelink mode 2 supported. Mode 1 not yet supported\n");
