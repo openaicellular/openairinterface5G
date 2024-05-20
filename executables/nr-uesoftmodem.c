@@ -401,6 +401,7 @@ static void trigger_stop(int sig)
   if (!oai_exit)
     itti_wait_tasks_unblock();
 }
+
 static void trigger_deregistration(int sig)
 {
   if (!stop_immediately) {
