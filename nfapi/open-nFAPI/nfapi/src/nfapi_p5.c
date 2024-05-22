@@ -38,6 +38,7 @@
 #include "nfapi_nr_interface_scf.h"
 #include "nfapi/oai_integration/vendor_ext.h"
 #include <debug.h>
+#include "common/utils/nr/nr_common.h"
 
 
 // Pack routines
@@ -1935,8 +1936,9 @@ static uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uin
                           end,
                           &pack_uint8_tlv_value);
     numTLVs++;
-    // END TDD Table
-    for (int i = 0; i < 2*(1<<mu)*10; i++) {
+
+    int nb_max_tdd_periodicity = get_nb_max_tdd_periodicity(mu,pNfapiMsg->tdd_table.tdd_period.value);
+    for (int i = 0; i < nb_max_tdd_periodicity; i++) {
       for (int k = 0; k < 14; k++) {
         pack_nr_tlv(NFAPI_NR_CONFIG_SLOT_CONFIG_TAG,
                     &(pNfapiMsg->tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list[k].slot_config),
@@ -1946,6 +1948,7 @@ static uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uin
         numTLVs++;
       }
     }
+    // END TDD Table
   }
   // START Measurement Config
   // SCF222.10.02 Table 3-27 : Contains only one TLV and is currently unused
@@ -3190,8 +3193,8 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
   pNfapiMsg->tdd_table.max_tdd_periodicity_list =
       (nfapi_nr_max_tdd_periodicity_t *)malloc(1 * sizeof(nfapi_nr_max_tdd_periodicity_t));
   // Initialize first, and upon receiving the SCS, reallocate memory to the correct size.
-    pNfapiMsg->tdd_table.max_tdd_periodicity_list[0].max_num_of_symbol_per_slot_list =
-        (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
+  pNfapiMsg->tdd_table.max_tdd_periodicity_list[0].max_num_of_symbol_per_slot_list =
+      (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
   pNfapiMsg->prach_config.num_prach_fd_occasions_list =
       (nfapi_nr_num_prach_fd_occasions_t *)calloc(10, sizeof(nfapi_nr_num_prach_fd_occasions_t));
   // unpack TLVs
@@ -3379,6 +3382,21 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
                                                     end);
             config_beam_idx++;
             break;
+          case NFAPI_NR_CONFIG_TDD_PERIOD_TAG:
+            printf("*** have tag %x, idx %ld\n", generic_tl.tag, idx);
+            assert(idx <= sizeof(unpack_fns) / sizeof(unpack_fns[0]));
+            result = (*unpack_fns[idx].unpack_func)(tl, ppReadPackedMsg, end);
+            uint8_t mu = pNfapiMsg->ssb_config.scs_common.value;
+            uint8_t period = pNfapiMsg->tdd_table.tdd_period.value;
+            // Memory allocations
+            int nb_max_tdd_periodicity = get_nb_max_tdd_periodicity(mu,pNfapiMsg->tdd_table.tdd_period.value);
+            pNfapiMsg->tdd_table.max_tdd_periodicity_list =
+                (nfapi_nr_max_tdd_periodicity_t *)malloc(nb_max_tdd_periodicity * sizeof(nfapi_nr_max_tdd_periodicity_t));
+            for (int i = 0; i < nb_max_tdd_periodicity; i++) {
+              pNfapiMsg->tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list =
+                  (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
+            }
+            break;
           case NFAPI_NR_CONFIG_SLOT_CONFIG_TAG:
             pNfapiMsg->tdd_table.max_tdd_periodicity_list[tdd_periodicity_idx]
                 .max_num_of_symbol_per_slot_list[symbol_per_slot_idx]
@@ -3394,19 +3412,6 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
             symbol_per_slot_idx = (symbol_per_slot_idx + 1) % 14;
             if (symbol_per_slot_idx == 0) {
               tdd_periodicity_idx++;
-            }
-            break;
-          case NFAPI_NR_CONFIG_SCS_COMMON_TAG:
-            printf("*** have tag %x, idx %ld\n", generic_tl.tag, idx);
-            assert(idx <= sizeof(unpack_fns) / sizeof(unpack_fns[0]));
-            result = (*unpack_fns[idx].unpack_func)(tl, ppReadPackedMsg, end);
-            uint8_t mu = pNfapiMsg->ssb_config.scs_common.value;
-            // Memory allocations
-            pNfapiMsg->tdd_table.max_tdd_periodicity_list =
-                (nfapi_nr_max_tdd_periodicity_t *)malloc(2*(1<<mu)*10 * sizeof(nfapi_nr_max_tdd_periodicity_t));
-            for (int i = 0; i < 2*(1<<mu)*10; i++) {
-              pNfapiMsg->tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list =
-                  (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
             }
             break;
           default:
@@ -3484,7 +3489,6 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
   }
   struct sockaddr_in vnf_p7_sockaddr;
   memcpy(&vnf_p7_sockaddr.sin_addr.s_addr, &(pNfapiMsg->nfapi_config.p7_vnf_address_ipv4), 4);
-
   printf("[PNF] vnf p7 %s:%d\n", inet_ntoa(vnf_p7_sockaddr.sin_addr), pNfapiMsg->nfapi_config.p7_vnf_port.value);
   return 1;
 }

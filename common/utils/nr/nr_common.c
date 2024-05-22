@@ -388,6 +388,13 @@ int get_nb_periods_per_frame(uint8_t tdd_period)
   return nb_periods_per_frame;
 }
 
+int get_nb_max_tdd_periodicity(uint8_t mu, uint8_t tdd_period){
+  int nr_slots_frame[] = {10, 20, 40, 80, 160};
+  int slots = nr_slots_frame[mu];
+  int nb_periods_per_frame = get_nb_periods_per_frame(tdd_period);
+  return slots / nb_periods_per_frame;
+}
+
 void get_delta_arfcn(int i, uint32_t nrarfcn, uint64_t N_OFFs)
 {
   uint32_t delta_arfcn = nrarfcn - N_OFFs;
