@@ -1896,11 +1896,16 @@ static uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uin
       pack_nr_tlv(NFAPI_NR_CONFIG_TDD_PERIOD_TAG, &(pNfapiMsg->tdd_table.tdd_period), ppWritePackedMsg, end, &pack_uint8_tlv_value);
   numTLVs++;
 
-  assert(6 == pNfapiMsg->tdd_table.tdd_period.value);
-  for (int i = 0; i < 2*(1<<mu)*10; i++) {
+  // assert(6 == pNfapiMsg->tdd_table.tdd_period.value);
+  float scs2perSlot_table[] = {1,0.5,0.25,0.2,0.125,0.1,0.0625,0.05};
+  float dl_UL_TransmissionPeriodicity_table[] = {0.5,0.625,1,1.25,2,2.5,5,10};
+  int tdd_table_num = dl_UL_TransmissionPeriodicity_table[pNfapiMsg->tdd_table.tdd_period.value] / scs2perSlot_table[mu];
+  assert((int)tdd_table_num*10 == tdd_table_num*10);
+
+  for (int i = 0; i < 10*pow(2,mu); i++) {
     for (int k = 0; k < 14; k++) {
       pack_nr_tlv(NFAPI_NR_CONFIG_SLOT_CONFIG_TAG,
-                  &pNfapiMsg->tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list[k].slot_config,
+                  &pNfapiMsg->tdd_table.max_tdd_periodicity_list[i%tdd_table_num].max_num_of_symbol_per_slot_list[k].slot_config,
                   ppWritePackedMsg,
                   end,
                   &pack_uint8_tlv_value);
@@ -3144,8 +3149,8 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
   pNfapiMsg->tdd_table.max_tdd_periodicity_list =
       (nfapi_nr_max_tdd_periodicity_t *)malloc(1 * sizeof(nfapi_nr_max_tdd_periodicity_t));
   // Initialize first, and upon receiving the SCS, reallocate memory to the correct size.
-    pNfapiMsg->tdd_table.max_tdd_periodicity_list[0].max_num_of_symbol_per_slot_list =
-        (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
+  pNfapiMsg->tdd_table.max_tdd_periodicity_list[0].max_num_of_symbol_per_slot_list =
+      (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
   pNfapiMsg->prach_config.num_prach_fd_occasions_list =
       (nfapi_nr_num_prach_fd_occasions_t *)calloc(10, sizeof(nfapi_nr_num_prach_fd_occasions_t));
   // unpack TLVs
@@ -3333,6 +3338,20 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
                                                     end);
             config_beam_idx++;
             break;
+          case NFAPI_NR_CONFIG_TDD_PERIOD_TAG:
+            printf("*** have tag %x, idx %ld\n", generic_tl.tag, idx);
+            assert(idx <= sizeof(unpack_fns) / sizeof(unpack_fns[0]));
+            result = (*unpack_fns[idx].unpack_func)(tl, ppReadPackedMsg, end);
+            uint8_t mu = pNfapiMsg->ssb_config.scs_common.value;
+            uint8_t period = pNfapiMsg->tdd_table.tdd_period.value;
+            // Memory allocations
+            pNfapiMsg->tdd_table.max_tdd_periodicity_list =
+                (nfapi_nr_max_tdd_periodicity_t *)malloc(10*pow(2,mu) * sizeof(nfapi_nr_max_tdd_periodicity_t));
+            for (int i = 0; i < 10*pow(2,mu); i++) {
+              pNfapiMsg->tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list =
+                  (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
+            }
+            break;
           case NFAPI_NR_CONFIG_SLOT_CONFIG_TAG:
             pNfapiMsg->tdd_table.max_tdd_periodicity_list[tdd_periodicity_idx]
                 .max_num_of_symbol_per_slot_list[symbol_per_slot_idx]
@@ -3348,19 +3367,6 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
             symbol_per_slot_idx = (symbol_per_slot_idx + 1) % 14;
             if (symbol_per_slot_idx == 0) {
               tdd_periodicity_idx++;
-            }
-            break;
-          case NFAPI_NR_CONFIG_SCS_COMMON_TAG:
-            printf("*** have tag %x, idx %ld\n", generic_tl.tag, idx);
-            assert(idx <= sizeof(unpack_fns) / sizeof(unpack_fns[0]));
-            result = (*unpack_fns[idx].unpack_func)(tl, ppReadPackedMsg, end);
-            uint8_t mu = pNfapiMsg->ssb_config.scs_common.value;
-            // Memory allocations
-            pNfapiMsg->tdd_table.max_tdd_periodicity_list =
-                (nfapi_nr_max_tdd_periodicity_t *)malloc(2*(1<<mu)*10 * sizeof(nfapi_nr_max_tdd_periodicity_t));
-            for (int i = 0; i < 2*(1<<mu)*10; i++) {
-              pNfapiMsg->tdd_table.max_tdd_periodicity_list[i].max_num_of_symbol_per_slot_list =
-                  (nfapi_nr_max_num_of_symbol_per_slot_t *)malloc(14 * sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
             }
             break;
           default:
