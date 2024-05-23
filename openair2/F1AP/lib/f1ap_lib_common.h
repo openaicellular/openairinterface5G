@@ -99,4 +99,7 @@ bool eq_f1ap_tx_bandwidth(const struct f1ap_transmission_bandwidth_t *a, const s
 struct OCTET_STRING;
 uint8_t *cp_octet_string(const struct OCTET_STRING *os, int *len);
 
+struct f1ap_setup_req_s;
+void dump_f1ap_setup_req(const struct f1ap_setup_req_s *req);
+
 #endif /* F1AP_LIB_COMMON_H_ */

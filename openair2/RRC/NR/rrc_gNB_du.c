@@ -204,7 +204,7 @@ void rrc_gNB_process_f1_setup_req(f1ap_setup_req_t *req, sctp_assoc_t assoc_id)
   DevAssert(rrc);
 
   LOG_I(NR_RRC, "Received F1 Setup Request from gNB_DU %lu (%s) on assoc_id %d\n", req->gNB_DU_id, req->gNB_DU_name, assoc_id);
-
+  dump_f1ap_setup_req(req);
   // check:
   // - it is one cell
   // - PLMN and Cell ID matches
