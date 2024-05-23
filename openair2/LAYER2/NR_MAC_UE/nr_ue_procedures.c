@@ -104,6 +104,7 @@ random-access procedure
 @returns timing advance or 0xffff if preamble doesn't match
 */
 static void nr_ue_process_rar(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info, int pdu_id);
+int get_sum_delta_pucch(NR_UE_MAC_INST_t *mac, int slot, frame_t frame);
 
 int get_pucch0_mcs(const int O_ACK, const int O_SR, const int ack_payload, const int sr_payload)
 {
@@ -1410,6 +1411,7 @@ void set_harq_status(NR_UE_MAC_INST_t *mac,
 
 int nr_ue_configure_pucch(NR_UE_MAC_INST_t *mac,
                            int slot,
+                           frame_t frame,
                            uint16_t rnti,
                            PUCCH_sched_t *pucch,
                            fapi_nr_ul_config_pucch_pdu *pucch_pdu)
@@ -1608,10 +1610,12 @@ int nr_ue_configure_pucch(NR_UE_MAC_INST_t *mac,
         return -1;
     }
 
+    int sum_delta_pucch = get_sum_delta_pucch(mac, slot, frame);
+
     pucch_pdu->pucch_tx_power = get_pucch_tx_power_ue(mac,
                                                       scs,
                                                       pucch_Config,
-                                                      pucch->delta_pucch,
+                                                      sum_delta_pucch,
                                                       pucch_pdu->format_type,
                                                       pucch_pdu->prb_size,
                                                       pucch_pdu->freq_hop_flag,
@@ -1658,7 +1662,7 @@ int nr_ue_configure_pucch(NR_UE_MAC_INST_t *mac,
 int16_t get_pucch_tx_power_ue(NR_UE_MAC_INST_t *mac,
                               int scs,
                               NR_PUCCH_Config_t *pucch_Config,
-                              int delta_pucch,
+                              int sum_delta_pucch,
                               uint8_t format_type,
                               uint16_t nb_of_prbs,
                               uint8_t freq_hop_flag,
@@ -1695,7 +1699,7 @@ int16_t get_pucch_tx_power_ue(NR_UE_MAC_INST_t *mac,
     G_b_f_c = 0;
   }
   else {
-    G_b_f_c = delta_pucch;
+    G_b_f_c = sum_delta_pucch;
     LOG_E(MAC,"PUCCH Transmit power control command not yet implemented for NR\n");
     return (PUCCH_POWER_DEFAULT);
   }
@@ -2391,7 +2395,6 @@ bool get_downlink_ack(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, PUCCH_sche
             res_ind = temp_ind;
             pucch->n_CCE = current_harq->n_CCE;
             pucch->N_CCE = current_harq->N_CCE;
-            pucch->delta_pucch = current_harq->delta_pucch;
             LOG_D(NR_MAC,"%4d.%2d Sent %d ack on harq pid %d\n", frame, slot, current_harq->ack, dl_harq_pid);
           }
         }
@@ -4121,4 +4124,20 @@ int16_t compute_nr_SSB_PL(NR_UE_MAC_INST_t *mac, short ssb_rsrp_dBm)
         pow(10, ssb_rsrp_dBm/10));
 
   return pathloss;
+}
+
+// This is not entirely correct. In certain k2/k1/k0 settings we might postpone accumulating delta_PUCCH until next HARQ feedback
+// slot. The correct way to do this would be to calculate the K_PUCCH (delta_PUCCH summation window end) for each PUCCH occasion and
+// compare PUCCH transmission symbol with the reception symbol of the DCI containing delta_PUCCH to determine if the delta_PUCCH
+// should be added at each occasion.
+int get_sum_delta_pucch(NR_UE_MAC_INST_t *mac, int slot, frame_t frame)
+{
+  int delta_tpc_sum = 0;
+  for (int i = 0; i < NR_MAX_HARQ_PROCESSES; i++) {
+    if (mac->dl_harq_info[i].active && mac->dl_harq_info[i].ul_slot == slot && mac->dl_harq_info[i].ul_frame == frame) {
+      delta_tpc_sum += mac->dl_harq_info[i].delta_pucch;
+      mac->dl_harq_info[i].delta_pucch = 0;
+    }
+  }
+  return delta_tpc_sum;
 }
