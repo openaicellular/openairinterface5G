@@ -536,12 +536,16 @@ static void abort_nr_ul_harq(NR_UE_info_t *UE, int8_t harq_pid)
     sched_ctrl->sched_ul_bytes = 0;
 }
 
-static bool get_UE_waiting_CFRA_msg3(const gNB_MAC_INST *gNB_mac, const int CC_id, const frame_t frame, const sub_frame_t slot)
+static bool get_UE_waiting_CFRA_msg3(const gNB_MAC_INST *gNB_mac,
+                                     const int CC_id,
+                                     const frame_t frame,
+                                     const sub_frame_t slot,
+                                     rnti_t rnti)
 {
   bool UE_waiting_CFRA_msg3 = false;
   for (int i = 0; i < NR_NB_RA_PROC_MAX; i++) {
     const NR_RA_t *ra = &gNB_mac->common_channels[CC_id].ra[i];
-    if (ra->cfra == true && ra->ra_state == nrRA_WAIT_Msg3 && frame == ra->Msg3_frame && slot == ra->Msg3_slot) {
+    if (ra->cfra && ra->ra_state == nrRA_WAIT_Msg3 && frame == ra->Msg3_frame && slot == ra->Msg3_slot && rnti == ra->rnti) {
       UE_waiting_CFRA_msg3 = true;
       break;
     }
@@ -559,7 +563,7 @@ void handle_nr_ul_harq(const int CC_idP,
   NR_SCHED_LOCK(&nrmac->sched_lock);
 
   NR_UE_info_t *UE = find_nr_UE(&nrmac->UE_info, crc_pdu->rnti);
-  bool UE_waiting_CFRA_msg3 = get_UE_waiting_CFRA_msg3(nrmac, CC_idP, frame, slot);
+  bool UE_waiting_CFRA_msg3 = get_UE_waiting_CFRA_msg3(nrmac, CC_idP, frame, slot, crc_pdu->rnti);
 
   if (!UE || UE_waiting_CFRA_msg3 == true) {
     LOG_D(NR_MAC, "handle harq for rnti %04x, in RA process\n", crc_pdu->rnti);
@@ -675,7 +679,7 @@ static void _nr_rx_sdu(const module_id_t gnb_mod_idP,
   const int pusch_failure_thres = gNB_mac->pusch_failure_thres;
 
   NR_UE_info_t *UE = find_nr_UE(&gNB_mac->UE_info, current_rnti);
-  bool UE_waiting_CFRA_msg3 = get_UE_waiting_CFRA_msg3(gNB_mac, CC_idP, frameP, slotP);
+  bool UE_waiting_CFRA_msg3 = get_UE_waiting_CFRA_msg3(gNB_mac, CC_idP, frameP, slotP, current_rnti);
 
   if (UE && UE_waiting_CFRA_msg3 == false) {
 
