@@ -520,6 +520,11 @@ void ue_context_modification_request(const f1ap_ue_context_modif_req_t *req)
   } else {
     ASN_STRUCT_FREE(asn_DEF_NR_CellGroupConfig, new_CellGroup); // we actually don't need it
   }
+
+  if (req->transm_action_ind != NULL) {
+    AssertFatal(*req->transm_action_ind == TransmActionInd_STOP, "Transmission Action Indicator restart not handled yet\n");
+    nr_transmission_action_indicator_stop(UE);
+  }
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
   /* some sanity checks, since we use the same type for request and response */

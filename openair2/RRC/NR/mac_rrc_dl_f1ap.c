@@ -154,6 +154,11 @@ static void ue_context_modification_request_f1ap(sctp_assoc_t assoc_id, const f1
     f1ap_msg->rrc_container_length = req->rrc_container_length;
     memcpy(f1ap_msg->rrc_container, req->rrc_container, req->rrc_container_length);
   }
+  if (req->transm_action_ind != NULL) {
+    f1ap_msg->transm_action_ind = malloc(sizeof *f1ap_msg->transm_action_ind);
+    AssertFatal(f1ap_msg->transm_action_ind != NULL, "out of memory\n");
+    *f1ap_msg->transm_action_ind = *req->transm_action_ind;
+  }
   itti_send_msg_to_task(TASK_CU_F1, 0, msg);
 }
 

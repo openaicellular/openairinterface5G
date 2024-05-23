@@ -3013,6 +3013,15 @@ int nr_mac_enable_ue_rrc_processing_timer(gNB_MAC_INST *mac, NR_UE_info_t *UE, b
   return 0;
 }
 
+int nr_transmission_action_indicator_stop(NR_UE_info_t *UE_info)
+{
+  /* UINT_MAX -> indefinite expiry */
+  nr_timer_setup(&UE_info->UE_sched_ctrl.transmission_stop, UINT_MAX, 1);
+  nr_timer_start(&UE_info->UE_sched_ctrl.transmission_stop);
+  LOG_I(NR_MAC, "gNB-DU received the TransmissionActionIndicator with Stop value for UE %04x\n", UE_info->rnti);
+  return 0;
+}
+
 void nr_mac_release_ue(gNB_MAC_INST *mac, int rnti)
 {
   NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);

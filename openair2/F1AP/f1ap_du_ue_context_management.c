@@ -910,6 +910,22 @@ int DU_handle_UE_CONTEXT_MODIFICATION_REQUEST(instance_t instance, sctp_assoc_t 
   F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextModificationRequestIEs_t, ieSrb, container,
       F1AP_ProtocolIE_ID_id_SRBs_ToBeSetupMod_List, false);
 
+  F1AP_UEContextModificationRequestIEs_t *ieTxInd;
+  F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextModificationRequestIEs_t,
+                             ieTxInd,
+                             container,
+                             F1AP_ProtocolIE_ID_id_TransmissionActionIndicator,
+                             false);
+
+  if (ieTxInd != NULL) {
+    f1ap_ue_context_modification_req->transm_action_ind = calloc(1, sizeof(*f1ap_ue_context_modification_req->transm_action_ind));
+    AssertFatal(f1ap_ue_context_modification_req->transm_action_ind != NULL, "out of memory\n");
+    *f1ap_ue_context_modification_req->transm_action_ind = ieTxInd->value.choice.TransmissionActionIndicator;
+    // Stop is guaranteed to be 0, by restart might be different from 1
+    static_assert((int)F1AP_TransmissionActionIndicator_restart == (int)TransmActionInd_RESTART,
+                  "mismatch of ASN.1 and internal representation\n");
+  }
+
   if(ieSrb != NULL) {
     f1ap_ue_context_modification_req->srbs_to_be_setup_length = ieSrb->value.choice.SRBs_ToBeSetupMod_List.list.count;
     f1ap_ue_context_modification_req->srbs_to_be_setup = calloc(f1ap_ue_context_modification_req->srbs_to_be_setup_length,
