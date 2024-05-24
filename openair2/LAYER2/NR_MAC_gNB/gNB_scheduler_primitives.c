@@ -53,6 +53,8 @@
 #include "uper_encoder.h"
 #include "uper_decoder.h"
 
+#include "SIMULATION/TOOLS/sim.h" // for taus
+
 #define ENABLE_MAC_PAYLOAD_DEBUG
 #define DEBUG_gNB_SCHEDULER 1
 
@@ -3304,4 +3306,27 @@ bool nr_mac_remove_lcid(NR_UE_sched_ctrl_t *sched_ctrl, long lcid)
 
   seq_arr_erase(&sched_ctrl->lc_config, elm.it);
   return true;
+}
+
+static const NR_RA_t *find_nr_RA_rnti(const NR_RA_t *ra_base, int ra_count, rnti_t rnti)
+{
+  for (int i = 0; i < ra_count; ++i) {
+    const NR_RA_t *ra = &ra_base[i];
+    if (ra->ra_state != nrRA_gNB_IDLE && ra->rnti == rnti)
+      return ra;
+  }
+  return NULL;
+}
+
+bool nr_mac_get_new_rnti(NR_UEs_t *UEs, const NR_RA_t *ra_base, int ra_count, rnti_t *rnti)
+{
+  int loop = 0;
+  bool exist_connected_ue, exist_in_pending_ra_ue;
+  do {
+    *rnti = (taus() % 0xffef) + 1;
+    exist_connected_ue = find_nr_UE(UEs, *rnti) != NULL;
+    exist_in_pending_ra_ue = find_nr_RA_rnti(ra_base, ra_count, *rnti) != NULL;
+    loop++;
+  } while (loop < 100 && (exist_connected_ue || exist_in_pending_ra_ue));
+  return loop < 100; // nothing found: loop count 100
 }
