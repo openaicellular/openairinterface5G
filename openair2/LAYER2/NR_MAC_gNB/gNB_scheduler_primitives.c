@@ -2964,6 +2964,11 @@ static void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t 
     if (LOG_DEBUGFLAG(DEBUG_ASN1))
       xer_fprint(stdout, &asn_DEF_NR_CellGroupConfig, (const void *)UE->CellGroup);
 
+    /* remove a reconfigurationWithSync, we don't need it anymore */
+    if (UE->CellGroup->spCellConfig->reconfigurationWithSync != NULL) {
+      ASN_STRUCT_FREE(asn_DEF_NR_ReconfigurationWithSync, UE->CellGroup->spCellConfig->reconfigurationWithSync);
+      UE->CellGroup->spCellConfig->reconfigurationWithSync = NULL;
+    }
     /* remove the rlc_BearerToReleaseList, we don't need it anymore */
     if (UE->CellGroup->rlc_BearerToReleaseList != NULL) {
       struct NR_CellGroupConfig__rlc_BearerToReleaseList *l = UE->CellGroup->rlc_BearerToReleaseList;

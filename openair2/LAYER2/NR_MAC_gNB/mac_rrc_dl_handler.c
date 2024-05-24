@@ -26,6 +26,7 @@
 #include "openair2/F1AP/f1ap_common.h"
 #include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
 #include "F1AP_CauseRadioNetwork.h"
+#include "NR_HandoverPreparationInformation.h"
 #include "openair3/ocp-gtpu/gtp_itf.h"
 #include "openair2/LAYER2/nr_pdcp/nr_pdcp_oai_api.h"
 
@@ -351,6 +352,35 @@ static NR_UE_NR_Capability_t *get_ue_nr_cap(int rnti, uint8_t *buf, uint32_t len
   return cap;
 }
 
+/* \brief return UE capabilties from HandoverPreparationInformation.
+ *
+ * The HandoverPreparationInformation contains more, but for the moment, let's
+ * keep it simple and only handle that. The function asserts if other IEs are
+ * present. */
+static NR_UE_NR_Capability_t *get_ue_nr_cap_from_ho_prep_info(uint8_t *buf, uint32_t len)
+{
+  if (buf == NULL || len == 0)
+    return NULL;
+  NR_HandoverPreparationInformation_t *hpi = NULL;
+  asn_dec_rval_t dec_rval = uper_decode_complete(NULL, &asn_DEF_NR_HandoverPreparationInformation, (void **)&hpi, buf, len);
+  if (dec_rval.code != RC_OK) {
+    LOG_W(NR_MAC, "cannot decode HandoverPreparationInformation, ignoring capabilities\n");
+    return NULL;
+  }
+  NR_UE_NR_Capability_t *cap = NULL;
+  if (hpi->criticalExtensions.present != NR_HandoverPreparationInformation__criticalExtensions_PR_c1
+      || hpi->criticalExtensions.choice.c1 == NULL
+      || hpi->criticalExtensions.choice.c1->present
+             != NR_HandoverPreparationInformation__criticalExtensions__c1_PR_handoverPreparationInformation
+      || hpi->criticalExtensions.choice.c1->choice.handoverPreparationInformation == NULL) {
+  } else {
+    const NR_HandoverPreparationInformation_IEs_t *hpi_ie = hpi->criticalExtensions.choice.c1->choice.handoverPreparationInformation;
+    cap = get_nr_cap(&hpi_ie->ue_CapabilityRAT_List);
+  }
+  ASN_STRUCT_FREE(asn_DEF_NR_HandoverPreparationInformation, hpi);
+  return cap;
+}
+
 NR_CellGroupConfig_t *clone_CellGroupConfig(const NR_CellGroupConfig_t *orig)
 {
   uint8_t buf[16636];
@@ -363,6 +393,37 @@ NR_CellGroupConfig_t *clone_CellGroupConfig(const NR_CellGroupConfig_t *orig)
   return cloned;
 }
 
+static NR_UE_info_t *create_new_UE_handover(gNB_MAC_INST *mac, uint32_t cu_id)
+{
+  int CC_id = 0;
+  const NR_COMMON_channels_t *cc = &mac->common_channels[CC_id];
+  rnti_t rnti;
+  bool found = nr_mac_get_new_rnti(&mac->UE_info, cc->ra, sizeofArray(cc->ra), &rnti);
+  if (!found)
+    return NULL;
+
+  NR_UE_info_t* UE = add_new_nr_ue(mac, rnti, NULL);
+  if (!UE)
+    return NULL;
+
+  f1_ue_data_t new_ue_data = {.secondary_ue = cu_id};
+  du_add_f1_ue_data(rnti, &new_ue_data);
+
+  const NR_ServingCellConfigCommon_t *scc = mac->common_channels[CC_id].ServingCellConfigCommon;
+  const NR_ServingCellConfig_t *sccd = mac->common_channels[CC_id].pre_ServingCellConfig;
+  NR_CellGroupConfig_t *cellGroupConfig = get_initial_cellGroupConfig(UE->uid, scc, sccd, &mac->radio_config);
+  // note: we don't pass it to add_new_nr_ue() because the internal logic is
+  // such that we then assume having received the ack of Msg4 (which is not the
+  // case)
+  UE->CellGroup = cellGroupConfig;
+  UE->CellGroup->spCellConfig->reconfigurationWithSync = get_reconfiguration_with_sync(UE->rnti, UE->uid, scc);
+
+  nr_rlc_activate_srb0(UE->rnti, UE, NULL);
+
+  nr_mac_prepare_ra_ue(mac, rnti, UE->CellGroup);
+  return UE;
+}
+
 void ue_context_setup_request(const f1ap_ue_context_setup_t *req)
 {
   gNB_MAC_INST *mac = RC.nrmac[0];
@@ -372,19 +433,34 @@ void ue_context_setup_request(const f1ap_ue_context_setup_t *req)
     .gNB_DU_ue_id = req->gNB_DU_ue_id,
   };
 
+  /* gNB-DU UE ID is optional. As of now, the F1AP module fills -1 (on uint, so
+   * 0xffffffff), but the DU uses the RNTI, so check if it's a legal RNTI in
+   * which case we consider; if not, assume no DU UE ID given */
+  bool ue_id_provided = resp.gNB_DU_ue_id < 0xffff;
+
   NR_UE_NR_Capability_t *ue_cap = NULL;
   if (req->cu_to_du_rrc_information != NULL) {
-    AssertFatal(req->cu_to_du_rrc_information->cG_ConfigInfo == NULL, "CG-ConfigInfo not handled\n");
-    ue_cap = get_ue_nr_cap(req->gNB_DU_ue_id,
-                           req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList,
-                           req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList_length);
-    AssertFatal(req->cu_to_du_rrc_information->measConfig == NULL, "MeasConfig not handled\n");
+    const cu_to_du_rrc_information_t *cu2du = req->cu_to_du_rrc_information;
+    AssertFatal(cu2du->cG_ConfigInfo == NULL, "CG-ConfigInfo not handled\n");
+    if (cu2du->handoverPreparationInfo != NULL) {
+      ue_cap = get_ue_nr_cap_from_ho_prep_info(cu2du->handoverPreparationInfo, cu2du->handoverPreparationInfo_length);
+    } else if (cu2du->uE_CapabilityRAT_ContainerList != NULL) {
+      ue_cap = get_ue_nr_cap(req->gNB_DU_ue_id, cu2du->uE_CapabilityRAT_ContainerList, cu2du->uE_CapabilityRAT_ContainerList_length);
+    }
+    AssertFatal(cu2du->measConfig == NULL, "MeasConfig not handled\n");
   }
 
   NR_SCHED_LOCK(&mac->sched_lock);
 
-  NR_UE_info_t *UE = find_nr_UE(&RC.nrmac[0]->UE_info, req->gNB_DU_ue_id);
-  AssertFatal(UE, "did not find UE with RNTI %04x, but UE Context Setup Failed not implemented\n", req->gNB_DU_ue_id);
+  NR_UE_info_t *UE = NULL;
+  if (!ue_id_provided) {
+    UE = create_new_UE_handover(mac, req->gNB_CU_ue_id);
+    resp.gNB_DU_ue_id = UE->rnti;
+    resp.crnti = &UE->rnti;
+  } else {
+    UE = find_nr_UE(&mac->UE_info, req->gNB_DU_ue_id);
+  }
+  AssertFatal(UE, "no UE found or could not be created, but UE Context Setup Failed not implemented\n");
 
   NR_CellGroupConfig_t *new_CellGroup = clone_CellGroupConfig(UE->CellGroup);
 
@@ -414,6 +490,14 @@ void ue_context_setup_request(const f1ap_ue_context_setup_t *req)
     // store the new UE capabilities, and update the cellGroupConfig
     NR_ServingCellConfigCommon_t *scc = mac->common_channels[0].ServingCellConfigCommon;
     update_cellGroupConfig(new_CellGroup, UE->uid, UE->capability, &mac->radio_config, scc);
+  }
+
+  if (!ue_id_provided) {
+    /* new UE: tell the UE to reestablish RLC */
+    struct NR_CellGroupConfig__rlc_BearerToAddModList *addmod = UE->CellGroup->rlc_BearerToAddModList;
+    for (int i = 0; i < addmod->list.count; ++i) {
+      asn1cCallocOne(addmod->list.array[i]->reestablishRLC, NR_RLC_BearerConfig__reestablishRLC_true);
+    }
   }
 
   resp.du_to_cu_rrc_information = calloc(1, sizeof(du_to_cu_rrc_information_t));
