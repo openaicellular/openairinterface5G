@@ -1126,6 +1126,9 @@ void nr_ue_dl_scheduler(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info
 
 static bool check_pucchres_for_pending_SR(NR_PUCCH_Config_t *pucch_Config, int target_sr_id)
 {
+  if (!pucch_Config || !pucch_Config->schedulingRequestResourceToAddModList)
+    return false;
+
   for (int id = 0; id < pucch_Config->schedulingRequestResourceToAddModList->list.count; id++) {
     NR_SchedulingRequestResourceConfig_t *sr_Config = pucch_Config->schedulingRequestResourceToAddModList->list.array[id];
     if (sr_Config->schedulingRequestID == target_sr_id)  {
@@ -1198,7 +1201,8 @@ static void nr_update_sr(NR_UE_MAC_INST_t *mac)
         sr->pending = false;
         sr->counter = 0;
         nr_timer_stop(&sr->prohibitTimer);
-        schedule_RA_after_SR_failure(mac);
+        LOG_E(NR_MAC, "No valid PUCCH for the pending SR (TODO we should trigger RA but it doesn't seem to work)\n");
+        //schedule_RA_after_SR_failure(mac);
       }
     }
   }
