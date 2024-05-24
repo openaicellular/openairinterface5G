@@ -666,6 +666,7 @@ static void generateSecurityModeComplete(nr_ue_nas_t *nas, as_nas_info_t *initia
   /* ciphering */
   uint8_t buf[initialNasMsg->length - 7];
   stream_cipher.context    = nas->security_container->ciphering_context;
+  AssertFatal(nas->security.nas_count_ul <= 0xffffff, "fatal: NAS COUNT UL too big (todo: fix that)\n");
   stream_cipher.count      = nas->security.nas_count_ul;
   stream_cipher.bearer     = 1;
   stream_cipher.direction  = 0;
@@ -812,6 +813,7 @@ static void generateRegistrationComplete(nr_ue_nas_t *nas, as_nas_info_t *initia
   /* ciphering */
   uint8_t buf[initialNasMsg->length - 7];
   stream_cipher.context    = nas->security_container->ciphering_context;
+  AssertFatal(nas->security.nas_count_ul <= 0xffffff, "fatal: NAS COUNT UL too big (todo: fix that)\n");
   stream_cipher.count      = nas->security.nas_count_ul;
   stream_cipher.bearer     = 1;
   stream_cipher.direction  = 0;
@@ -886,6 +888,7 @@ static void generateDeregistrationRequest(nr_ue_nas_t *nas, as_nas_info_t *initi
   /* ciphering */
   uint8_t buf[initialNasMsg->length - 7];
   stream_cipher.context    = nas->security_container->ciphering_context;
+  AssertFatal(nas->security.nas_count_ul <= 0xffffff, "fatal: NAS COUNT UL too big (todo: fix that)\n");
   stream_cipher.count      = nas->security.nas_count_ul;
   stream_cipher.bearer     = 1;
   stream_cipher.direction  = 0;
@@ -991,6 +994,7 @@ static void generatePduSessionEstablishRequest(nr_ue_nas_t *nas, as_nas_info_t *
   /* ciphering */
   uint8_t buf[initialNasMsg->length - 7];
   stream_cipher.context    = nas->security_container->ciphering_context;
+  AssertFatal(nas->security.nas_count_ul <= 0xffffff, "fatal: NAS COUNT UL too big (todo: fix that)\n");
   stream_cipher.count      = nas->security.nas_count_ul;
   stream_cipher.bearer     = 1;
   stream_cipher.direction  = 0;
