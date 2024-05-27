@@ -788,11 +788,11 @@ bool eq_f1ap_setup_response(const f1ap_setup_resp_t *a, const f1ap_setup_resp_t 
       if (!eq_f1ap_plmn(&a->cells_to_activate[i].plmn, &b->cells_to_activate[i].plmn))
         return false;
       for (int j = 0; j < b->cells_to_activate[i].num_SI; j++) {
-        CHECK_AND_RETURN_FALSE(*a->cells_to_activate[i].SI_container[j] == *b->cells_to_activate[i].SI_container[j],
+        EQUALITY_CHECK(*a->cells_to_activate[i].SI_container[j] == *b->cells_to_activate[i].SI_container[j],
           "a=%d, b=%d", *a->cells_to_activate[i].SI_container[j], *b->cells_to_activate[i].SI_container[j]);
-        CHECK_AND_RETURN_FALSE(a->cells_to_activate[i].SI_container_length[j] == b->cells_to_activate[i].SI_container_length[j],
+        EQUALITY_CHECK(a->cells_to_activate[i].SI_container_length[j] == b->cells_to_activate[i].SI_container_length[j],
           "a=%d, b=%d", a->cells_to_activate[i].SI_container_length[j], b->cells_to_activate[i].SI_container_length[j]);
-        CHECK_AND_RETURN_FALSE(a->cells_to_activate[i].SI_type[j] ==  b->cells_to_activate[i].SI_type[j],
+        EQUALITY_CHECK(a->cells_to_activate[i].SI_type[j] ==  b->cells_to_activate[i].SI_type[j],
           "a=%d, b=%d", a->cells_to_activate[i].SI_type[j], b->cells_to_activate[i].SI_type[j]);
       }
     }
