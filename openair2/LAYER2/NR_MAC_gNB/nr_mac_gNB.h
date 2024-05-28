@@ -121,8 +121,15 @@ typedef enum {
   nrRA_Msg4 = 4,
   nrRA_WAIT_Msg4_ACK = 5,
 } RA_gNB_state_t;
+
 static const char *const nrra_text[] =
     {"IDLE", "Msg2", "WAIT_Msg3", "Msg3_retransmission", "Msg3_dcch_dtch", "Msg4", "WAIT_Msg4_ACK"};
+
+typedef struct {
+  int idx;
+  bool new_beam;
+} NR_beam_alloc_stuct_t;
+
 typedef struct nr_pdsch_AntennaPorts_t {
   int N1;
   int N2;
@@ -202,7 +209,7 @@ typedef struct {
   /// Msg3 time domain allocation index
   int Msg3_tda_id;
   /// Msg3 beam matrix index
-  int Msg3_beam_idx;
+  NR_beam_alloc_stuct_t Msg3_beam;
   /// harq_pid used for Msg4 transmission
   uint8_t harq_pid;
   /// UE RNTI allocated during RAR

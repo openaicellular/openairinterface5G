@@ -1326,15 +1326,15 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
     else { // unoccupied occasion
       // checking if in ul_slot the resources potentially to be assigned to this PUCCH are available
       set_pucch_allocation(ul_bwp, r_pucch, bwp_size, curr_pucch);
-      int beam = beam_allocation_procedure(&mac->beam_info, pucch_frame, pucch_slot, beam_index, n_slots_frame);
-      if (beam < 0) {
+      NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&mac->beam_info, pucch_frame, pucch_slot, beam_index, n_slots_frame);
+      if (beam.idx < 0) {
         LOG_D(NR_MAC,
               "DL %4d.%2d, UL_ACK %4d.%2d beam resources for this occasion are already occupied, move to the following occasion\n",
               frame, slot, pucch_frame, pucch_slot);
         continue;
       }
       const int index = ul_buffer_index(pucch_frame, pucch_slot, ul_bwp->scs, mac->vrb_map_UL_size);
-      uint16_t *vrb_map_UL = &mac->common_channels[CC_id].vrb_map_UL[beam][index * MAX_BWP_SIZE];
+      uint16_t *vrb_map_UL = &mac->common_channels[CC_id].vrb_map_UL[beam.idx][index * MAX_BWP_SIZE];
       bool ret = test_pucch0_vrb_occupation(curr_pucch,
                                             vrb_map_UL,
                                             bwp_start,
@@ -1343,6 +1343,8 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
         LOG_D(NR_MAC,
               "DL %4d.%2d, UL_ACK %4d.%2d PRB resources for this occasion are already occupied, move to the following occasion\n",
               frame, slot, pucch_frame, pucch_slot);
+        if (beam.new_beam)
+          reset_beam_status(&mac->beam_info, pucch_frame, pucch_slot, beam_index, n_slots_frame);
         continue;
       }
       // allocating a new PUCCH structure for this occasion

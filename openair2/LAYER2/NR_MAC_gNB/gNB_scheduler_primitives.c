@@ -3100,20 +3100,30 @@ void UL_tti_req_ahead_initialization(gNB_MAC_INST *gNB, int n, int CCid, frame_t
 }
 
 // return index of beam in period if valid or -1 if not valid
-int beam_allocation_procedure(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame)
+NR_beam_alloc_stuct_t beam_allocation_procedure(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame)
 {
+  NR_beam_alloc_stuct_t beam_struct;
+  beam_struct.new_beam = false;
+  beam_struct.idx = -1;
   // if no beam allocation for analog beamforming we always return beam index 0 (no multiple beams)
-  if(!beam_info->beam_allocation)
-    return 0;
+  if(!beam_info->beam_allocation) {
+    beam_struct.idx = 0;
+    return beam_struct;
+  }
   const int index = ((frame * slots_per_frame + slot) / beam_info->slots_in_beam_period) % beam_info->beam_allocation_size;
   for (int i = 0; i < beam_info->beams_per_period; i++) {
-    if (beam_info->beam_allocation[i][index] == -1 ||
-        beam_info->beam_allocation[i][index] == beam_index) {
+    if (beam_info->beam_allocation[i][index] == beam_index) {
+      beam_struct.idx = i;
+      return beam_struct;
+    }
+    if (beam_info->beam_allocation[i][index] == -1) {
       beam_info->beam_allocation[i][index] = beam_index;
-      return i;
+      beam_struct.new_beam = true;
+      beam_struct.idx = i;
+      return beam_struct;
     }
   }
-  return -1;
+  return beam_struct;
 }
 
 void reset_beam_status(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame)
