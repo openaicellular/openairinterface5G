@@ -184,11 +184,11 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
               ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
               // if start symbol is in current slot, schedule current SSB, fill VRB map and call get_type0_PDCCH_CSS_config_parameters
               if ((ssb_start_symbol / 14) == rel_slot){
-                int beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
-                AssertFatal(beam >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
+                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
+                AssertFatal(beam.idx >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
                 const int prb_offset = offset_pointa >> scs;
                 schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, ssbSubcarrierOffset, offset_pointa, mib_pdu);
-                fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset, ssb_start_symbol, CC_id, beam);
+                fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset, ssb_start_symbol, CC_id, beam.idx);
                 if (get_softmodem_params()->sa == 1) {
                   get_type0_PDCCH_CSS_config_parameters(&gNB->type0_PDCCH_CSS_config[i_ssb],
                                                         frameP,
@@ -215,11 +215,11 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
               ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
               // if start symbol is in current slot, schedule current SSB, fill VRB map and call get_type0_PDCCH_CSS_config_parameters
               if ((ssb_start_symbol / 14) == rel_slot){
-                int beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
-                AssertFatal(beam >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
+                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
+                AssertFatal(beam.idx >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
                 const int prb_offset = offset_pointa >> scs;
                 schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, ssbSubcarrierOffset, offset_pointa, mib_pdu);
-                fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset, ssb_start_symbol, CC_id, beam);
+                fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset, ssb_start_symbol, CC_id, beam.idx);
                 if (get_softmodem_params()->sa == 1) {
                   get_type0_PDCCH_CSS_config_parameters(&gNB->type0_PDCCH_CSS_config[i_ssb],
                                                         frameP,
@@ -246,11 +246,11 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
               ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
               // if start symbol is in current slot, schedule current SSB, fill VRB map and call get_type0_PDCCH_CSS_config_parameters
               if ((ssb_start_symbol / 14) == rel_slot){
-                int beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
-                AssertFatal(beam >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
+                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
+                AssertFatal(beam.idx >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
                 const int prb_offset = offset_pointa >> (scs-2); // reference 60kHz
                 schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, ssbSubcarrierOffset, offset_pointa, mib_pdu);
-                fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset >> (scs - 2), ssb_start_symbol, CC_id, beam);
+                fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset >> (scs - 2), ssb_start_symbol, CC_id, beam.idx);
                 if (get_softmodem_params()->sa == 1) {
                   get_type0_PDCCH_CSS_config_parameters(&gNB->type0_PDCCH_CSS_config[i_ssb],
                                                         frameP,
@@ -587,8 +587,8 @@ void schedule_nr_sib1(module_id_t module_idP,
        (type0_PDCCH_CSS_config->active == true)) {
 
       const int n_slots_frame = nr_slots_per_frame[*scc->ssbSubcarrierSpacing];
-      int beam = beam_allocation_procedure(&gNB_mac->beam_info, frameP, slotP, i, n_slots_frame);
-      AssertFatal(beam >= 0, "Cannot allocate SIB1 corresponding to SSB %d in any available beam\n", i);
+      NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB_mac->beam_info, frameP, slotP, i, n_slots_frame);
+      AssertFatal(beam.idx >= 0, "Cannot allocate SIB1 corresponding to SSB %d in any available beam\n", i);
       LOG_D(NR_MAC,"(%d.%d) SIB1 transmission: ssb_index %d\n", frameP, slotP, type0_PDCCH_CSS_config->ssb_index);
 
       default_table_type_t table_type = get_default_table_type(type0_PDCCH_CSS_config->type0_pdcch_ss_mux_pattern);
@@ -611,7 +611,7 @@ void schedule_nr_sib1(module_id_t module_idP,
                                            &dmrs_parms,
                                            &tda_info,
                                            candidate_idx,
-                                           beam,
+                                           beam.idx,
                                            cc->sib1_bcch_length);
 
       nfapi_nr_dl_tti_request_body_t *dl_req = &DL_req->dl_tti_request_body;
