@@ -246,17 +246,20 @@ void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, frame_t frame, sub_frame_
   }
 
   for (int CC_id = 0; CC_id < MAX_NUM_CCs; CC_id++) {
-    //mbsfn_status[CC_id] = 0;
-
+    int num_beams = 1;
+    if(gNB->beam_info.beam_allocation)
+      num_beams = gNB->beam_info.beams_per_period;
     // clear vrb_maps
-    memset(cc[CC_id].vrb_map, 0, sizeof(uint16_t) * MAX_BWP_SIZE);
+    for (int i = 0; i < num_beams; i++)
+      memset(cc[CC_id].vrb_map[i], 0, sizeof(uint16_t) * MAX_BWP_SIZE);
     // clear last scheduled slot's content (only)!
     const int num_slots = nr_slots_per_frame[*scc->ssbSubcarrierSpacing];
     const int size = gNB->vrb_map_UL_size;
     const int prev_slot = frame * num_slots + slot + size - 1;
-    uint16_t *vrb_map_UL = cc[CC_id].vrb_map_UL;
-    memcpy(&vrb_map_UL[prev_slot % size * MAX_BWP_SIZE], &gNB->ulprbbl, sizeof(uint16_t) * MAX_BWP_SIZE);
-
+    for (int i = 0; i < num_beams; i++) {
+      uint16_t *vrb_map_UL = cc[CC_id].vrb_map_UL[i];
+      memcpy(&vrb_map_UL[prev_slot % size * MAX_BWP_SIZE], &gNB->ulprbbl, sizeof(uint16_t) * MAX_BWP_SIZE);
+    }
     clear_nr_nfapi_information(gNB, CC_id, frame, slot, &sched_info->DL_req, &sched_info->TX_req, &sched_info->UL_dci_req);
   }
 
