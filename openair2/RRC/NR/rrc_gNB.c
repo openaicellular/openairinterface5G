@@ -718,6 +718,49 @@ void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const c
   nr_rrc_transfer_protected_rrc_message(rrc, ue_p, DCCH, buffer, size);
 }
 
+typedef struct deliver_ue_ctxt_modification_data_t {
+  gNB_RRC_INST *rrc;
+  f1ap_ue_context_modif_req_t *modification_req;
+  sctp_assoc_t assoc_id;
+} deliver_ue_ctxt_modification_data_t;
+static void rrc_deliver_ue_ctxt_modif_req(void *deliver_pdu_data, ue_id_t ue_id, int srb_id, char *buf, int size, int sdu_id)
+{
+  DevAssert(deliver_pdu_data != NULL);
+  deliver_ue_ctxt_modification_data_t *data = deliver_pdu_data;
+  data->modification_req->rrc_container = (uint8_t*)buf;
+  data->modification_req->rrc_container_length = size;
+  data->rrc->mac_rrc.ue_context_modification_request(data->assoc_id, data->modification_req);
+}
+void rrc_gNB_trigger_reconfiguration_for_handover(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, uint8_t *rrc_reconf, int rrc_reconf_len)
+{
+  f1_ue_data_t ue_data = cu_get_f1_ue_data(ue->rrc_ue_id);
+
+  TransmActionInd_t transmission_action_indicator = TransmActionInd_STOP;
+  RETURN_IF_INVALID_ASSOC_ID(ue_data);
+  f1ap_ue_context_modif_req_t ue_context_modif_req = {
+      .gNB_CU_ue_id = ue->rrc_ue_id,
+      .gNB_DU_ue_id = ue_data.secondary_ue,
+      .plmn.mcc = rrc->configuration.mcc[0],
+      .plmn.mnc = rrc->configuration.mnc[0],
+      .plmn.mnc_digit_length = rrc->configuration.mnc_digit_length[0],
+      .nr_cellid = rrc->nr_cellid, // TODO target cell ID
+      .servCellId = 0, // TODO: correct value?
+      .ReconfigComplOutcome = RRCreconf_success,
+      .transm_action_ind = &transmission_action_indicator,
+  };
+  deliver_ue_ctxt_modification_data_t data = {.rrc = rrc,
+                                              .modification_req = &ue_context_modif_req,
+                                              .assoc_id = ue_data.du_assoc_id};
+  int srb_id = 1;
+  nr_pdcp_data_req_srb(ue->rrc_ue_id,
+                       srb_id,
+                       rrc_gNB_mui++,
+                       rrc_reconf_len,
+                       (unsigned char *const)rrc_reconf,
+                       rrc_deliver_ue_ctxt_modif_req,
+                       &data);
+}
+
 //-----------------------------------------------------------------------------
 void
 rrc_gNB_modify_dedicatedRRCReconfiguration(
@@ -2094,16 +2137,45 @@ static void rrc_CU_process_ue_context_setup_response(MessageDef *msg_p, instance
   if (LOG_DEBUGFLAG(DEBUG_ASN1))
     xer_fprint(stdout, &asn_DEF_NR_CellGroupConfig, UE->masterCellGroup);
 
-  if (resp->drbs_to_be_setup_length > 0) {
-    /* Note: we would ideally check that SRB2 is acked, but at least LiteOn DU
-     * seems buggy and does not ack, so simply check that locally we activated */
-    AssertFatal(UE->Srb[1].Active && UE->Srb[2].Active, "SRBs 1 and 2 must be active during DRB Establishment");
-    store_du_f1u_tunnel(resp->drbs_to_be_setup, resp->drbs_to_be_setup_length, UE);
-    e1_send_bearer_updates(rrc, UE, resp->drbs_to_be_setup_length, resp->drbs_to_be_setup);
-  }
+  if (UE->ho_context == NULL) {
+    if (resp->drbs_to_be_setup_length > 0) {
+      /* Note: we would ideally check that SRB2 is acked, but at least LiteOn DU
+       * seems buggy and does not ack, so simply check that locally we activated */
+      AssertFatal(UE->Srb[1].Active && UE->Srb[2].Active, "SRBs 1 and 2 must be active during DRB Establishment");
+      store_du_f1u_tunnel(resp->drbs_to_be_setup, resp->drbs_to_be_setup_length, UE);
+      e1_send_bearer_updates(rrc, UE, resp->drbs_to_be_setup_length, resp->drbs_to_be_setup);
+    }
 
-  protocol_ctxt_t ctxt = {.rntiMaybeUEid = resp->gNB_CU_ue_id, .module_id = instance};
-  rrc_gNB_generate_dedicatedRRCReconfiguration(&ctxt, ue_context_p);
+    protocol_ctxt_t ctxt = {.rntiMaybeUEid = resp->gNB_CU_ue_id, .module_id = instance};
+    rrc_gNB_generate_dedicatedRRCReconfiguration(&ctxt, ue_context_p);
+  } else {
+    // case of handover
+    DevAssert(resp->crnti != NULL);
+    UE->ho_context->data.intra_cu.new_rnti = *resp->crnti;
+    UE->ho_context->data.intra_cu.target_secondary_ue = resp->gNB_DU_ue_id;
+
+    uint8_t xid = rrc_gNB_get_next_transaction_identifier(instance);
+    UE->xids[xid] = RRC_DEDICATED_RECONF;
+
+    uint8_t buffer[NR_RRC_BUF_SIZE] = {0};
+    int size = rrc_gNB_encode_RRCReconfiguration(rrc, UE, xid, NULL, buffer, sizeof(buffer), true);
+    DevAssert(size > 0 && size <= sizeof(buffer));
+    rrc_gNB_trigger_reconfiguration_for_handover(rrc, UE, buffer, size);
+
+    /* Re-establish SRB2 according to clause 5.3.5.6.3 of 3GPP TS 38.331
+     * (SRB1 is re-established with RRCReestablishment message)
+     */
+    int srb_id = 2;
+    if (UE->Srb[srb_id].Active) {
+      nr_pdcp_reestablishment(UE->rrc_ue_id, srb_id, true);
+    }
+    if (resp->drbs_to_be_setup_length > 0) {
+      //AssertFatal() should be same number as active bearers?
+      store_du_f1u_tunnel(resp->drbs_to_be_setup, resp->drbs_to_be_setup_length, UE);
+      /* PDCP Reestablishment of DRBs according to 5.3.5.6.5 of 3GPP TS 38.331 (over E1) */
+      cuup_notify_reestablishment(rrc, UE);
+    }
+  }
 }
 
 static void rrc_CU_process_ue_context_release_request(MessageDef *msg_p)
