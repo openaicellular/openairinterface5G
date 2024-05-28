@@ -215,6 +215,7 @@ int find_pdcch_candidate(const gNB_MAC_INST *mac,
                          int cc_id,
                          int aggregation,
                          int nr_of_candidates,
+                         int beam_idx,
                          const NR_sched_pdcch_t *pdcch,
                          const NR_ControlResourceSet_t *coreset,
                          uint32_t Y);
@@ -223,7 +224,8 @@ void fill_pdcch_vrb_map(gNB_MAC_INST *mac,
                         int CC_id,
                         NR_sched_pdcch_t *pdcch,
                         int first_cce,
-                        int aggregation);
+                        int aggregation,
+                        int beam);
 
 void fill_dci_pdu_rel15(const NR_UE_ServingCell_Info_t *servingCellInfo,
                         const NR_UE_DL_BWP_t *current_DL_BWP,
@@ -396,6 +398,7 @@ int get_cce_index(const gNB_MAC_INST *nrmac,
                   const int slot,
                   const rnti_t rnti,
                   uint8_t *aggregation_level,
+                  int beam_idx,
                   const NR_SearchSpace_t *ss,
                   const NR_ControlResourceSet_t *coreset,
                   NR_sched_pdcch_t *sched_pdcch,
@@ -422,7 +425,7 @@ int get_mcs_from_bler(const NR_bler_options_t *bler_options,
 int ul_buffer_index(int frame, int slot, int scs, int size);
 void UL_tti_req_ahead_initialization(gNB_MAC_INST *gNB, int n, int CCid, frame_t frameP, int slotP);
 
-bool beam_allocation_procedure(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame);
+int beam_allocation_procedure(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame);
 void reset_beam_status(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame);
 
 void nr_sr_reporting(gNB_MAC_INST *nrmac, frame_t frameP, sub_frame_t slotP);

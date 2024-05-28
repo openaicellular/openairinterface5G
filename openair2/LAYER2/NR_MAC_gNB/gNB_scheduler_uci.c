@@ -279,8 +279,9 @@ void nr_csi_meas_reporting(int Mod_idP,
       int bwp_start = ul_bwp->BWPStart;
 
       // going through the list of PUCCH resources to find the one indexed by resource_id
+      int beam_idx = 0; // TODO proper beam allocation
       const int index = ul_buffer_index(sched_frame, sched_slot, ul_bwp->scs, nrmac->vrb_map_UL_size);
-      uint16_t *vrb_map_UL = &nrmac->common_channels[0].vrb_map_UL[index * MAX_BWP_SIZE];
+      uint16_t *vrb_map_UL = &nrmac->common_channels[0].vrb_map_UL[beam_idx][index * MAX_BWP_SIZE];
       const int m = pucch_Config->resourceToAddModList->list.count;
       for (int j = 0; j < m; j++) {
         NR_PUCCH_Resource_t *pucchres = pucch_Config->resourceToAddModList->list.array[j];
@@ -1325,8 +1326,15 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
     else { // unoccupied occasion
       // checking if in ul_slot the resources potentially to be assigned to this PUCCH are available
       set_pucch_allocation(ul_bwp, r_pucch, bwp_size, curr_pucch);
+      int beam = beam_allocation_procedure(&mac->beam_info, pucch_frame, pucch_slot, beam_index, n_slots_frame);
+      if (beam < 0) {
+        LOG_D(NR_MAC,
+              "DL %4d.%2d, UL_ACK %4d.%2d beam resources for this occasion are already occupied, move to the following occasion\n",
+              frame, slot, pucch_frame, pucch_slot);
+        continue;
+      }
       const int index = ul_buffer_index(pucch_frame, pucch_slot, ul_bwp->scs, mac->vrb_map_UL_size);
-      uint16_t *vrb_map_UL = &mac->common_channels[CC_id].vrb_map_UL[index * MAX_BWP_SIZE];
+      uint16_t *vrb_map_UL = &mac->common_channels[CC_id].vrb_map_UL[beam][index * MAX_BWP_SIZE];
       bool ret = test_pucch0_vrb_occupation(curr_pucch,
                                             vrb_map_UL,
                                             bwp_start,
@@ -1334,13 +1342,6 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
       if(!ret) {
         LOG_D(NR_MAC,
               "DL %4d.%2d, UL_ACK %4d.%2d PRB resources for this occasion are already occupied, move to the following occasion\n",
-              frame, slot, pucch_frame, pucch_slot);
-        continue;
-      }
-      ret = beam_allocation_procedure(&mac->beam_info, pucch_frame, pucch_slot, beam_index, n_slots_frame);
-      if (!ret) {
-        LOG_D(NR_MAC,
-              "DL %4d.%2d, UL_ACK %4d.%2d beam resources for this occasion are already occupied, move to the following occasion\n",
               frame, slot, pucch_frame, pucch_slot);
         continue;
       }
@@ -1433,8 +1434,9 @@ void nr_sr_reporting(gNB_MAC_INST *nrmac, frame_t SFN, sub_frame_t slot)
         continue;
       }
       else {
+        int beam_idx = 0; // TODO proper beam allocation
         const int index = ul_buffer_index(SFN, slot, ul_bwp->scs, nrmac->vrb_map_UL_size);
-        uint16_t *vrb_map_UL = &nrmac->common_channels[CC_id].vrb_map_UL[index * MAX_BWP_SIZE];
+        uint16_t *vrb_map_UL = &nrmac->common_channels[CC_id].vrb_map_UL[beam_idx][index * MAX_BWP_SIZE];
         const int bwp_start = ul_bwp->BWPStart;
         const int bwp_size = ul_bwp->BWPSize;
         set_pucch_allocation(ul_bwp, -1, bwp_size, curr_pucch);

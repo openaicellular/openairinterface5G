@@ -535,10 +535,14 @@ static bool allocate_dl_retransmission(module_id_t module_id,
     retInfo->tda_info = temp_tda;
   }
 
+  // TODO properly set the beam index (currently only done for RA)
+  int beam = 0;
+
   /* Find a free CCE */
   int CCEIndex = get_cce_index(nr_mac,
                                CC_id, slot, UE->rnti,
                                &sched_ctrl->aggregation_level,
+                               beam,
                                sched_ctrl->search_space,
                                sched_ctrl->coreset,
                                &sched_ctrl->sched_pdcch,
@@ -555,7 +559,6 @@ static bool allocate_dl_retransmission(module_id_t module_id,
    * allocation after CCE alloc fail would be more complex) */
 
   int r_pucch = nr_get_pucch_resource(sched_ctrl->coreset, ul_bwp->pucch_Config, CCEIndex);
-  // TODO properly set the beam index (currently only done for RA)
   const int alloc = nr_acknack_scheduling(nr_mac, UE, frame, slot, 0, r_pucch, 0);
   if (alloc<0) {
     LOG_D(NR_MAC, "[UE %04x][%4d.%2d] could not find PUCCH for DL DCI retransmission\n",
@@ -570,7 +573,8 @@ static bool allocate_dl_retransmission(module_id_t module_id,
                      /* CC_id = */ 0,
                      &sched_ctrl->sched_pdcch,
                      CCEIndex,
-                     sched_ctrl->aggregation_level);
+                     sched_ctrl->aggregation_level,
+                     beam);
   /* just reuse from previous scheduling opportunity, set new start RB */
   sched_ctrl->sched_pdsch = *retInfo;
   sched_ctrl->sched_pdsch.rbStart = rbStart;
@@ -724,9 +728,13 @@ static void pf_dl(module_id_t module_id,
       continue;
     }
 
+    // TODO properly set the beam index (currently only done for RA)
+    int beam = 0;
+
     int CCEIndex = get_cce_index(mac,
                                  CC_id, slot, iterator->UE->rnti,
                                  &sched_ctrl->aggregation_level,
+                                 beam,
                                  sched_ctrl->search_space,
                                  sched_ctrl->coreset,
                                  &sched_ctrl->sched_pdcch,
@@ -744,7 +752,6 @@ static void pf_dl(module_id_t module_id,
     * allocation after CCE alloc fail would be more complex) */
 
     int r_pucch = nr_get_pucch_resource(sched_ctrl->coreset, ul_bwp->pucch_Config, CCEIndex);
-    // TODO properly set the beam index (currently only done for RA)
     const int alloc = nr_acknack_scheduling(mac, iterator->UE, frame, slot, 0, r_pucch, 0);
 
     if (alloc<0) {
@@ -761,7 +768,8 @@ static void pf_dl(module_id_t module_id,
                        /* CC_id = */ 0,
                        &sched_ctrl->sched_pdcch,
                        CCEIndex,
-                       sched_ctrl->aggregation_level);
+                       sched_ctrl->aggregation_level,
+                       beam);
 
     /* MCS has been set above */
     NR_sched_pdsch_t *sched_pdsch = &sched_ctrl->sched_pdsch;
@@ -861,7 +869,8 @@ static void nr_fr1_dlsch_preprocessor(module_id_t module_id, frame_t frame, sub_
   const uint16_t BWPStart = current_BWP->BWPStart;
 
   const uint16_t slbitmap = SL_to_bitmap(startSymbolIndex, nrOfSymbols);
-  uint16_t *vrb_map = RC.nrmac[module_id]->common_channels[CC_id].vrb_map;
+  // TODO improve handling of beam in vrb_map (for now just using 0)
+  uint16_t *vrb_map = RC.nrmac[module_id]->common_channels[CC_id].vrb_map[0];
   uint16_t rballoc_mask[bwpSize];
   int n_rb_sched = 0;
 

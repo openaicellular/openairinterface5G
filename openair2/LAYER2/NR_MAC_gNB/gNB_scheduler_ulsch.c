@@ -1667,6 +1667,7 @@ static bool allocate_ul_retransmission(gNB_MAC_INST *nrmac,
   int CCEIndex = get_cce_index(nrmac,
                                CC_id, slot, UE->rnti,
                                &sched_ctrl->aggregation_level,
+                               0,  // TODO use beam index
                                sched_ctrl->search_space,
                                sched_ctrl->coreset,
                                &sched_ctrl->sched_pdcch,
@@ -1684,7 +1685,8 @@ static bool allocate_ul_retransmission(gNB_MAC_INST *nrmac,
                      CC_id,
                      &sched_ctrl->sched_pdcch,
                      CCEIndex,
-                     sched_ctrl->aggregation_level);
+                     sched_ctrl->aggregation_level,
+                     0);  // TODO use beam index when implemented
 
   /* frame/slot in sched_pusch has been set previously. In the following, we
    * overwrite the information in the retransmission information before storing
@@ -1825,6 +1827,7 @@ static void pf_ul(module_id_t module_id,
       int CCEIndex = get_cce_index(nrmac,
                                    CC_id, slot, UE->rnti,
                                    &sched_ctrl->aggregation_level,
+                                   0,  // TODO use beam index
                                    sched_ctrl->search_space,
                                    sched_ctrl->coreset,
                                    &sched_ctrl->sched_pdcch,
@@ -1870,7 +1873,8 @@ static void pf_ul(module_id_t module_id,
                          CC_id,
                          &sched_ctrl->sched_pdcch,
                          CCEIndex,
-                         sched_ctrl->aggregation_level);
+                         sched_ctrl->aggregation_level,
+                         0);  // TODO use beam index);
 
       NR_sched_pusch_t *sched_pusch = &sched_ctrl->sched_pusch;
       sched_pusch->mcs = min(nrmac->min_grant_mcs, sched_pusch->mcs);
@@ -1941,6 +1945,7 @@ static void pf_ul(module_id_t module_id,
     int CCEIndex = get_cce_index(nrmac,
                                  CC_id, slot, iterator->UE->rnti,
                                  &sched_ctrl->aggregation_level,
+                                 0,  // TODO use beam index
                                  sched_ctrl->search_space,
                                  sched_ctrl->coreset,
                                  &sched_ctrl->sched_pdcch,
@@ -2046,7 +2051,8 @@ static void pf_ul(module_id_t module_id,
                        CC_id,
                        &sched_ctrl->sched_pdcch,
                        CCEIndex,
-                       sched_ctrl->aggregation_level);
+                       sched_ctrl->aggregation_level,
+                       0);  // TODO use beam index);
 
     n_rb_sched -= sched_pusch->rbSize;
     for (int rb = 0; rb < sched_ctrl->sched_pusch.rbSize; rb++)
@@ -2112,7 +2118,8 @@ static bool nr_fr1_ulsch_preprocessor(module_id_t module_id, frame_t frame, sub_
    * vrb_map_UL) overlap with the "default" tda and exclude those RBs.
    * Calculate largest contiguous RBs */
   const int index = ul_buffer_index(sched_frame, sched_slot, mu, nr_mac->vrb_map_UL_size);
-  uint16_t *vrb_map_UL = &nr_mac->common_channels[CC_id].vrb_map_UL[index * MAX_BWP_SIZE];
+  // TODO improve handling of beam in vrb_map (for now just using 0)
+  uint16_t *vrb_map_UL = &nr_mac->common_channels[CC_id].vrb_map_UL[0][index * MAX_BWP_SIZE];
 
   const uint16_t bwpSize = current_BWP->BWPSize;
   const uint16_t bwpStart = current_BWP->BWPStart;
