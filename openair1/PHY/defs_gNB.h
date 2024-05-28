@@ -742,20 +742,6 @@ typedef struct puschSymbolProc_s {
   uint32_t nvar;
 } puschSymbolProc_t;
 
-typedef struct ulAntennaProc_s {
-  PHY_VARS_gNB *gNB;
-  unsigned char Ns;
-  int nl;
-  unsigned short p;
-  unsigned char symbol;
-  int ul_id;
-  unsigned short bwp_start_subcarrier;
-  nfapi_nr_pusch_pdu_t *pusch_pdu;
-  int *max_ch;
-  uint32_t *nvar;
-  int numAntennas;
-} ulAntennaProc_t;
-
 typedef struct {
   PHY_VARS_gNB *gNB;
   int aarx;
@@ -776,6 +762,7 @@ typedef struct {
   NR_gNB_PUSCH *pusch_vars;
   delay_t *delay;
   uint64_t noise_amp2;
+  uint64_t *nvar;
   int nest_count;
   int nushift;
 } puschAntennaProc_t;
