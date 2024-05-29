@@ -684,6 +684,7 @@ typedef struct
 typedef struct {
   uint64_t absoluteFrequencySSB;
   uint64_t absoluteFrequencyPointA;
+  uint8_t scs;
   int16_t target_Nid_cell;
   bool ssb_bw_scan;
 } fapi_nr_synch_request_t;
