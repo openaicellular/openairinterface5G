@@ -560,7 +560,7 @@ void handle_rlf_sync(NR_UE_Timers_Constants_t *tac,
 {
   if (sync_msg == IN_SYNC) {
     tac->N310_cnt = 0;
-    if (is_nr_timer_active(tac->T310)) {
+    if (nr_timer_is_active(&tac->T310)) {
       tac->N311_cnt++;
       // Upon receiving N311 consecutive "in-sync" indications
       if (tac->N311_cnt >= tac->N311_k) {
@@ -573,12 +573,12 @@ void handle_rlf_sync(NR_UE_Timers_Constants_t *tac,
   else {
     // OUT_OF_SYNC
     tac->N311_cnt = 0;
-    if(is_nr_timer_active(tac->T300) ||
-       is_nr_timer_active(tac->T301) ||
-       is_nr_timer_active(tac->T304) ||
-       is_nr_timer_active(tac->T310) ||
-       is_nr_timer_active(tac->T311) ||
-       is_nr_timer_active(tac->T319))
+    if(nr_timer_is_active(&tac->T300) ||
+       nr_timer_is_active(&tac->T301) ||
+       nr_timer_is_active(&tac->T304) ||
+       nr_timer_is_active(&tac->T310) ||
+       nr_timer_is_active(&tac->T311) ||
+       nr_timer_is_active(&tac->T319))
       return;
     tac->N310_cnt++;
     // upon receiving N310 consecutive "out-of-sync" indications

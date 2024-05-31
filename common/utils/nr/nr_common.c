@@ -1185,9 +1185,9 @@ void nr_timer_stop(NR_timer_t *timer)
   timer->counter = 0;
 }
 
-bool is_nr_timer_active(NR_timer_t timer)
+bool nr_timer_is_active(const NR_timer_t *timer)
 {
-  return timer.active;
+  return timer->active;
 }
 
 bool nr_timer_tick(NR_timer_t *timer)
@@ -1197,23 +1197,23 @@ bool nr_timer_tick(NR_timer_t *timer)
     timer->counter += timer->step;
     if (timer->target == UINT_MAX) // infinite target, never expires
       return false;
-    expired = nr_timer_expired(*timer);
+    expired = nr_timer_expired(timer);
     if (expired)
       timer->active = false;
   }
   return expired;
 }
 
-bool nr_timer_expired(NR_timer_t timer)
+bool nr_timer_expired(const NR_timer_t *timer)
 {
-  if (timer.target == UINT_MAX) // infinite target, never expires
+  if (timer->target == UINT_MAX) // infinite target, never expires
     return false;
-  return (timer.counter >= timer.target);
+  return timer->counter >= timer->target;
 }
 
-uint32_t nr_timer_elapsed_time(NR_timer_t timer)
+uint32_t nr_timer_elapsed_time(const NR_timer_t *timer)
 {
-  return timer.counter;
+  return timer->counter;
 }
 
 void nr_timer_setup(NR_timer_t *timer, const uint32_t target, const uint32_t step)
