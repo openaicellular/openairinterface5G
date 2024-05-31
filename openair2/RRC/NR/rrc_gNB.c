@@ -262,6 +262,126 @@ static void rrc_gNB_CU_DU_init(gNB_RRC_INST *rrc)
   cu_init_f1_ue_data();
 }
 
+static pdusession_level_qos_parameter_t *get_qos_characteristics(const int qfi, rrc_pdu_session_param_t *pduSession);
+static f1ap_qos_characteristics_t get_qos_char_from_qos_flow_param(const pdusession_level_qos_parameter_t *qos_param);
+
+/* \brief Initiate a handover of UE to a specific target cell handled by this
+ * CU.
+ * \param ue a UE context for which the handover should be triggered. The UE
+ * context must be non-null (if the HO request comes from "outside" (N2, Xn),
+ * the UE contex must be created first.
+ * \param target_du the DU towards which to handover. Note: currently, the CU
+ * is limited to one cell per DU, so DU and cell are equivalent here.
+ * \param ho_ctxt contextual data for the type of handover (F1, N2, Xn) */
+void nr_initiate_handover(const gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_rrc_du_container_t *target_du, const nr_handover_context_t *ho_ctxt)
+{
+  if (ue->ho_context != NULL) {
+    LOG_E(NR_RRC, "handover for UE %u ongoing, cannot trigger new\n", ue->rrc_ue_id);
+    return;
+  }
+
+  ue->ho_context = malloc(sizeof(*ue->ho_context));
+  AssertFatal(ue->ho_context != NULL, "out of memory\n");
+  *ue->ho_context = *ho_ctxt;
+  LOG_I(NR_RRC, "Handover triggered for UE %u towards DU %ld\n", ue->rrc_ue_id, target_du->setup_req->gNB_DU_id);
+
+  // The gNB-CU sends a UE CONTEXT SETUP REQUEST message to the target gNB-DU to create a UE context and setup
+
+  uint8_t buf[NR_RRC_BUF_SIZE];
+  int size = do_NR_HandoverPreparationInformation(ue->ue_cap_buffer.buf, ue->ue_cap_buffer.len, buf, sizeof buf);
+  cu_to_du_rrc_information_t cu2du = {
+      .handoverPreparationInfo = buf,
+      .handoverPreparationInfo_length = size,
+  };
+
+  f1ap_drb_to_be_setup_t drbs[32]; // maximum DRB can be 32
+  int nb_drb = 0;
+  for (int i = 0; i < 32; ++i) { /* for each DRB */
+    drb_t *rrc_drb = &ue->established_drbs[i];
+    if (rrc_drb->status == DRB_INACTIVE)
+      continue;
+
+    f1ap_drb_to_be_setup_t *drb = &drbs[nb_drb];
+    nb_drb++;
+    drb->drb_id = rrc_drb->drb_id;
+    memcpy(&drb->up_ul_tnl[0].tl_address, &rrc_drb->cuup_tunnel_config.addr.buffer, sizeof(uint8_t) * 4);
+    drb->up_ul_tnl[0].port = rrc->eth_params_s.my_portd;
+    drb->up_ul_tnl[0].teid = rrc_drb->cuup_tunnel_config.teid;
+    drb->up_ul_tnl_length = 1;
+
+    /* fetch an existing PDU session for this DRB */
+    rrc_pdu_session_param_t *pdu = find_pduSession_from_drbId(ue, drb->drb_id);
+    AssertFatal(pdu != NULL, "no PDU session for DRB ID %ld\n", drb->drb_id);
+    drb->nssai = pdu->param.nssai;
+
+    // for the moment, we only support one QoS flow. Put a reminder in case
+    // this changes
+    AssertFatal(pdu->param.nb_qos == 1, "only 1 Qos flow supported\n");
+    drb->drb_info.flows_to_be_setup_length = 1;
+    drb->drb_info.flows_mapped_to_drb = calloc(1, sizeof(f1ap_flows_mapped_to_drb_t));
+    AssertFatal(drb->drb_info.flows_mapped_to_drb, "could not allocate memory\n");
+    int qfi = rrc_drb->cnAssociation.sdap_config.mappedQoS_FlowsToAdd[0];
+    DevAssert(qfi > 0);
+    drb->drb_info.flows_mapped_to_drb[0].qfi = qfi;
+    pdusession_level_qos_parameter_t *in_qos_char = get_qos_characteristics(qfi, pdu);
+    drb->drb_info.flows_mapped_to_drb[0].qos_params.qos_characteristics = get_qos_char_from_qos_flow_param(in_qos_char);
+
+    /* the DRB QoS parameters: we just reuse the ones from the first flow */
+    drb->drb_info.drb_qos = drb->drb_info.flows_mapped_to_drb[0].qos_params;
+  }
+
+  f1ap_srb_to_be_setup_t srbs[2] = {{.srb_id = 1, .lcid = 1}, {.srb_id = 2, .lcid = 2}};
+  f1_ue_data_t ue_data = cu_get_f1_ue_data(ue->rrc_ue_id);
+  f1ap_served_cell_info_t *cell_info = &target_du->setup_req->cell[0].info;
+  RETURN_IF_INVALID_ASSOC_ID(ue_data);
+  f1ap_ue_context_setup_t ue_context_setup_req = {
+      .gNB_CU_ue_id = ue->rrc_ue_id,
+      .gNB_DU_ue_id = 0, /* TODO: this should be optional! */
+      .plmn.mcc = cell_info->plmn.mcc,
+      .plmn.mnc = cell_info->plmn.mnc,
+      .plmn.mnc_digit_length = cell_info->plmn.mnc_digit_length,
+      .nr_cellid = cell_info->nr_cellid,
+      .servCellId = 0, // TODO: correct value?
+      .srbs_to_be_setup_length = 2,
+      .srbs_to_be_setup = srbs,
+      .drbs_to_be_setup_length = nb_drb,
+      .drbs_to_be_setup = drbs,
+      .cu_to_du_rrc_information = &cu2du,
+  };
+  rrc->mac_rrc.ue_context_setup_request(target_du->assoc_id, &ue_context_setup_req);
+}
+
+void nr_HO_F1_trigger(gNB_RRC_INST *rrc, uint32_t rrc_ue_id)
+{
+  rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(rrc, rrc_ue_id);
+  if (ue_context_p == NULL) {
+    LOG_E(NR_RRC, "cannot find UE context for UE ID %d\n", rrc_ue_id);
+    return;
+  }
+  gNB_RRC_UE_t *ue = &ue_context_p->ue_context;
+  nr_rrc_du_container_t *source_du = get_du_for_ue(rrc, ue->rrc_ue_id);
+  if (source_du == NULL) {
+    LOG_E(NR_RRC, "cannot get source gNB-DU u for UE %u\n", ue->rrc_ue_id);
+    return;
+  }
+
+  nr_rrc_du_container_t *target_du = find_target_du(rrc, source_du->assoc_id); // get_du_by_cell_id(rrc, target_cell);
+  if (target_du == NULL) {
+    LOG_E(NR_RRC, "No target gNB-DU found. Handover for UE %u aborted.\n", ue->rrc_ue_id); // target_cell?
+    return;
+  }
+
+  f1_ue_data_t ue_data = cu_get_f1_ue_data(ue->rrc_ue_id);
+  nr_handover_context_t ho_ctxt = {
+    .type = HANDOVER_TYPE_INTRA_CU,
+    .data.intra_cu.source_du = source_du->assoc_id,
+    .data.intra_cu.target_du = target_du->assoc_id,
+    .data.intra_cu.source_secondary_ue = ue_data.secondary_ue,
+  };
+
+  nr_initiate_handover(rrc, ue, target_du, &ho_ctxt);
+}
+
 void openair_rrc_gNB_configuration(gNB_RRC_INST *rrc, gNB_RrcConfigurationReq *configuration)
 {
   AssertFatal(rrc != NULL, "RC.nrrrc not initialized!");
