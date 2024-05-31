@@ -2275,6 +2275,17 @@ static void rrc_CU_process_ue_context_modification_response(MessageDef *msg_p, i
 
     rrc_gNB_generate_dedicatedRRCReconfiguration(&ctxt, ue_context_p);
   }
+
+  // Reconfiguration should have been sent to the UE, so it will attempt the
+  // handover. Update with new RNTI, and update secondary UE association
+  if (UE->ho_context != NULL) {
+    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
+    ue_data.secondary_ue = UE->ho_context->data.intra_cu.target_secondary_ue;
+    ue_data.du_assoc_id = UE->ho_context->data.intra_cu.target_du;
+    cu_remove_f1_ue_data(UE->rrc_ue_id);
+    cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
+    UE->rnti = UE->ho_context->data.intra_cu.new_rnti;
+  }
 }
 
 static void rrc_CU_process_ue_modification_required(MessageDef *msg_p)
