@@ -1481,7 +1481,8 @@ static void nr_generate_Msg2(module_id_t module_idP,
                               ? NR_RRC_SETUP_DELAY_MS + NR_RRC_BWP_SWITCHING_DELAY_MS
                               : NR_RRC_SETUP_DELAY_MS;
       NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-      sched_ctrl->rrc_processing_timer = (delay_ms << ra->DL_BWP.scs);
+      nr_timer_setup(&sched_ctrl->transmission_stop, delay_ms << ra->DL_BWP.scs, 1);
+      nr_timer_start(&sched_ctrl->transmission_stop);
     }
   }
 

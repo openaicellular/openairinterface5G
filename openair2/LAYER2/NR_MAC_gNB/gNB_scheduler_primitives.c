@@ -2732,9 +2732,8 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
     if (UE_info->sched_csirs & (1 << dl_bwp->bwp_id))
       continue;
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-    if (sched_ctrl->rrc_processing_timer > 0) {
+    if (nr_timer_is_active(&sched_ctrl->transmission_stop))
       continue;
-    }
 
     if (!UE->sc_info.csi_MeasConfig)
       continue;
@@ -2996,7 +2995,8 @@ int nr_mac_enable_ue_rrc_processing_timer(gNB_MAC_INST *mac, NR_UE_info_t *UE, b
   int delay = NR_RRC_RECONFIGURATION_DELAY_MS;
   NR_SubcarrierSpacing_t scs = UE->current_UL_BWP.scs;
 
-  UE->UE_sched_ctrl.rrc_processing_timer = (delay << scs) + sl_ahead;
+  nr_timer_setup(&UE->UE_sched_ctrl.transmission_stop, (delay << scs) + sl_ahead, 1);
+  nr_timer_start(&UE->UE_sched_ctrl.transmission_stop);
   UE->apply_cellgroup = apply_cellgroup;
   AssertFatal(!UE->apply_cellgroup || (UE->apply_cellgroup && UE->reconfigCellGroup),
               "logic bug: apply_cellgroup %d and UE->reconfigCellGroup %p: did you try to apply a cellGroup, while none is deposited?\n",
@@ -3065,10 +3065,10 @@ void nr_mac_update_timers(module_id_t module_id,
     /* check if UL failure and trigger release request if necessary */
     nr_mac_check_ul_failure(mac, UE->rnti, sched_ctrl);
 
-    if (sched_ctrl->rrc_processing_timer > 0) {
-      sched_ctrl->rrc_processing_timer--;
-      if (sched_ctrl->rrc_processing_timer == 0)
-        nr_mac_apply_cellgroup(mac, UE, frame, slot);
+    if (nr_timer_tick(&sched_ctrl->transmission_stop)) {
+      /* expired */
+      nr_timer_stop(&sched_ctrl->transmission_stop);
+      nr_mac_apply_cellgroup(mac, UE, frame, slot);
     }
   }
 }
