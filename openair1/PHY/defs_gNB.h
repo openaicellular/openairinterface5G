@@ -761,6 +761,7 @@ typedef struct {
   c16_t *ul_ls_est;
   NR_gNB_PUSCH *pusch_vars;
   delay_t *delay;
+  delay_t **delays;
   uint64_t noise_amp2;
   uint64_t *nvar;
   int nest_count;

@@ -38,6 +38,7 @@
 
 //#define DEBUG_CH
 //#define DEBUG_PUSCH
+#define DEBUG_PUSCH_THREAD
 //#define SRS_DEBUG
 
 #define NO_INTERP 1
@@ -87,6 +88,7 @@ static void inner_channel_estimation(void *arg) {
   c16_t *ul_ls_est = rdata->ul_ls_est;
   NR_gNB_PUSCH *pusch_vars = rdata->pusch_vars;
   delay_t *delay = rdata->delay;
+  delay_t **delays = rdata->delays;
   uint64_t noise_amp2 = rdata->noise_amp2;
   int nest_count = rdata->nest_count;
   const int nushift = rdata->nushift;
@@ -400,7 +402,9 @@ static void inner_channel_estimation(void *arg) {
  // value update of rdata to be passed to the next inner call
  rdata->max_ch = max_ch;  // Placeholder for max channel value update
  rdata->noise_amp2 = noise_amp2;  // Placeholder for noise amplitude squared update
- delay->est_delay = rdata->delay->est_delay;  // Placeholder for estimated delay update
+ 
+ delays[aarx] = delay; // Placeholder for estimated delay update
+ rdata->delays = delays;
  nest_count = rdata->nest_count;  // Placeholder for nested count update
  rdata->ul_ls_est = ul_ls_est; // Placeholder for uplink least square estimation
  
@@ -494,9 +498,20 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  delay_t *delay = &gNB->ulsch[ul_id].delay;
  memset(delay, 0, sizeof(*delay));
 
+ int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
+ delay_t *delays[nb_antennas_rx];
+ memset(delays, 0, sizeof(*delays));
  //
  // max_ch array size of rx antennas
  // noise_amp2 size of rx antennas
+
+#ifdef DEBUG_PUSCH_THREAD
+
+ for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
+    printf("Start - Estimated delay = %i\t", delay[aarx].est_delay >> 1);
+ }
+
+#endif
 
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
 
@@ -511,7 +526,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
    rdata->ul_ls_est = ul_ls_est;
    rdata->delay = delay;
-
+   rdata->delays = delays;
    rdata->gNB = gNB;
    rdata->symbol_offset = symbol_offset;
    rdata->ul_ch_estimates = ul_ch_estimates;
@@ -555,6 +570,15 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  if (nvar && nest_count > 0) {
    *nvar = (uint32_t)(noise_amp2 / nest_count);
  }
+
+ #ifdef DEBUG_PUSCH_THREAD
+
+ for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
+    printf("Exit Pool - Estimated delay = %i\t", delay[aarx].est_delay >> 1);
+ }
+
+#endif
+
 
  return 0;
 }
