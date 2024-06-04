@@ -132,8 +132,13 @@ int DU_handle_UE_CONTEXT_SETUP_REQUEST(instance_t instance, sctp_assoc_t assoc_i
   /* GNB_DU_UE_F1AP_ID */
   F1AP_UEContextSetupRequestIEs_t *ieDU_UE;
   F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextSetupRequestIEs_t, ieDU_UE, container,
-                             F1AP_ProtocolIE_ID_id_gNB_DU_UE_F1AP_ID, true);
-  f1ap_ue_context_setup_req->gNB_DU_ue_id = ieDU_UE->value.choice.GNB_DU_UE_F1AP_ID;
+                             F1AP_ProtocolIE_ID_id_gNB_DU_UE_F1AP_ID, false);
+  // this should be optional. At present, the DU uses the RNTI, and hence, this
+  // value cannot exceed 0xffff (or something below, whatever is a valid
+  // C-RNTI). So we use a value > 0xffff to mark optionality
+  f1ap_ue_context_setup_req->gNB_DU_ue_id = -1; // 0xffffffff
+  if (ieDU_UE != NULL)
+    f1ap_ue_context_setup_req->gNB_DU_ue_id = ieDU_UE->value.choice.GNB_DU_UE_F1AP_ID;
 
   /* SpCell_ID */
   F1AP_UEContextSetupRequestIEs_t *ieNet;
