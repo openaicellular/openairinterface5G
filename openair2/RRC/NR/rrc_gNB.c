@@ -485,6 +485,59 @@ static void rrc_gNB_process_RRCSetupComplete(const protocol_ctxt_t *const ctxt_p
   rrc_gNB_send_NGAP_NAS_FIRST_REQ(ctxt_pP, ue_context_pP, rrcSetupComplete);
 }
 
+static int rrc_gNB_encode_RRCReconfiguration(gNB_RRC_INST *rrc,
+                                             gNB_RRC_UE_t *UE,
+                                             uint8_t xid,
+                                             struct NR_RRCReconfiguration_v1530_IEs__dedicatedNAS_MessageList *nas_messages,
+                                             uint8_t *buf,
+                                             int max_len)
+{
+  NR_CellGroupConfig_t *cellGroupConfig = UE->masterCellGroup;
+  nr_rrc_du_container_t *du = get_du_for_ue(rrc, UE->rrc_ue_id);
+  DevAssert(du != NULL);
+  f1ap_served_cell_info_t *cell_info = &du->setup_req->cell[0].info;
+  NR_MeasConfig_t *measconfig = NULL;
+  if (du->mtc != NULL) {
+    int scs = get_ssb_scs(cell_info);
+    int band = get_dl_band(cell_info);
+    const NR_MeasTimingList_t *mtlist = du->mtc->criticalExtensions.choice.c1->choice.measTimingConf->measTiming;
+    const NR_MeasTiming_t *mt = mtlist->list.array[0];
+    const neighbour_cell_configuration_t *neighbour_config = get_neighbour_config(cell_info->nr_cellid);
+    seq_arr_t *neighbour_cells = NULL;
+    if (neighbour_config)
+      neighbour_cells = neighbour_config->neighbour_cells;
+
+    measconfig = get_MeasConfig(mt, band, scs, &rrc->measurementConfiguration, neighbour_cells);
+  }
+
+  if (UE->measConfig)
+    free_MeasConfig(UE->measConfig);
+
+  UE->measConfig = measconfig;
+
+  NR_SRB_ToAddModList_t *SRBs = createSRBlist(UE, false);
+  NR_DRB_ToAddModList_t *DRBs = createDRBlist(UE, false);
+
+  int size = do_RRCReconfiguration(UE,
+                                   buf,
+                                   max_len,
+                                   xid,
+                                   SRBs,
+                                   DRBs,
+                                   UE->DRB_ReleaseList,
+                                   NULL,
+                                   measconfig,
+                                   nas_messages,
+                                   cellGroupConfig);
+  LOG_DUMPMSG(NR_RRC, DEBUG_RRC, (char *)buf, size, "[MSG] RRC Reconfiguration\n");
+  freeSRBlist(SRBs);
+  freeDRBlist(DRBs);
+  ASN_STRUCT_FREE(asn_DEF_NR_DRB_ToReleaseList, UE->DRB_ReleaseList);
+  UE->DRB_ReleaseList = NULL;
+
+  return size;
+}
+
 //-----------------------------------------------------------------------------
 void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *ue_context_pP)
 //-----------------------------------------------------------------------------
@@ -526,51 +579,10 @@ void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const c
   for (int i = 0; i < ue_p->nb_of_pdusessions; i++)
     clear_nas_pdu(&ue_p->pduSession[i].param.nas_pdu);
 
-  NR_CellGroupConfig_t *cellGroupConfig = ue_p->masterCellGroup;
-
-  const nr_rrc_du_container_t *du = get_du_for_ue(rrc, ue_p->rrc_ue_id);
-  DevAssert(du != NULL);
-  f1ap_served_cell_info_t *cell_info = &du->setup_req->cell[0].info;
-  NR_MeasConfig_t *measconfig = NULL;
-
-  if (du->mtc != NULL) {
-    int scs = get_ssb_scs(cell_info);
-    int band = get_dl_band(cell_info);
-    const NR_MeasTimingList_t *mtlist = du->mtc->criticalExtensions.choice.c1->choice.measTimingConf->measTiming;
-    const NR_MeasTiming_t *mt = mtlist->list.array[0];
-    const neighbour_cell_configuration_t *neighbour_config = get_neighbour_config(cell_info->nr_cellid);
-    seq_arr_t *neighbour_cells = NULL;
-    if (neighbour_config)
-      neighbour_cells = neighbour_config->neighbour_cells;
-
-    measconfig = get_MeasConfig(mt, band, scs, &rrc->measurementConfiguration, neighbour_cells);
-  }
-
-  if (ue_p->measConfig)
-    free_MeasConfig(ue_p->measConfig);
-
-  ue_p->measConfig = measconfig;
-
   uint8_t buffer[RRC_BUF_SIZE] = {0};
-  NR_SRB_ToAddModList_t *SRBs = createSRBlist(ue_p, false);
-  NR_DRB_ToAddModList_t *DRBs = createDRBlist(ue_p, false);
-
-  int size = do_RRCReconfiguration(ue_p,
-                                   buffer,
-                                   RRC_BUF_SIZE,
-                                   xid,
-                                   SRBs,
-                                   DRBs,
-                                   ue_p->DRB_ReleaseList,
-                                   NULL,
-                                   measconfig,
-                                   dedicatedNAS_MessageList,
-                                   cellGroupConfig);
-  LOG_DUMPMSG(NR_RRC, DEBUG_RRC, (char *)buffer, size, "[MSG] RRC Reconfiguration\n");
-  freeSRBlist(SRBs);
-  freeDRBlist(DRBs);
-  ASN_STRUCT_FREE(asn_DEF_NR_DRB_ToReleaseList, ue_p->DRB_ReleaseList);
-  ue_p->DRB_ReleaseList = NULL;
+  // TODO refactor dedicatedNAS_MessageList
+  int size = rrc_gNB_encode_RRCReconfiguration(rrc, ue_p, xid, dedicatedNAS_MessageList, buffer, sizeof(buffer));
+  DevAssert(size > 0 && size <= sizeof(buffer));
 
   LOG_I(NR_RRC, "UE %d: Generate RRCReconfiguration (bytes %d, xid %d)\n", ue_p->rrc_ue_id, size, xid);
   LOG_D(NR_RRC,
