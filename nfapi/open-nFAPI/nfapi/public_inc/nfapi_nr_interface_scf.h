@@ -442,6 +442,27 @@ typedef struct
 
 } nfapi_nr_measurement_config_t;
 
+//-----------------------//
+//3.3.6 Storing Precoding and Beamforming Tables
+
+//table 3-32
+
+typedef struct {
+  uint16_t dig_beam_weight_Re;
+  uint16_t dig_beam_weight_Im;
+} nfapi_nr_txru_t;
+
+typedef struct {
+  uint16_t beam_idx;     //0~65535
+  nfapi_nr_txru_t *txru_list;
+} nfapi_nr_dig_beam_t;
+
+typedef struct {
+  uint16_t num_dig_beams; //0~65535
+  uint16_t num_txrus;    //0~65535
+  nfapi_nr_dig_beam_t *dig_beam_list;
+} nfapi_nr_dbt_pdu_t;
+
 // Table 3–62 Precoding matrix (PM) PDU (v.222.10.04)
 typedef struct {
   int16_t precoder_weight_Re;
@@ -574,6 +595,7 @@ typedef struct {
   nfapi_nr_measurement_config_t measurement_config;
   nfapi_nr_nfapi_t              nfapi_config;
   nfapi_nr_pm_list_t            pmi_list;
+  nfapi_nr_dbt_pdu_t            dbt_config;
 } nfapi_nr_config_request_scf_t;
 
 
@@ -639,28 +661,6 @@ typedef struct {
   nfapi_nr_phy_msg_type_e msg_id;//Indicate which message received by the PHY has an error. Values taken from Table 3-4.
   nfapi_nr_phy_notifications_errors_e error_code;
 } nfapi_nr_phy_notifications_error_indicate_t;
-
-//-----------------------//
-//3.3.6 Storing Precoding and Beamforming Tables
-
-//table 3-32
-//? 
-typedef struct {
-  uint16_t beam_idx;     //0~65535
-} nfapi_nr_dig_beam_t;
-
-typedef struct {
-  uint16_t dig_beam_weight_Re;
-  uint16_t dig_beam_weight_Im;
-} nfapi_nr_txru_t;
-
-typedef struct {
-  uint16_t num_dig_beams; //0~65535
-  uint16_t num_txrus;    //0~65535
-  nfapi_nr_dig_beam_t* dig_beam_list;
-  nfapi_nr_txru_t*  txru_list;
-} nfapi_nr_dbt_pdu_t;
-
 
 // Section 3.4
 

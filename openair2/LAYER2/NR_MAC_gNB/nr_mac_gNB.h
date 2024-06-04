@@ -160,9 +160,10 @@ typedef struct nr_mac_config_t {
   bool force_UL256qam_off;
   bool use_deltaMCS;
   int maxMIMO_layers;
-  //int pusch_TargetSNRx10;
-  //int pucch_TargetSNRx10;
   nr_mac_timers_t timer_config;
+  /// beamforming weight matrix size
+  int nb_bfw[2];
+  int32_t *bw_list;
 } nr_mac_config_t;
 
 typedef struct NR_preamble_ue {

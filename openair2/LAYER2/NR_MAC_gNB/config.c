@@ -273,7 +273,13 @@ nfapi_nr_pm_list_t init_DL_MIMO_codebook(gNB_MAC_INST *gNB, nr_pdsch_AntennaPort
   return mat;
 }
 
-static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_AntennaPorts, int pusch_AntennaPorts, NR_ServingCellConfigCommon_t *scc)
+static void config_common(gNB_MAC_INST *nrmac,
+                          nr_pdsch_AntennaPorts_t pdsch_AntennaPorts,
+                          int pusch_AntennaPorts,
+                          int nb_tx,
+                          int nb_beams,
+                          int32_t *bw_list,
+                          NR_ServingCellConfigCommon_t *scc)
 {
   nfapi_nr_config_request_scf_t *cfg = &nrmac->config[0];
   nrmac->common_channels[0].ServingCellConfigCommon = scc;
@@ -588,6 +594,21 @@ static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_Ant
 
   // precoding matrix configuration (to be improved)
   cfg->pmi_list = init_DL_MIMO_codebook(nrmac, pdsch_AntennaPorts);
+  // beamforming matrix configuration
+  cfg->dbt_config.num_dig_beams = nb_beams;
+  cfg->dbt_config.num_txrus = nb_tx;
+  cfg->dbt_config.dig_beam_list = malloc16(nb_beams * sizeof(*cfg->dbt_config.dig_beam_list));
+  AssertFatal(cfg->dbt_config.dig_beam_list, "out of memory\n");
+  for (int i = 0; i < nb_beams; i++) {
+    nfapi_nr_dig_beam_t *beam = &cfg->dbt_config.dig_beam_list[i];
+    beam->beam_idx = i;
+    beam->txru_list = malloc16(nb_tx * sizeof(*beam->txru_list));
+    for (int j = 0; j < nb_tx; j++) {
+      beam->txru_list[j].dig_beam_weight_Re = bw_list[j + i * nb_tx] & 0xffff;
+      beam->txru_list[j].dig_beam_weight_Im = (bw_list[j + i * nb_tx] >> 16) & 0xffff;
+      LOG_D(NR_MAC, "Beam %d Tx %d Weight (%d, %d)\n", i, j, beam->txru_list[j].dig_beam_weight_Re, beam->txru_list[j].dig_beam_weight_Im);
+    }
+  }
 }
 
 void nr_mac_config_scc(gNB_MAC_INST *nrmac, NR_ServingCellConfigCommon_t *scc, const nr_mac_config_t *config)
@@ -621,7 +642,9 @@ void nr_mac_config_scc(gNB_MAC_INST *nrmac, NR_ServingCellConfigCommon_t *scc, c
 
   LOG_I(NR_MAC, "Configuring common parameters from NR ServingCellConfig\n");
 
-  config_common(nrmac, config->pdsch_AntennaPorts, config->pusch_AntennaPorts, scc);
+  int nb_tx = config->nb_bfw[0];
+  int nb_beams = config->nb_bfw[1];
+  config_common(nrmac, config->pdsch_AntennaPorts, config->pusch_AntennaPorts, nb_tx, nb_beams, config->bw_list, scc);
 
   if (NFAPI_MODE == NFAPI_MONOLITHIC) {
     // nothing to be sent in the other cases

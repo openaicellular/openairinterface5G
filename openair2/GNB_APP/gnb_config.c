@@ -95,6 +95,11 @@
 #include "nfapi/oai_integration/aerial/fapi_vnf_p5.h"
 #endif
 
+static int DEFBANDS[] = {7};
+static int DEFENBS[] = {0};
+static int DEFBFW[] = {0x00007fff};
+static int DEFRUTPCORES[] = {-1,-1,-1,-1};
+
 extern uint16_t sf_ahead;
 
 extern int config_check_band_frequencies(int ind, int16_t band, uint64_t downlink_frequency,
@@ -1240,6 +1245,15 @@ void RCconfig_nr_macrlc(configmodule_interface_t *cfg)
         config.pdsch_AntennaPorts.XP,
         config.pusch_AntennaPorts);
 
+  paramdef_t RUParams[] = RUPARAMS_DESC;
+  paramlist_def_t RUParamList = {CONFIG_STRING_RU_LIST, NULL, 0};
+  config_getlist(config_get_if(), &RUParamList, RUParams, sizeofArray(RUParams), NULL);
+  int num_tx = 0;
+  for (int i = 0; i < RUParamList.numelt; i++)
+    num_tx += *(RUParamList.paramarray[i][RU_NB_TX_IDX].uptr);
+  AssertFatal(num_tx >= config.pdsch_AntennaPorts.XP * config.pdsch_AntennaPorts.N1 * config.pdsch_AntennaPorts.N2,
+              "Number of logical antenna ports (set in config file with pdsch_AntennaPorts) cannot be larger than physical antennas (nb_tx)\n");
+
   config.minRXTXTIME = *GNBParamList.paramarray[0][GNB_MINRXTXTIME_IDX].iptr;
   LOG_I(GNB_APP, "minTXRXTIME %d\n", config.minRXTXTIME);
   config.sib1_tda = *GNBParamList.paramarray[0][GNB_SIB1_TDA_IDX].iptr;
@@ -1288,6 +1302,17 @@ void RCconfig_nr_macrlc(configmodule_interface_t *cfg)
         config.timer_config.t311,
         config.timer_config.n311,
         config.timer_config.t319);
+
+  if (config_isparamset(GNBParamList.paramarray[0], GNB_BEAMWEIGHTS_IDX)) {
+    int n = GNBParamList.paramarray[0][GNB_BEAMWEIGHTS_IDX].numelt;
+    AssertFatal(n % num_tx == 0, "Error! Number of beam input needs to be multiple of TX antennas\n");
+    config.nb_bfw[0] = num_tx;
+    config.nb_bfw[1] = n / num_tx;
+    config.bw_list = (int32_t *) malloc16_clear(n * sizeof(int32_t));
+    for (int b = 0; b < n; b++) {
+      config.bw_list[b] = GNBParamList.paramarray[0][GNB_BEAMWEIGHTS_IDX].iptr[b];
+    }
+  }
 
   NR_ServingCellConfigCommon_t *scc = get_scc_config(cfg, config.minRXTXTIME);
   //xer_fprint(stdout, &asn_DEF_NR_ServingCellConfigCommon, scc);
