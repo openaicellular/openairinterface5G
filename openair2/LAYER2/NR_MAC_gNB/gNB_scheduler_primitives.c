@@ -2949,7 +2949,7 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
   }
 }
 
-static void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t frame, sub_frame_t slot)
+void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t frame, sub_frame_t slot)
 {
   LOG_D(NR_MAC, "%4d.%2d RNTI %04x: RRC processing timer expired\n", frame, slot, UE->rnti);
 

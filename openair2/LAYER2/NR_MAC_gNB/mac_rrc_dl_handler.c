@@ -415,6 +415,7 @@ static NR_UE_info_t *create_new_UE_handover(gNB_MAC_INST *mac, uint32_t cu_id)
   // note: we don't pass it to add_new_nr_ue() because the internal logic is
   // such that we then assume having received the ack of Msg4 (which is not the
   // case)
+  UE->Msg4_ACKed = true;
   UE->CellGroup = cellGroupConfig;
   UE->CellGroup->spCellConfig->reconfigurationWithSync = get_reconfiguration_with_sync(UE->rnti, UE->uid, scc);
 

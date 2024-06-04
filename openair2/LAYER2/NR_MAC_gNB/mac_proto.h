@@ -455,4 +455,6 @@ bool nr_mac_remove_lcid(NR_UE_sched_ctrl_t *sched_ctrl, long lcid);
 
 bool nr_mac_get_new_rnti(NR_UEs_t *UEs, const NR_RA_t *ra_base, int ra_count, rnti_t *rnti);
 
+void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t frame, sub_frame_t slot);
+
 #endif /*__LAYER2_NR_MAC_PROTO_H__*/
