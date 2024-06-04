@@ -1140,7 +1140,7 @@ uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uint8_t *e
   numTLVs++;
   const uint8_t slotsperframe[5] = {10, 20, 40, 80, 160};
   // Assuming always CP_Normal, because Cyclic prefix is not included in CONFIG.request 10.02, but is present in 10.04
-  uint8_t cyclicprefix = 1;
+  uint8_t cyclicprefix = 0;
   bool normal_CP = cyclicprefix ? false : true;
   // 3GPP 38.211 Table 4.3.2.1 & Table 4.3.2.2
   uint8_t number_of_symbols_per_slot = normal_CP ? 14 : 12;
@@ -1338,7 +1338,7 @@ uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end, void *
             result = (*unpack_fns[idx].unpack_func)(&pNfapiMsg->ssb_config.scs_common, ppReadPackedMsg, end);
             const uint8_t slotsperframe[5] = {10, 20, 40, 80, 160};
             // Assuming always CP_Normal, because Cyclic prefix is not included in CONFIG.request 10.02, but is present in 10.04
-            uint8_t cyclicprefix = 1;
+            uint8_t cyclicprefix = 0;
             bool normal_CP = cyclicprefix ? false : true;
             // 3GPP 38.211 Table 4.3.2.1 & Table 4.3.2.2
             uint8_t number_of_symbols_per_slot = normal_CP ? 14 : 12;

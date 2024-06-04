@@ -63,6 +63,10 @@
 #include "executables/lte-softmodem.h"
 #include "nfapi/open-nFAPI/pnf/inc/pnf_p7.h"
 
+#ifdef ENABLE_WLS
+#include "nfapi/oai_integration/wls_integration/include/wls_pnf.h"
+#endif
+
 #define NUM_P5_PHY 2
 
 #define _GNU_SOURCE
@@ -2129,8 +2133,8 @@ void *pnf_nr_start_thread(void *ptr) {
 }
 
 void configure_nr_nfapi_pnf(char *vnf_ip_addr, int vnf_p5_port, char *pnf_ip_addr, int pnf_p7_port, int vnf_p7_port) {
-  printf("%s() PNF\n\n\n\n\n\n", __FUNCTION__);
-    nfapi_setmode(NFAPI_MODE_PNF);  // PNF!
+  printf("%s() PNF\n", __FUNCTION__);
+  nfapi_setmode(NFAPI_MODE_PNF);  // PNF!
 
   nfapi_pnf_config_t *config = nfapi_pnf_config_create();
   config->vnf_ip_addr = vnf_ip_addr;
@@ -2149,8 +2153,8 @@ void configure_nr_nfapi_pnf(char *vnf_ip_addr, int vnf_p5_port, char *pnf_ip_add
          pnf.phys[0].udp.tx_port,
          pnf.phys[0].udp.rx_port);
   config->cell_search_req = &cell_search_request;
-         
-    
+
+
   //config->pnf_nr_param_req = &pnf_nr_param_request;
   config->pnf_nr_param_req = &pnf_nr_param_request;
   config->pnf_nr_config_req = &pnf_nr_config_request;
@@ -2175,9 +2179,18 @@ void configure_nr_nfapi_pnf(char *vnf_ip_addr, int vnf_p5_port, char *pnf_ip_add
   config->deallocate_p4_p5_vendor_ext = &pnf_sim_deallocate_p4_p5_vendor_ext;
   config->codec_config.unpack_p4_p5_vendor_extension = &pnf_sim_unpack_p4_p5_vendor_extension;
   config->codec_config.pack_p4_p5_vendor_extension = &pnf_sim_pack_p4_p5_vendor_extension;
+
+#ifdef ENABLE_WLS
+  printf("WLS MODE PNF\n");
+  NFAPI_TRACE(NFAPI_TRACE_INFO, "[PNF] Creating WLS PNF NFAPI start thread %s\n", __FUNCTION__);
+  //wls_fapi_pnf_nr_start_thread(config);
+  pthread_create(&pnf_start_pthread, NULL, &wls_fapi_pnf_nr_start_thread, config);
+  pthread_setname_np(pnf_start_pthread, "NFAPI_WLS_PNF");
+#else
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[PNF] Creating PNF NFAPI start thread %s\n", __FUNCTION__);
   pthread_create(&pnf_start_pthread, NULL, &pnf_nr_start_thread, config);
   pthread_setname_np(pnf_start_pthread, "NFAPI_PNF");
+#endif
 }
 
 void configure_nfapi_pnf(char *vnf_ip_addr, int vnf_p5_port, char *pnf_ip_addr, int pnf_p7_port, int vnf_p7_port) {
