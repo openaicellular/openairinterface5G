@@ -2252,7 +2252,13 @@ static void rrc_CU_process_ue_context_release_complete(MessageDef *msg_p)
     return;
   }
 
-  rrc_remove_ue(RC.nrrrc[0], ue_context_p);
+  gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
+  if (UE->ho_context != NULL) {
+    free(UE->ho_context);
+    UE->ho_context = NULL;
+  } else {
+    rrc_remove_ue(RC.nrrrc[0], ue_context_p);
+  }
 }
 
 static void rrc_CU_process_ue_context_modification_response(MessageDef *msg_p, instance_t instance)
