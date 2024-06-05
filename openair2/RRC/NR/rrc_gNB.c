@@ -2157,6 +2157,67 @@ static pdusession_level_qos_parameter_t *get_qos_characteristics(const int qfi, 
   return NULL;
 }
 
+/* \bref return F1AP QoS characteristics based on Qos flow parameters */
+static f1ap_qos_characteristics_t get_qos_char_from_qos_flow_param(const pdusession_level_qos_parameter_t *qos_param)
+{
+  f1ap_qos_characteristics_t qos_char = {0};
+  if (qos_param->fiveQI_type == dynamic) {
+    qos_char.qos_type = dynamic;
+    qos_char.dynamic.fiveqi = qos_param->fiveQI;
+    qos_char.dynamic.qos_priority_level = qos_param->qos_priority;
+  } else {
+    qos_char.qos_type = non_dynamic;
+    qos_char.non_dynamic.fiveqi = qos_param->fiveQI;
+    qos_char.non_dynamic.qos_priority_level = qos_param->qos_priority;
+  }
+  return qos_char;
+}
+
+/* \brief fills a list of DRBs to be setup from a number of PDU sessions in E1
+ * bearer setup response */
+static int fill_drb_to_be_setup_from_e1_resp(const gNB_RRC_INST *rrc,
+                                             gNB_RRC_UE_t *UE,
+                                             const pdu_session_setup_t *pduSession,
+                                             int numPduSession,
+                                             f1ap_drb_to_be_setup_t drbs[32])
+{
+  int nb_drb = 0;
+  for (int p = 0; p < numPduSession; ++p) {
+    rrc_pdu_session_param_t *RRC_pduSession = find_pduSession(UE, pduSession[p].id, false);
+    DevAssert(RRC_pduSession);
+    for (int i = 0; i < pduSession[p].numDRBSetup; i++) {
+      const DRB_nGRAN_setup_t *drb_config = &pduSession[p].DRBnGRanList[i];
+      f1ap_drb_to_be_setup_t *drb = &drbs[nb_drb];
+      drb->drb_id = pduSession[p].DRBnGRanList[i].id;
+      drb->rlc_mode = rrc->configuration.um_on_default_drb ? RLC_MODE_UM : RLC_MODE_AM;
+      drb->up_ul_tnl[0].tl_address = drb_config->UpParamList[0].tlAddress;
+      drb->up_ul_tnl[0].port = rrc->eth_params_s.my_portd;
+      drb->up_ul_tnl[0].teid = drb_config->UpParamList[0].teId;
+      drb->up_ul_tnl_length = 1;
+
+      /* pass QoS info to MAC */
+      int nb_qos_flows = drb_config->numQosFlowSetup;
+      AssertFatal(nb_qos_flows > 0, "must map at least one flow to a DRB\n");
+      drb->drb_info.flows_to_be_setup_length = nb_qos_flows;
+      drb->drb_info.flows_mapped_to_drb = calloc(nb_qos_flows, sizeof(f1ap_flows_mapped_to_drb_t));
+      AssertFatal(drb->drb_info.flows_mapped_to_drb, "could not allocate memory\n");
+      for (int j = 0; j < nb_qos_flows; j++) {
+        drb->drb_info.flows_mapped_to_drb[j].qfi = drb_config->qosFlows[j].qfi;
+        pdusession_level_qos_parameter_t *in_qos_char = get_qos_characteristics(drb_config->qosFlows[j].qfi, RRC_pduSession);
+        drb->drb_info.flows_mapped_to_drb[j].qos_params.qos_characteristics = get_qos_char_from_qos_flow_param(in_qos_char);
+      }
+      /* the DRB QoS parameters: we just reuse the ones from the first flow */
+      drb->drb_info.drb_qos = drb->drb_info.flows_mapped_to_drb[0].qos_params;
+
+      /* pass NSSAI info to MAC */
+      drb->nssai = RRC_pduSession->param.nssai;
+
+      nb_drb++;
+    }
+  }
+  return nb_drb;
+}
+
 /**
  * @brief E1AP Bearer Context Setup Response processing on CU-CP
 */
@@ -2198,52 +2259,7 @@ void rrc_gNB_process_e1_bearer_context_setup_resp(e1ap_bearer_setup_resp_t *resp
 
   /* Instruction towards the DU for DRB configuration and tunnel creation */
   f1ap_drb_to_be_setup_t drbs[32]; // maximum DRB can be 32
-  int nb_drb = 0;
-  for (int p = 0; p < resp->numPDUSessions; ++p) {
-    rrc_pdu_session_param_t *RRC_pduSession = find_pduSession(UE, resp->pduSession[p].id, false);
-    DevAssert(RRC_pduSession);
-    for (int i = 0; i < resp->pduSession[p].numDRBSetup; i++) {
-      DRB_nGRAN_setup_t *drb_config = &resp->pduSession[p].DRBnGRanList[i];
-      f1ap_drb_to_be_setup_t *drb = &drbs[nb_drb];
-      drb->drb_id = resp->pduSession[p].DRBnGRanList[i].id;
-      drb->rlc_mode = rrc->configuration.um_on_default_drb ? RLC_MODE_UM : RLC_MODE_AM;
-      drb->up_ul_tnl[0].tl_address = drb_config->UpParamList[0].tlAddress;
-      drb->up_ul_tnl[0].port = rrc->eth_params_s.my_portd;
-      drb->up_ul_tnl[0].teid = drb_config->UpParamList[0].teId;
-      drb->up_ul_tnl_length = 1;
-
-      drb->nssai = RRC_pduSession->param.nssai;
-
-      /* pass QoS info to MAC */
-      int nb_qos_flows = drb_config->numQosFlowSetup;
-      AssertFatal(nb_qos_flows > 0, "must map at least one flow to a DRB\n");
-      drb->drb_info.flows_to_be_setup_length = nb_qos_flows;
-      drb->drb_info.flows_mapped_to_drb = calloc(nb_qos_flows, sizeof(f1ap_flows_mapped_to_drb_t));
-      AssertFatal(drb->drb_info.flows_mapped_to_drb, "could not allocate memory\n");
-      for (int j = 0; j < nb_qos_flows; j++) {
-        drb->drb_info.flows_mapped_to_drb[j].qfi = drb_config->qosFlows[j].qfi;
-
-        pdusession_level_qos_parameter_t *in_qos_char = get_qos_characteristics(drb_config->qosFlows[j].qfi, RRC_pduSession);
-        f1ap_qos_characteristics_t *qos_char = &drb->drb_info.flows_mapped_to_drb[j].qos_params.qos_characteristics;
-        if (in_qos_char->fiveQI_type == dynamic) {
-          qos_char->qos_type = dynamic;
-          qos_char->dynamic.fiveqi = in_qos_char->fiveQI;
-          qos_char->dynamic.qos_priority_level = in_qos_char->qos_priority;
-        } else {
-          qos_char->qos_type = non_dynamic;
-          qos_char->non_dynamic.fiveqi = in_qos_char->fiveQI;
-          qos_char->non_dynamic.qos_priority_level = in_qos_char->qos_priority;
-        }
-      }
-      /* the DRB QoS parameters: we just reuse the ones from the first flow */
-      drb->drb_info.drb_qos = drb->drb_info.flows_mapped_to_drb[0].qos_params;
-
-      /* pass NSSAI info to MAC */
-      drb->nssai = RRC_pduSession->param.nssai;
-
-      nb_drb++;
-    }
-  }
+  int nb_drb = fill_drb_to_be_setup_from_e1_resp(rrc, UE, resp->pduSession, resp->numPDUSessions, drbs);
 
   AssertFatal(UE->as_security_active, "logic bug: security should be active when activating DRBs\n");
 
