@@ -205,6 +205,8 @@ typedef struct drb_s {
   } pdcp_config;
   // F1-U Downlink Tunnel Config (on DU side)
   f1u_tunnel_t du_tunnel_config;
+  // F1-U Uplink Tunnel Config (on CU-UP side)
+  f1u_tunnel_t cuup_tunnel_config;
 } drb_t;
 
 typedef enum {

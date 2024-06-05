@@ -1899,6 +1899,16 @@ static void store_du_f1u_tunnel(const f1ap_drb_to_be_setup_t *drbs, int n, gNB_R
   }
 }
 
+/*
+ * @brief Store F1-U UL TEID and address in RRC
+ */
+static void f1u_ul_gtp_update(f1u_tunnel_t *f1u, const up_params_t *p)
+{
+  f1u->teid = p->teId;
+  memcpy(&f1u->addr.buffer, &p->tlAddress, sizeof(uint8_t) * 4);
+  f1u->addr.length = sizeof(in_addr_t);
+}
+
 /* \brief use list of DRBs and send the corresponding bearer update message via
  * E1 to the CU of this UE. Also updates TEID info internally */
 static void e1_send_bearer_updates(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, f1ap_drb_to_be_setup_t *drbs)
@@ -2175,6 +2185,15 @@ void rrc_gNB_process_e1_bearer_context_setup_resp(e1ap_bearer_setup_resp_t *resp
     rrc_pdu->param.gNB_teid_N3 = e1_pdu->teId;
     memcpy(&rrc_pdu->param.gNB_addr_N3.buffer, &e1_pdu->tlAddress, sizeof(uint8_t) * 4);
     rrc_pdu->param.gNB_addr_N3.length = sizeof(in_addr_t);
+
+    // save the tunnel address for the DRBs
+    for (int i = 0; i < e1_pdu->numDRBSetup; i++) {
+      DRB_nGRAN_setup_t *drb_config = &e1_pdu->DRBnGRanList[i];
+      // numUpParam only relevant in F1, but not monolithic
+      AssertFatal(drb_config->numUpParam <= 1, "can only up to one UP param\n");
+      drb_t *drb = get_drb(UE, drb_config->id);
+      f1u_ul_gtp_update(&drb->cuup_tunnel_config, &drb_config->UpParamList[0]);
+    }
   }
 
   /* Instruction towards the DU for DRB configuration and tunnel creation */
