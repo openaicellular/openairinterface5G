@@ -169,10 +169,10 @@ typedef struct pdu_session_param_s {
  * @brief F1-U tunnel configuration
 */
 typedef struct f1u_tunnel_s {
-  /* Downlink F1-U Tunnel Endpoint Identifier (CU-UP/DU) */
-  uint32_t cuup_teid_f1u;
-  /* DL F1-U Transport Layer */
-  transport_layer_addr_t cuup_addr_f1u;
+  /* F1-U Tunnel Endpoint Identifier (on DU side) */
+  uint32_t teid;
+  /* Downlink F1-U Transport Layer (on DU side) */
+  transport_layer_addr_t addr;
 } f1u_tunnel_t;
 
 typedef struct drb_s {
@@ -203,8 +203,8 @@ typedef struct drb_s {
       int cipheringDisabled;
     } ext1;
   } pdcp_config;
-  // F1-U
-  f1u_tunnel_t f1u_tunnel_config;
+  // F1-U Downlink Tunnel Config (on DU side)
+  f1u_tunnel_t du_tunnel_config;
 } drb_t;
 
 typedef enum {

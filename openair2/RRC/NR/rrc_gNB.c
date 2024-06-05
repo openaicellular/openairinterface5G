@@ -844,8 +844,8 @@ static void cuup_notify_reestablishment(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue_p)
     drb_e1->id = drb_id;
     drb_e1->numDlUpParam = 1;
     drb_t *drbs = &ue_p->established_drbs[drb_id];
-    memcpy(&drb_e1->DlUpParamList[0].tlAddress, &drbs->f1u_tunnel_config.cuup_addr_f1u.buffer, sizeof(uint8_t) * 4);
-    drb_e1->DlUpParamList[0].teId = drbs->f1u_tunnel_config.cuup_teid_f1u;
+    memcpy(&drb_e1->DlUpParamList[0].tlAddress, &drbs->du_tunnel_config.addr.buffer, sizeof(uint8_t) * 4);
+    drb_e1->DlUpParamList[0].teId = drbs->du_tunnel_config.teid;
     /* PDCP configuration */
     bearer_context_pdcp_config_t *pdcp_config = &drb_e1->pdcp_config;
     drb_t *rrc_drb = get_drb(ue_p, drb_id);
@@ -1878,15 +1878,15 @@ static void fill_e1_bearer_modif(DRB_nGRAN_to_setup_t *drb_e1, const f1ap_drb_to
 /**
  * @brief Store F1-U DL TL and TEID in RRC
 */
-static void f1u_gtp_update(f1u_tunnel_t *f1u, const f1ap_drb_to_be_setup_t *drb_f1)
+static void f1u_dl_gtp_update(f1u_tunnel_t *f1u, const f1ap_up_tnl_t *p)
 {
-  f1u->cuup_teid_f1u = drb_f1->up_dl_tnl[0].teid;
-  memcpy(&f1u->cuup_addr_f1u.buffer, &drb_f1->up_dl_tnl[0].tl_address, sizeof(uint8_t) * 4);
-  f1u->cuup_addr_f1u.length = sizeof(in_addr_t);
+  f1u->teid = p->teid;
+  memcpy(&f1u->addr.buffer, &p->tl_address, sizeof(uint8_t) * 4);
+  f1u->addr.length = sizeof(in_addr_t);
 }
 
 /* \brief use list of DRBs and send the corresponding bearer update message via
- * E1 to the CU of this UE */
+ * E1 to the CU of this UE. Also updates TEID info internally */
 static void e1_send_bearer_updates(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, f1ap_drb_to_be_setup_t *drbs)
 {
   // we assume the same UE ID in CU-UP and CU-CP
@@ -1906,7 +1906,7 @@ static void e1_send_bearer_updates(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, f
     DevAssert(pdu_e1 != NULL);
     pdu_e1->sessionId = pdu_ue->param.pdusession_id;
     DRB_nGRAN_to_setup_t *drb_e1 = &pdu_e1->DRBnGRanModList[pdu_e1->numDRB2Modify];
-    f1u_gtp_update(&UE->established_drbs[drb_f1->drb_id].f1u_tunnel_config, drb_f1);
+    f1u_dl_gtp_update(&UE->established_drbs[drb_f1->drb_id].du_tunnel_config, &drb_f1->up_dl_tnl[0]);
     /* Fill E1 bearer context modification */
     fill_e1_bearer_modif(drb_e1, drb_f1);
     pdu_e1->numDRB2Modify += 1;
