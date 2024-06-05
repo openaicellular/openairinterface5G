@@ -141,6 +141,45 @@ You can see all options by typing
 ./nr-uesoftmodem --help
 ```
 
+## AT Command Interface in NR-UE
+
+NR UE features an interactive AT command interface. Users can use this interface to issue commands and to get specific information from the softmodem in the same manner as in Quectel or Sierra modems. At the moment, the UE supports only the following commands
+- `at+cgdcont`
+- `at+cgact`
+
+### Example Usage
+
+1. Use `socat` to loopback two virtual serial ports in Linux. One port will be used by the NR UE and another will be used by minicom.
+```
+socat -d -d pty,raw,echo=1 pty,raw,echo=1
+```
+The output should be something like this
+```
+2024/06/05 13:14:57 socat[893875] N PTY is /dev/pts/12
+2024/06/05 13:14:57 socat[893875] N PTY is /dev/pts/13
+2024/06/05 13:14:57 socat[893875] N starting data transfer loop with FDs [5,5] and [7,7]
+```
+2. Run the `nr-uesoftmodem` with your desired parameters and include `--AT --AT-interface "/dev/pts/12"` at the end.
+3. Once the UE is up and running, open minicom with
+```
+minicom -D /dev/pts/13
+```
+**Note**: Make sure to use the right port numbers returned by `socat` on your machine.
+
+4. Configure a second PDP context with
+```
+at+cgdcont=1,"IP","oai",,,,,,,,,,,,,,1,"01.16777215",
+```
+5. Read back and check if the PDP context is configured correctly
+```
+at+cgdcont?
+```
+6. Activate the PDP context
+```
+at+cgact=1,1
+```
+The UE should request the network for a new PDU session.
+
 ## How to run a NTN configuration
 
 ### NTN channel
