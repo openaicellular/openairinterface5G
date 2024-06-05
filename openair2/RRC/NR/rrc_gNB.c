@@ -348,7 +348,6 @@ static NR_DRB_ToAddModList_t *createDRBlist(gNB_RRC_UE_t *ue, bool reestablish)
     if (ue->established_drbs[i].status != DRB_INACTIVE) {
       DRB_config = generateDRB_ASN1(&ue->established_drbs[i]);
       if (reestablish) {
-        ue->established_drbs[i].reestablishPDCP = NR_DRB_ToAddMod__reestablishPDCP_true;
         asn1cCallocOne(DRB_config->reestablishPDCP, NR_DRB_ToAddMod__reestablishPDCP_true);
       }
       asn1cSeqAdd(&DRB_configList->list, DRB_config);
