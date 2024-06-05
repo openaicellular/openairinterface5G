@@ -1885,6 +1885,20 @@ static void f1u_dl_gtp_update(f1u_tunnel_t *f1u, const f1ap_up_tnl_t *p)
   f1u->addr.length = sizeof(in_addr_t);
 }
 
+/**
+ * @brief Update DRB TEID information in RRC storage from received DRB list
+ */
+static void store_du_f1u_tunnel(const f1ap_drb_to_be_setup_t *drbs, int n, gNB_RRC_UE_t *ue)
+{
+  for (int i = 0; i < n; i++) {
+    const f1ap_drb_to_be_setup_t *drb_f1 = &drbs[i];
+    AssertFatal(drb_f1->up_dl_tnl_length == 1, "can handle only one UP param\n");
+    AssertFatal(drb_f1->drb_id < MAX_DRBS_PER_UE, "illegal DRB ID %ld\n", drb_f1->drb_id);
+    drb_t *drb = get_drb(ue, drb_f1->drb_id);
+    f1u_dl_gtp_update(&drb->du_tunnel_config, &drb_f1->up_dl_tnl[0]);
+  }
+}
+
 /* \brief use list of DRBs and send the corresponding bearer update message via
  * E1 to the CU of this UE. Also updates TEID info internally */
 static void e1_send_bearer_updates(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, f1ap_drb_to_be_setup_t *drbs)
@@ -1906,7 +1920,6 @@ static void e1_send_bearer_updates(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, f
     DevAssert(pdu_e1 != NULL);
     pdu_e1->sessionId = pdu_ue->param.pdusession_id;
     DRB_nGRAN_to_setup_t *drb_e1 = &pdu_e1->DRBnGRanModList[pdu_e1->numDRB2Modify];
-    f1u_dl_gtp_update(&UE->established_drbs[drb_f1->drb_id].du_tunnel_config, &drb_f1->up_dl_tnl[0]);
     /* Fill E1 bearer context modification */
     fill_e1_bearer_modif(drb_e1, drb_f1);
     pdu_e1->numDRB2Modify += 1;
@@ -1956,6 +1969,7 @@ static void rrc_CU_process_ue_context_setup_response(MessageDef *msg_p, instance
     /* Note: we would ideally check that SRB2 is acked, but at least LiteOn DU
      * seems buggy and does not ack, so simply check that locally we activated */
     AssertFatal(UE->Srb[1].Active && UE->Srb[2].Active, "SRBs 1 and 2 must be active during DRB Establishment");
+    store_du_f1u_tunnel(resp->drbs_to_be_setup, resp->drbs_to_be_setup_length, UE);
     e1_send_bearer_updates(rrc, UE, resp->drbs_to_be_setup_length, resp->drbs_to_be_setup);
   }
 
@@ -2033,6 +2047,7 @@ static void rrc_CU_process_ue_context_modification_response(MessageDef *msg_p, i
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
 
   if (resp->drbs_to_be_setup_length > 0) {
+    store_du_f1u_tunnel(resp->drbs_to_be_setup, resp->drbs_to_be_setup_length, UE);
     e1_send_bearer_updates(rrc, UE, resp->drbs_to_be_setup_length, resp->drbs_to_be_setup);
   }
 
