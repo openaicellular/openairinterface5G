@@ -1796,6 +1796,20 @@ static void handle_rrcReconfigurationComplete(const protocol_ctxt_t *const ctxt_
       LOG_I(RRC, "UE %d: transaction %d still ongoing for action %d\n", UE->rrc_ue_id, i, UE->xids[i]);
     }
   }
+
+  if (UE->ho_context != NULL) {
+    gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
+    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
+    RETURN_IF_INVALID_ASSOC_ID(ue_data);
+    f1ap_ue_context_release_cmd_t ue_context_release_cmd = {
+        .gNB_CU_ue_id = UE->rrc_ue_id,
+        .gNB_DU_ue_id = UE->ho_context->data.intra_cu.source_secondary_ue,
+        .cause = F1AP_CAUSE_RADIO_NETWORK, // better
+        .cause_value = 5, // 5 = F1AP_CauseRadioNetwork_interaction_with_other_procedure
+        .srb_id = DCCH,
+    };
+    rrc->mac_rrc.ue_context_release_command(UE->ho_context->data.intra_cu.source_du, &ue_context_release_cmd);
+  }
 }
 //-----------------------------------------------------------------------------
 int rrc_gNB_decode_dcch(const protocol_ctxt_t *const ctxt_pP,
