@@ -633,6 +633,7 @@ void nr_rlc_reestablish_entity(int ue_id, int lc_id)
 
   if (ue == NULL) {
     LOG_E(RLC, "RLC instance for the given UE was not found \n");
+    nr_rlc_manager_unlock(nr_rlc_ue_manager);
     return;
   }
   nr_rlc_entity_t *rb = get_rlc_entity_from_lcid(ue, lc_id);
