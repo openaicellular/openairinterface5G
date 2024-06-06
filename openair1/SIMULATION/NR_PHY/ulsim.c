@@ -68,7 +68,7 @@
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "executables/nr-uesoftmodem.h"
 //#define DEBUG_ULSIM
-#define MAX_UE_CONNECT 4
+#define MAX_UE_CONNECT 16
 
 const char *__asan_default_options()
 {
@@ -134,7 +134,7 @@ nrUE_params_t *get_nrUE_params(void) {
   return &nrUE_params;
 }
 // needed for some functions
-uint16_t n_rnti[MAX_UE_CONNECT] = {0x1234, 0x1235, 0x1236, 0x1237};
+uint16_t n_rnti[MAX_UE_CONNECT] = {0x1234, 0x1235, 0x1236, 0x1237, 0x1238, 0x1239, 0x1240, 0x1241, 0x1243, 0x1244, 0x1245, 0x1246, 0x1247, 0x1248, 0x1249, 0x1250};
 openair0_config_t openair0_cfg[MAX_CARDS];
 
 channel_desc_t *UE2gNB[MAX_MOBILES_PER_GNB][NUMBER_OF_gNB_MAX];
@@ -793,10 +793,13 @@ int main(int argc, char *argv[])
     ulsch_gNB[UE_id] = &gNB->ulsch[UE_id];
   }
 
-  NR_Sched_Rsp_t *Sched_INFO = malloc(sizeof(*Sched_INFO));
-  memset((void*)Sched_INFO,0,sizeof(*Sched_INFO));
-  nfapi_nr_ul_tti_request_t *UL_tti_req = &Sched_INFO->UL_tti_req;
-  Sched_INFO->sched_response_id = -1;
+  NR_Sched_Rsp_t *Sched_INFO = calloc(number_of_UEs, sizeof(NR_Sched_Rsp_t));
+  nfapi_nr_ul_tti_request_t **UL_tti_req = calloc(number_of_UEs, sizeof(nfapi_nr_ul_tti_request_t *));
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+    memset((void*)&Sched_INFO[UE_id],0,sizeof(NR_Sched_Rsp_t));
+    UL_tti_req[UE_id] = &Sched_INFO[UE_id].UL_tti_req;
+    Sched_INFO[UE_id].sched_response_id = -1;
+  }
 
   nr_phy_data_tx_t phy_data[MAX_UE_CONNECT] = {0};
 
@@ -1080,17 +1083,19 @@ int main(int argc, char *argv[])
       // FIXME: Multi-UE, Here I only track the round of one of the UEs
       while (round < max_rounds && crc_status[0]) {
         nr_scheduled_response_t scheduled_response[MAX_UE_CONNECT] = {0};
-        UL_tti_req->SFN = frame;
-        UL_tti_req->Slot = slot;
-        UL_tti_req->n_pdus = do_SRS == 1 ? 2 * number_of_UEs : 1 * number_of_UEs;
 
         for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+
+          UL_tti_req[UE_id]->SFN = frame;
+          UL_tti_req[UE_id]->Slot = slot;
+          UL_tti_req[UE_id]->n_pdus = do_SRS == 1 ? 2 : 1;
+
           UE = UE_list[UE_id];
           round_trials[UE_id][round]++;
           rv_index = nr_rv_round_map[round % 4];
 
           /// gNB UL PDUs
-          nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element0 = (do_SRS) ? pdu_element0 = &UL_tti_req->pdus_list[2 * UE_id] : &UL_tti_req->pdus_list[UE_id];
+          nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element0 = &UL_tti_req[UE_id]->pdus_list[0];
           pdu_element0->pdu_type = NFAPI_NR_UL_CONFIG_PUSCH_PDU_TYPE;
           pdu_element0->pdu_size = sizeof(nfapi_nr_pusch_pdu_t);
 
@@ -1168,7 +1173,7 @@ int main(int argc, char *argv[])
                                         96, 96, 104, 112, 120, 120, 120, 128, 128, 128, 132, 136, 144, 144, 144, 144, 152, 160,
                                         160, 160, 168, 176, 184, 192, 192, 192, 192, 208, 216, 224, 240, 240, 240, 240, 256, 256,
                                         256, 264, 272, 272, 272};
-            nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element1 = &UL_tti_req->pdus_list[2 * UE_id + 1];
+            nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element1 = &UL_tti_req[UE_id]->pdus_list[1];
             pdu_element1->pdu_type = NFAPI_NR_UL_CONFIG_SRS_PDU_TYPE;
             pdu_element1->pdu_size = sizeof(nfapi_nr_srs_pdu_t);
             nfapi_nr_srs_pdu_t *srs_pdu = &pdu_element1->srs_pdu;
@@ -1202,7 +1207,7 @@ int main(int argc, char *argv[])
 
           // prepare ULSCH/PUSCH reception
           pushNotifiedFIFO(&gNB->L1_tx_free, msgL1Tx);  // to unblock the process in the beginning
-          nr_schedule_response(Sched_INFO);
+          nr_schedule_response(&Sched_INFO[UE_id]);
 
           // --------- setting parameters for UE --------
           scheduled_response[UE_id].ul_config = &ul_config[UE_id];
@@ -1400,7 +1405,7 @@ int main(int argc, char *argv[])
           NR_gNB_PUSCH *pusch_vars = &gNB->pusch_vars[UE_id];
 
           if (n_trials == 1 && round == 0 && number_of_UEs == 1) {
-            nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element0 = &UL_tti_req->pdus_list[0];
+            nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element0 = &UL_tti_req[UE_id]->pdus_list[0];
             nfapi_nr_pusch_pdu_t *pusch_pdu = &pdu_element0->pusch_pdu;
             __attribute__((unused)) int off = ((nb_rb[0] & 1) == 1) ? 4 : 0;
 
