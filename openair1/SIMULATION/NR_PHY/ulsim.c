@@ -68,7 +68,6 @@
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "executables/nr-uesoftmodem.h"
 //#define DEBUG_ULSIM
-#define MAX_UE_CONNECT 16
 
 const char *__asan_default_options()
 {
@@ -134,7 +133,6 @@ nrUE_params_t *get_nrUE_params(void) {
   return &nrUE_params;
 }
 // needed for some functions
-uint16_t n_rnti[MAX_UE_CONNECT] = {0x1234, 0x1235, 0x1236, 0x1237, 0x1238, 0x1239, 0x1240, 0x1241, 0x1243, 0x1244, 0x1245, 0x1246, 0x1247, 0x1248, 0x1249, 0x1250};
 openair0_config_t openair0_cfg[MAX_CARDS];
 
 channel_desc_t *UE2gNB[MAX_MOBILES_PER_GNB][NUMBER_OF_gNB_MAX];
@@ -156,7 +154,7 @@ int main(int argc, char *argv[])
   FILE *output_fd = NULL;
   double ***s_re,***s_im,***r_re,***r_im;
   //uint8_t write_output_file = 0;
-  int trial, n_trials = 1, n_false_positive[MAX_UE_CONNECT], delay = 0;
+  int trial, n_trials = 1, delay = 0;
   double maxDoppler = 0.0;
   uint8_t n_tx = 1, n_rx = 1;
   channel_desc_t *UE2gNB;
@@ -217,13 +215,16 @@ int main(int argc, char *argv[])
   
   // Multi-UE
   int cnt;
-  PHY_VARS_NR_UE** UE_list = (PHY_VARS_NR_UE**)malloc(MAX_UE_CONNECT * sizeof(PHY_VARS_NR_UE*));
   char *token;
   int number_of_UEs = 1;
   int start_rb = 0;
   int ue_start_rb = 0;
-  int nb_rb[MAX_UE_CONNECT] = {0};
-  int Imcs[MAX_UE_CONNECT] = {9};
+  char *n_rnti_str = calloc(1,sizeof(char));
+  n_rnti_str[0] = 0;
+  char *nb_rb_str = calloc(1,sizeof(char));
+  nb_rb_str[0] = 0;
+  char *Imcs_str = calloc(1,sizeof(char));
+  Imcs_str[0] = 0;
 
   //logInit();
   randominit(0);
@@ -252,13 +253,9 @@ int main(int argc, char *argv[])
       break;
 
     case 'c':
-      cnt = 0;
-      token = strtok(optarg, ",");
-      while (token != NULL) {
-        n_rnti[cnt++] = atoi(token);
-        AssertFatal(n_rnti[cnt - 1] > 0 && n_rnti[cnt - 1] <= 65535, "Illegal n_rnti[%d] %x\n", cnt - 1, n_rnti[cnt - 1]);
-        token = strtok(NULL, ",");
-      }
+      free(n_rnti_str);
+      n_rnti_str = calloc(strlen(optarg)+1,sizeof(char));
+      strcpy(n_rnti_str,optarg);
       break;
 
     case 'd':
@@ -338,12 +335,9 @@ int main(int argc, char *argv[])
       break;
 
     case 'm':
-      cnt = 0;
-      token = strtok(optarg, ",");
-      while (token != NULL) {
-        Imcs[cnt++] = atoi(token);
-        token = strtok(NULL, ",");
-      }
+      free(Imcs_str);
+      Imcs_str = calloc(strlen(optarg)+1,sizeof(char));
+      strcpy(Imcs_str,optarg);
       break;
 
     case 'W':
@@ -367,12 +361,9 @@ int main(int argc, char *argv[])
       break;
 
     case 'r':
-      cnt = 0;
-      token = strtok(optarg, ",");
-      while (token != NULL) {
-        nb_rb[cnt++] = atoi(token);
-        token = strtok(NULL, ",");
-      }
+      free(nb_rb_str);
+      nb_rb_str = calloc(strlen(optarg)+1,sizeof(char));
+      strcpy(nb_rb_str,optarg);
       break;
 
     case 's':
@@ -403,10 +394,6 @@ int main(int argc, char *argv[])
 
     case 'x':
       number_of_UEs = atoi(optarg);
-      if (number_of_UEs > MAX_UE_CONNECT) {
-        printf("Unsupported number of UEs, maximum number of UEs is %d\n", MAX_UE_CONNECT);
-        exit(-1);
-      }
       break;
 
     case 'y':
@@ -540,7 +527,7 @@ int main(int argc, char *argv[])
       printf("-u Set the numerology\n");
       printf("-v Set the max rounds\n");
       printf("-w Start PRB for PUSCH\n");
-      printf("-x Set the number of UEs, maximum number of UEs is %d\n", MAX_UE_CONNECT);
+      printf("-x Set the number of UEs\n");
       printf("-y Number of TX antennas used at UE\n");
       printf("-z Number of RX antennas used at gNB\n");
       printf("-C Specify the number of threads for the simulation\n");
@@ -564,6 +551,42 @@ int main(int argc, char *argv[])
 
     }
   }
+
+  int n_false_positive[number_of_UEs];
+  PHY_VARS_NR_UE** UE_list = (PHY_VARS_NR_UE**)malloc(number_of_UEs * sizeof(PHY_VARS_NR_UE*));
+  uint16_t n_rnti[number_of_UEs];
+  memset((void *)n_rnti,0,number_of_UEs * sizeof(uint16_t));
+  int nb_rb[number_of_UEs];
+  memset((void *)nb_rb,0,number_of_UEs * sizeof(int));
+  int Imcs[number_of_UEs];
+  memset((void *)Imcs,0,number_of_UEs * sizeof(int));
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+    n_rnti[UE_id] = 0x1234 + UE_id;
+    Imcs[UE_id] = 9;
+  }
+  n_rnti[0] = 50; // backward compatibility from before nr_ulsim supported multiple UEs
+  cnt = 0;
+  token = strtok(n_rnti_str, ",");
+  while (token != NULL) {
+    n_rnti[cnt++] = atoi(token);
+    AssertFatal(n_rnti[cnt - 1] > 0 && n_rnti[cnt - 1] <= 65535, "Illegal n_rnti[%d] %x\n", cnt - 1, n_rnti[cnt - 1]);
+    token = strtok(NULL, ",");
+  }
+  free(n_rnti_str);
+  cnt = 0;
+  token = strtok(nb_rb_str, ",");
+  while (token != NULL) {
+    nb_rb[cnt++] = atoi(token);
+    token = strtok(NULL, ",");
+  }
+  free(nb_rb_str);
+  cnt = 0;
+  token = strtok(Imcs_str, ",");
+  while (token != NULL) {
+    Imcs[cnt++] = atoi(token);
+    token = strtok(NULL, ",");
+  }
+  free(Imcs_str);
   
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
     if (nb_rb[UE_id] == 0) {
@@ -801,11 +824,14 @@ int main(int argc, char *argv[])
     Sched_INFO[UE_id].sched_response_id = -1;
   }
 
-  nr_phy_data_tx_t phy_data[MAX_UE_CONNECT] = {0};
+  nr_phy_data_tx_t phy_data[number_of_UEs];
+  memset((void *)phy_data,0,number_of_UEs * sizeof(nr_phy_data_tx_t));
 
-  uint32_t errors_decoding[MAX_UE_CONNECT] = {0};
+  uint32_t errors_decoding[number_of_UEs];
+  memset((void *)errors_decoding,0,number_of_UEs * sizeof(uint32_t));
 
-  fapi_nr_ul_config_request_t ul_config[MAX_UE_CONNECT] = {0};
+  fapi_nr_ul_config_request_t ul_config[number_of_UEs];
+  memset((void *)ul_config,0,number_of_UEs * sizeof(fapi_nr_ul_config_request_t));
 
   uint8_t ptrs_mcs1 = 2;
   uint8_t ptrs_mcs2 = 4;
@@ -817,7 +843,8 @@ int main(int argc, char *argv[])
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
     pdu_bit_map[UE_id] = PUSCH_PDU_BITMAP_PUSCH_DATA; // | PUSCH_PDU_BITMAP_PUSCH_PTRS;
   }
-  uint8_t crc_status[MAX_UE_CONNECT] = {0};
+  uint8_t crc_status[number_of_UEs];
+  memset((void *)crc_status,0,number_of_UEs * sizeof(uint8_t));
 
   unsigned char mod_order[number_of_UEs];
   uint16_t code_rate[number_of_UEs];
@@ -1031,7 +1058,8 @@ int main(int argc, char *argv[])
   for (SNR = snr0; SNR <= snr1; SNR += snr_step) {
 
     varArray_t *table_rx=initVarArray(1000,sizeof(double));
-    int error_flag[MAX_UE_CONNECT] = {0};
+    int error_flag[number_of_UEs];
+    memset((void *)error_flag,0,number_of_UEs * sizeof(int));
     for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
       n_false_positive[UE_id] = 0;
     }
@@ -1060,16 +1088,25 @@ int main(int argc, char *argv[])
     reset_meas(&gNB->srs_beam_report_stats);
     reset_meas(&gNB->srs_iq_matrix_stats);
 
-    uint32_t errors_scrambling[MAX_UE_CONNECT][16] = {0};
-    int n_errors[MAX_UE_CONNECT][16] = {0};
-    int round_trials[MAX_UE_CONNECT][16] = {0};
-    double blerStats[MAX_UE_CONNECT][16] = {0};
-    double berStats[MAX_UE_CONNECT][16] = {0};
+    uint32_t errors_scrambling[number_of_UEs][16];
+    int n_errors[number_of_UEs][16];
+    int round_trials[number_of_UEs][16];
+    double blerStats[number_of_UEs][16];
+    double berStats[number_of_UEs][16];
+    for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+      memset((void *)errors_scrambling[UE_id],0,16 * sizeof(uint32_t));
+      memset((void *)n_errors[UE_id],0,16 * sizeof(int));
+      memset((void *)round_trials[UE_id],0,16 * sizeof(int));
+      memset((void *)blerStats[UE_id],0,16 * sizeof(double));
+      memset((void *)berStats[UE_id],0,16 * sizeof(double));
+    }
 
-    uint64_t sum_pusch_delay[MAX_UE_CONNECT] = {0};
+    uint64_t sum_pusch_delay[number_of_UEs];
+    memset((void *)sum_pusch_delay,0,number_of_UEs * sizeof(uint64_t));
     int min_pusch_delay = INT_MAX;
     int max_pusch_delay = INT_MIN;
-    int delay_pusch_est_count[MAX_UE_CONNECT] = {0};
+    int delay_pusch_est_count[number_of_UEs];
+    memset((void *)delay_pusch_est_count,0,number_of_UEs * sizeof(int));
 
     for (trial = 0; trial < n_trials; trial++) {
 
@@ -1079,10 +1116,10 @@ int main(int argc, char *argv[])
         errors_decoding[UE_id] = 0;
       }
 
-      // MAX_UE_CONNECT
       // FIXME: Multi-UE, Here I only track the round of one of the UEs
       while (round < max_rounds && crc_status[0]) {
-        nr_scheduled_response_t scheduled_response[MAX_UE_CONNECT] = {0};
+        nr_scheduled_response_t scheduled_response[number_of_UEs];
+        memset((void *)scheduled_response,0,number_of_UEs * sizeof(nr_scheduled_response_t));
 
         for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
 
