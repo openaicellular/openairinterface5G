@@ -227,7 +227,7 @@ static int handle_ue_context_srbs_setup(NR_UE_info_t *UE,
   for (int i = 0; i < srbs_len; i++) {
     const f1ap_srb_to_be_setup_t *srb = &req_srbs[i];
     NR_RLC_BearerConfig_t *rlc_BearerConfig = get_bearerconfig_from_srb(srb);
-    nr_rlc_add_srb(UE->rnti, srb->srb_id, rlc_BearerConfig, NULL);
+    nr_rlc_add_srb(UE->rnti, srb->srb_id, rlc_BearerConfig);
 
     int priority = rlc_BearerConfig->mac_LogicalChannelConfig->ul_SpecificParameters->priority;
     nr_lc_config_t c = {.lcid = rlc_BearerConfig->logicalChannelIdentity, .priority = priority};
@@ -292,7 +292,7 @@ static int handle_ue_context_drbs_setup(NR_UE_info_t *UE,
     const f1ap_drb_to_be_setup_t *drb = &req_drbs[i];
     f1ap_drb_to_be_setup_t *resp_drb = &(*resp_drbs)[i];
     NR_RLC_BearerConfig_t *rlc_BearerConfig = get_bearerconfig_from_drb(drb);
-    nr_rlc_add_drb(UE->rnti, drb->drb_id, rlc_BearerConfig, NULL);
+    nr_rlc_add_drb(UE->rnti, drb->drb_id, rlc_BearerConfig);
 
     nr_lc_config_t c = {.lcid = rlc_BearerConfig->logicalChannelIdentity, .nssai = drb->nssai};
     int prio = 100;
