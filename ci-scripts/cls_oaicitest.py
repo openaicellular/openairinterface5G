@@ -395,7 +395,7 @@ class OaiCiTest():
 	def InitializeUE(self, HTML):
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		messages = []
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(ue.initialize) for ue in ues]
 			for f, ue in zip(futures, ues):
 				uename = f'UE {ue.getName()}'
@@ -610,7 +610,7 @@ class OaiCiTest():
 
 	def AttachUE(self, HTML, RAN, EPC, CONTAINERS):
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(ue.attach) for ue in ues]
 			attached = [f.result() for f in futures]
 			futures = [executor.submit(ue.checkMTU) for ue in ues]
@@ -625,7 +625,7 @@ class OaiCiTest():
 
 	def DetachUE(self, HTML):
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(ue.detach) for ue in ues]
 			[f.result() for f in futures]
 			messages = [f"UE {ue.getName()}: detached" for ue in ues]
@@ -633,7 +633,7 @@ class OaiCiTest():
 
 	def DataDisableUE(self, HTML):
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(ue.dataDisable) for ue in ues]
 			status = [f.result() for f in futures]
 		if all(status):
@@ -646,7 +646,7 @@ class OaiCiTest():
 	def DataEnableUE(self, HTML):
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		logging.debug(f'disabling data for UEs {ues}')
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(ue.dataEnable) for ue in ues]
 			status = [f.result() for f in futures]
 		if all(status):
@@ -660,7 +660,7 @@ class OaiCiTest():
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		logging.debug(f'checking status of UEs {ues}')
 		messages = []
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(ue.check) for ue in ues]
 			messages = [f.result() for f in futures]
 		HTML.CreateHtmlTestRowQueue('NA', 'OK', messages)
@@ -764,7 +764,7 @@ class OaiCiTest():
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		logging.debug(ues)
 		pingLock = Lock()
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(self.Ping_common, EPC, ue, RAN, pingLock) for ue in ues]
 			results = [f.result() for f in futures]
 			# each result in results is a tuple, first member goes to successes, second to messages
@@ -861,7 +861,7 @@ class OaiCiTest():
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		svr = cls_module.Module_UE(self.svr_id)
 		logging.debug(ues)
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(self.Iperf_Module, EPC, ue, svr, RAN, i, len(ues), CONTAINERS) for i, ue in enumerate(ues)]
 			results = [f.result() for f in futures]
 			# each result in results is a tuple, first member goes to successes, second to messages
@@ -1142,7 +1142,7 @@ class OaiCiTest():
 
 	def TerminateUE(self, HTML):
 		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
 			futures = [executor.submit(ue.terminate) for ue in ues]
 			archives = [f.result() for f in futures]
 		archive_info = [f'Log at: {a}' if a else 'No log available' for a in archives]
