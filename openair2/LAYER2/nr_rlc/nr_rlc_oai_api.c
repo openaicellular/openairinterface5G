@@ -626,6 +626,14 @@ rb_found:
     LOG_W(RLC, "UE %04x: RLF detected, but no callable RLF handler registered\n", ue->ue_id);
 }
 
+void nr_rlc_set_rlf_handler(int ue_id, rlf_handler_t rlf_h)
+{
+  nr_rlc_manager_lock(nr_rlc_ue_manager);
+  nr_rlc_ue_t *ue = nr_rlc_manager_get_ue(nr_rlc_ue_manager, ue_id);
+  ue->rlf_handler = rlf_h;
+  nr_rlc_manager_unlock(nr_rlc_ue_manager);
+}
+
 void nr_rlc_reestablish_entity(int ue_id, int lc_id)
 {
   nr_rlc_manager_lock(nr_rlc_ue_manager);
@@ -721,7 +729,7 @@ void nr_rlc_reconfigure_entity(int ue_id, int lc_id, NR_RLC_Config_t *rlc_Config
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
-void nr_rlc_add_srb(int ue_id, int srb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, rlf_handler_t rlf_h)
+void nr_rlc_add_srb(int ue_id, int srb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
 {
   struct NR_RLC_Config *r = rlc_BearerConfig->rlc_Config;
   int t_status_prohibit;
@@ -770,8 +778,6 @@ void nr_rlc_add_srb(int ue_id, int srb_id, const NR_RLC_BearerConfig_t *rlc_Bear
   int local_id = rlc_BearerConfig->logicalChannelIdentity - 1; // LCID 0 for SRB 0 not mapped
   ue->lcid2rb[local_id].type = NR_RLC_SRB;
   ue->lcid2rb[local_id].choice.srb_id = rlc_BearerConfig->servedRadioBearer->choice.srb_Identity;
-  if (rlf_h != NULL)
-    ue->rlf_handler = rlf_h;
   if (ue->srb[srb_id-1] != NULL) {
     LOG_E(RLC, "SRB %d already exists for UE %d, do nothing\n", srb_id, ue_id);
   } else {
@@ -791,7 +797,7 @@ void nr_rlc_add_srb(int ue_id, int srb_id, const NR_RLC_BearerConfig_t *rlc_Bear
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
-static void add_drb_am(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, rlf_handler_t rlf_h)
+static void add_drb_am(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
 {
   struct NR_RLC_Config *r = rlc_BearerConfig->rlc_Config;
 
@@ -837,8 +843,6 @@ static void add_drb_am(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_B
   int local_id = rlc_BearerConfig->logicalChannelIdentity - 1; // LCID 0 for SRB 0 not mapped
   ue->lcid2rb[local_id].type = NR_RLC_DRB;
   ue->lcid2rb[local_id].choice.drb_id = rlc_BearerConfig->servedRadioBearer->choice.drb_Identity;
-  if (rlf_h != NULL)
-    ue->rlf_handler = rlf_h;
   if (ue->drb[drb_id-1] != NULL) {
     LOG_E(RLC, "DRB %d already exists for UE %d, do nothing\n", drb_id, ue_id);
   } else {
@@ -858,7 +862,7 @@ static void add_drb_am(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_B
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
-static void add_drb_um(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, rlf_handler_t rlf_h)
+static void add_drb_um(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
 {
   struct NR_RLC_Config *r = rlc_BearerConfig->rlc_Config;
 
@@ -894,8 +898,6 @@ static void add_drb_um(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_B
   int local_id = rlc_BearerConfig->logicalChannelIdentity - 1; // LCID 0 for SRB 0 not mapped
   ue->lcid2rb[local_id].type = NR_RLC_DRB;
   ue->lcid2rb[local_id].choice.drb_id = rlc_BearerConfig->servedRadioBearer->choice.drb_Identity;
-  if (rlf_h != NULL)
-    ue->rlf_handler = rlf_h;
   if (ue->drb[drb_id-1] != NULL) {
     LOG_E(RLC, "DEBUG add_drb_um: warning DRB %d already exist for ue %d, do nothing\n", drb_id, ue_id);
   } else {
@@ -911,14 +913,14 @@ static void add_drb_um(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_B
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
-void nr_rlc_add_drb(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, rlf_handler_t rlf_h)
+void nr_rlc_add_drb(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
 {
   switch (rlc_BearerConfig->rlc_Config->present) {
     case NR_RLC_Config_PR_am:
-      add_drb_am(ue_id, drb_id, rlc_BearerConfig, rlf_h);
+      add_drb_am(ue_id, drb_id, rlc_BearerConfig);
       break;
     case NR_RLC_Config_PR_um_Bi_Directional:
-      add_drb_um(ue_id, drb_id, rlc_BearerConfig, rlf_h);
+      add_drb_um(ue_id, drb_id, rlc_BearerConfig);
       break;
     default:
       LOG_E(RLC, "Fatal: unhandled DRB type\n");
