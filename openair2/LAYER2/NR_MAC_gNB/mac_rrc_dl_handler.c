@@ -307,6 +307,33 @@ static int handle_ue_context_drbs_release(NR_UE_info_t *UE,
   return drbs_len;
 }
 
+static NR_UE_NR_Capability_t *get_nr_cap(const NR_UE_CapabilityRAT_ContainerList_t *clist)
+{
+  for (int i = 0; i < clist->list.count; i++) {
+    const NR_UE_CapabilityRAT_Container_t *c = clist->list.array[i];
+    if (c->rat_Type != NR_RAT_Type_nr) {
+      LOG_W(NR_MAC, "ignoring capability of type %ld\n", c->rat_Type);
+      continue;
+    }
+
+    NR_UE_NR_Capability_t *cap = NULL;
+    asn_dec_rval_t dec_rval = uper_decode(NULL,
+                                          &asn_DEF_NR_UE_NR_Capability,
+                                          (void **)&cap,
+                                          c->ue_CapabilityRAT_Container.buf,
+                                          c->ue_CapabilityRAT_Container.size,
+                                          0,
+                                          0);
+    if (dec_rval.code != RC_OK) {
+      LOG_W(NR_MAC, "cannot decode NR UE capability, ignoring\n");
+      ASN_STRUCT_FREE(asn_DEF_NR_UE_NR_Capability, cap);
+      continue;
+    }
+    return cap;
+  }
+  return NULL;
+}
+
 static NR_UE_NR_Capability_t *get_ue_nr_cap(int rnti, uint8_t *buf, uint32_t len)
 {
   if (buf == NULL || len == 0)
@@ -319,27 +346,8 @@ static NR_UE_NR_Capability_t *get_ue_nr_cap(int rnti, uint8_t *buf, uint32_t len
     return NULL;
   }
 
-  NR_UE_NR_Capability_t *cap = NULL;
-  for (int i = 0; i < clist->list.count; i++) {
-    const NR_UE_CapabilityRAT_Container_t *c = clist->list.array[i];
-    if (cap != NULL || c->rat_Type != NR_RAT_Type_nr) {
-      LOG_W(NR_MAC, "UE RNTI %04x: ignoring capability of type %ld\n", rnti, c->rat_Type);
-      continue;
-    }
-
-    asn_dec_rval_t dec_rval = uper_decode(NULL,
-                                          &asn_DEF_NR_UE_NR_Capability,
-                                          (void **)&cap,
-                                          c->ue_CapabilityRAT_Container.buf,
-                                          c->ue_CapabilityRAT_Container.size,
-                                          0,
-                                          0);
-    if (dec_rval.code != RC_OK) {
-      LOG_W(NR_MAC, "cannot decode NR UE capabilities of UE RNTI %04x, ignoring NR capability\n", rnti);
-      cap = NULL;
-      continue;
-    }
-  }
+  NR_UE_NR_Capability_t *cap = get_nr_cap(clist);
+  ASN_STRUCT_FREE(asn_DEF_NR_UE_CapabilityRAT_ContainerList, clist);
   return cap;
 }
 
