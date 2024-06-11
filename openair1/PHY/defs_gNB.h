@@ -763,6 +763,7 @@ typedef struct {
   delay_t *delay;
   delay_t **delays;
   uint64_t noise_amp2;
+  uint64_t *noises_amp2;
   uint64_t *nvar;
   int nest_count;
   int nushift;

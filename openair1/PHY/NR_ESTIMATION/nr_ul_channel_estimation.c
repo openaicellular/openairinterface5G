@@ -90,6 +90,7 @@ static void inner_channel_estimation(void *arg) {
   delay_t *delay = rdata->delay;
   delay_t **delays = rdata->delays;
   uint64_t noise_amp2 = rdata->noise_amp2;
+  uint64_t *noises_amp2 = rdata->noises_amp2;
   int nest_count = rdata->nest_count;
   const int nushift = rdata->nushift;
 
@@ -402,7 +403,8 @@ static void inner_channel_estimation(void *arg) {
  // value update of rdata to be passed to the next inner call
  rdata->max_ch = max_ch;  // Placeholder for max channel value update
  rdata->noise_amp2 = noise_amp2;  // Placeholder for noise amplitude squared update
- 
+ noises_amp2[aarx] = noise_amp2;
+ rdata->noises_amp2 = noises_amp2;  // Placeholder for noise amplitude squared update
  delays[aarx] = delay; // Placeholder for estimated delay update
  rdata->delays = delays;
  nest_count = rdata->nest_count;  // Placeholder for nested count update
@@ -501,6 +503,9 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
  delay_t *delays[nb_antennas_rx];
  memset(delays, 0, sizeof(*delays));
+
+ uint64_t noises_amp2[nb_antennas_rx];
+ memset(noises_amp2, 0, sizeof(noises_amp2));
  //
  // max_ch array size of rx antennas
  // noise_amp2 size of rx antennas
@@ -522,6 +527,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    rdata->aarx = aarx;
    rdata->nest_count = nest_count;
    rdata->noise_amp2 = noise_amp2; // noise_amp2[aarx]
+   rdata->noises_amp2 = noises_amp2;   // Placeholder for noise amplitude squared update
    rdata->max_ch = max_ch; // max_ch[aarx]
 
    rdata->ul_ls_est = ul_ls_est;
