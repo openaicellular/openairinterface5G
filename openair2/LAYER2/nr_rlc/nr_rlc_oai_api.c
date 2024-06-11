@@ -1071,8 +1071,18 @@ bool nr_rlc_update_id(int from_id, int to_id)
   return true;
 }
 
-/* This function is for testing purposes. At least on a COTS UE, it will
- * trigger a reestablishment. */
+/**
+ * @brief This function is for testing purposes.
+ *        Re-establishment is triggered by resetting RLC
+ *        counters of the bearer, which leads to UE
+ *        reaching maximum RLC retransmissions, RLF
+ *        detection and RRC triggering re-sync. It is
+ *        assumed that there is ongoing traffic on the bearer.
+ *        - With COTS UEs, triggers re-establishment on SRB 1,
+ *        where periodical measurement reports are sent.
+ *        - With OAI UE, triggers re-establishment on DRB 1,
+ *        assuming there is ongoing data traffic.
+ */
 void nr_rlc_test_trigger_reestablishment(int ue_id)
 {
   nr_rlc_manager_lock(nr_rlc_ue_manager);
@@ -1086,6 +1096,9 @@ void nr_rlc_test_trigger_reestablishment(int ue_id)
    * as the UE context is created. */
   nr_rlc_entity_t *ent = ue->srb[0];
   ent->reestablishment(ent);
+  /* Trigger re-establishment on OAI UE */
+  nr_rlc_entity_t *drb = ue->drb[0];
+  drb->reestablishment(drb);
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
