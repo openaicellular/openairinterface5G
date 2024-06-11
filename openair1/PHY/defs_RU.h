@@ -662,6 +662,7 @@ typedef struct RU_t_s {
   int num_tpcores;
   /// structure for analyzing high-level RT measurements
   rt_ru_profiling_t rt_ru_profiling; 
+  bool analog_beamforming;
 } RU_t;
 
 

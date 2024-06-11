@@ -95,16 +95,15 @@ int nr_slot_fep_ul(NR_DL_FRAME_PARMS *frame_parms,
 */
 void nr_dft(c16_t *z, c16_t *d, uint32_t Msc_PUSCH);
 
-int nr_beam_precoding(c16_t **txdataF,
-	              c16_t **txdataF_BF,
-                      NR_DL_FRAME_PARMS *frame_parms,
-	              int32_t ***beam_weights,
-                      int slot,
-                      int symbol,
-                      int aa,
-                      int nb_antenna_ports,
-                      int offset
-);
+void nr_beam_precoding(c16_t **txdataF,
+                       c16_t **txdataF_BF,
+                       NR_DL_FRAME_PARMS *frame_parms,
+                       int32_t ***beam_weights,
+                       int slot,
+                       int symbol,
+                       int aa,
+                       int nb_antenna_ports,
+                       int offset);
 
 void apply_nr_rotation_TX(const NR_DL_FRAME_PARMS *fp,
                           c16_t *txdataF,

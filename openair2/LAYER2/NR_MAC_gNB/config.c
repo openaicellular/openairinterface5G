@@ -596,17 +596,19 @@ static void config_common(gNB_MAC_INST *nrmac,
   cfg->pmi_list = init_DL_MIMO_codebook(nrmac, pdsch_AntennaPorts);
   // beamforming matrix configuration
   cfg->dbt_config.num_dig_beams = nb_beams;
-  cfg->dbt_config.num_txrus = nb_tx;
-  cfg->dbt_config.dig_beam_list = malloc16(nb_beams * sizeof(*cfg->dbt_config.dig_beam_list));
-  AssertFatal(cfg->dbt_config.dig_beam_list, "out of memory\n");
-  for (int i = 0; i < nb_beams; i++) {
-    nfapi_nr_dig_beam_t *beam = &cfg->dbt_config.dig_beam_list[i];
-    beam->beam_idx = i;
-    beam->txru_list = malloc16(nb_tx * sizeof(*beam->txru_list));
-    for (int j = 0; j < nb_tx; j++) {
-      beam->txru_list[j].dig_beam_weight_Re = bw_list[j + i * nb_tx] & 0xffff;
-      beam->txru_list[j].dig_beam_weight_Im = (bw_list[j + i * nb_tx] >> 16) & 0xffff;
-      LOG_D(NR_MAC, "Beam %d Tx %d Weight (%d, %d)\n", i, j, beam->txru_list[j].dig_beam_weight_Re, beam->txru_list[j].dig_beam_weight_Im);
+  if (nb_beams > 0) {
+    cfg->dbt_config.num_txrus = nb_tx;
+    cfg->dbt_config.dig_beam_list = malloc16(nb_beams * sizeof(*cfg->dbt_config.dig_beam_list));
+    AssertFatal(cfg->dbt_config.dig_beam_list, "out of memory\n");
+    for (int i = 0; i < nb_beams; i++) {
+      nfapi_nr_dig_beam_t *beam = &cfg->dbt_config.dig_beam_list[i];
+      beam->beam_idx = i;
+      beam->txru_list = malloc16(nb_tx * sizeof(*beam->txru_list));
+      for (int j = 0; j < nb_tx; j++) {
+        beam->txru_list[j].dig_beam_weight_Re = bw_list[j + i * nb_tx] & 0xffff;
+        beam->txru_list[j].dig_beam_weight_Im = (bw_list[j + i * nb_tx] >> 16) & 0xffff;
+        LOG_D(NR_MAC, "Beam %d Tx %d Weight (%d, %d)\n", i, j, beam->txru_list[j].dig_beam_weight_Re, beam->txru_list[j].dig_beam_weight_Im);
+      }
     }
   }
 }
