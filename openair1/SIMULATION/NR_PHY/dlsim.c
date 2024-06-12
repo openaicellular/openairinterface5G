@@ -73,7 +73,7 @@
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include <executables/nr-uesoftmodem.h>
 
-#define MAX_UE_CONNECT 4
+#define MAX_UE_CONNECT 8
 
 const char *__asan_default_options()
 {
@@ -494,6 +494,10 @@ int main(int argc, char **argv)
 
     case 'k':
       number_of_UEs = atoi(optarg);
+      if (number_of_UEs > MAX_UE_CONNECT) {
+        printf("Unsupported number of UEs, maximum number of UEs is %d, MAX_MOBILES_PER_GNB %d, MAX_DCI_CORESET %d\n", MAX_UE_CONNECT, MAX_MOBILES_PER_GNB, MAX_DCI_CORESET);
+        exit(-1);
+      }
       break;
 
     case 'm':
@@ -556,7 +560,7 @@ int main(int argc, char **argv)
       printf("-h This message\n");
       printf("-i Change channel estimation technique. Arguments list: Frequency domain {0:Linear interpolation, 1:PRB based averaging}, Time domain {0:Estimates of last DMRS symbol, 1:Average of DMRS symbols}\n");
       // printf("-j Relative strength of second intefering gNB (in dB) - cell_id mod 3 = 2\n");
-      printf("-k Set the number of UEs, maximum number of UEs is %d\n", MAX_UE_CONNECT);
+      printf("-k Set the number of UEs, maximum number of UEs is %d, MAX_MOBILES_PER_GNB %d, MAX_DCI_CORESET %d\n", MAX_UE_CONNECT, MAX_MOBILES_PER_GNB, MAX_DCI_CORESET);
       printf("-m Numerology\n");
       printf("-n Number of frames to simulate\n");
       printf("-o Introduce delay in terms of number of samples\n");
@@ -588,6 +592,21 @@ int main(int argc, char **argv)
       exit (-1);
       break;
     }
+  }
+
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+    if (g_rbSize[UE_id] == 0) {
+      printf("No allocated resource blocks for UE%d's PUSCH\n", UE_id + 1);
+      exit(-1);
+    }
+  }
+  int rb_sum = 0;
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+    rb_sum += g_rbSize[UE_id];
+  }
+  if (rb_sum > N_RB_DL) {
+    printf("Total RBs for UEs exceed maximum number of available resorce blocks\n");
+    exit(-1);
   }
 
   logInit();
@@ -1030,7 +1049,7 @@ int main(int argc, char **argv)
       memset(Sched_INFO, 0, sizeof(*Sched_INFO));
       Sched_INFO->sched_response_id = -1;
 
-      // FIXME: Multi-UE, Here I only track the round of one of the UEs
+      // FIXME: Multi-UE, Here I only track the round of UE0
       UE = UE_list[0];
       UE_harq_process = &UE->dl_harq_processes[0][harq_pid];
       while ((round < num_rounds) && (UE_harq_process->ack == 0)) {
