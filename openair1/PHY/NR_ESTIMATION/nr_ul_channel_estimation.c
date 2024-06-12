@@ -36,6 +36,7 @@
 #include "nr_phy_common.h"
 
 
+#include <inttypes.h>
 //#define DEBUG_CH
 //#define DEBUG_PUSCH
 #define DEBUG_PUSCH_THREAD
@@ -580,7 +581,8 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  #ifdef DEBUG_PUSCH_THREAD
 
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
-    printf("Exit Pool - Estimated delay = %i\t", delay[aarx].est_delay >> 1);
+  printf("Exit Pool - Estimated delay = %i\t", delay[aarx].est_delay);
+  printf("Exit Pool - Noise Amp2 = %" PRIu64 "\t", noises_amp2[aarx]);
  }
 
 #endif
