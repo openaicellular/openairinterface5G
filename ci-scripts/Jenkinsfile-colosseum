@@ -57,7 +57,15 @@ pipeline {
                 git_Branch = params.eNB_Branch
               }
 
-              sh "./ci-scripts/colosseum_scripts/launch-job.sh ${col_username} ${col_password} ${currentBuild.number} ${params.eNB_Repository} ${git_Branch}"
+              // use default 10011 rf scenario if not specified
+              if (params.Colosseum_Rf_Scenario.isEmpty()) {
+                echo 'Colosseum_Rf_Scenario parameter is empty, defaulting to 10011'
+                rf_scenario = "10011"
+              } else {
+                rf_scenario = params.Colosseum_Rf_Scenario
+              }
+
+              sh "./ci-scripts/colosseum_scripts/launch-job.sh ${col_username} ${col_password} ${currentBuild.number} ${params.eNB_Repository} ${git_Branch} ${rf_scenario}"
             }
           }
         }

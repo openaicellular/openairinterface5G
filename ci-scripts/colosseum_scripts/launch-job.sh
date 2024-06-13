@@ -10,6 +10,7 @@ COL_PASS=$2
 JENKINS_JOB_ID=$3
 GIT_REPOSITORY=$4
 GIT_BRANCH=$5
+COLOSSEUM_RF_SCENARIO=$6
 
 # launch job
-curl -s -f -k -u ${COL_USER}:${COL_PASS} -X POST -H "Content-Type: application/json" -d '{"extra_vars": "{\"oai_repo\": \"'${GIT_REPOSITORY}'\", \"oai_branch\": \"'${GIT_BRANCH}'\", \"colosseum_rf_scenario\": \"10011\", \"jenkins_job_id\": \"'${JENKINS_JOB_ID}'\"}"}' ${AWX_API_URL}${AWX_API_LAUNCH_PATH} > launch.json
+curl -s -f -k -u ${COL_USER}:${COL_PASS} -X POST -H "Content-Type: application/json" -d '{"extra_vars": "{\"oai_repo\": \"'${GIT_REPOSITORY}'\", \"oai_branch\": \"'${GIT_BRANCH}'\", \"colosseum_rf_scenario\": \"'${COLOSSEUM_RF_SCENARIO}'\", \"jenkins_job_id\": \"'${JENKINS_JOB_ID}'\"}"}' ${AWX_API_URL}${AWX_API_LAUNCH_PATH} > launch.json
