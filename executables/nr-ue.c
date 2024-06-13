@@ -819,6 +819,22 @@ void *UE_thread(void *arg)
     UE->is_synchronized = 1;
   }
 
+  // nr_polar_params is too slow for most CPUs, it needs to bo improved in future
+  // this sequence initialze the most frequent block sizes before starting the real time loop
+  // Some calls to polar params can occur later, so create limited RT glitches
+  polarReturn(nr_polar_params(0,32,0,1));
+  polarReturn(nr_polar_params(1,39,8,1));
+  polarReturn(nr_polar_params(1,39,4,1));
+  polarReturn(nr_polar_params(1,49,8,1));
+  polarReturn(nr_polar_params(1,41,8,1));
+  polarReturn(nr_polar_params(1,49,4,1));
+  polarReturn(nr_polar_params(1,41,4,1));
+  polarReturn(nr_polar_params(1,45,4,1));
+  polarReturn(nr_polar_params(1,45,8,1));
+  polarReturn(nr_polar_params(1,43,4,1));
+  polarReturn(nr_polar_params(1,43,8,1));
+  polarReturn(nr_polar_params(2,12,8,1));
+  
   while (!oai_exit) {
     if (syncRunning) {
       notifiedFIFO_elt_t *res=tryPullTpool(&nf,&(get_nrUE_params()->Tpool));
