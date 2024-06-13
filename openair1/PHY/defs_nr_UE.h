@@ -666,14 +666,11 @@ typedef struct LDPCDecode_ue_s {
   NR_UE_DLSCH_t *dlsch;
   short* dlsch_llr;
   int dlsch_id;
-  int harq_pid;
   int rv_index;
-  int A;
   int E;
   int Kc;
   int Qm;
   int Kr_bytes;
-  int nbSegments;
   int segment_r;
   int r_offset;
   int offset;
@@ -682,7 +679,6 @@ typedef struct LDPCDecode_ue_s {
   time_stats_t ts_deinterleave;
   time_stats_t ts_rate_unmatch;
   time_stats_t ts_ldpc_decode;
-  UE_nr_rxtx_proc_t proc;
 } ldpcDecode_ue_t;
 
 #include "SIMULATION/ETH_TRANSPORT/defs.h"

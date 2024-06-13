@@ -137,10 +137,10 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
       if(dlsch0) {
         NR_DL_UE_HARQ_t *dl_harq0 = &ue->dl_harq_processes[0][dlsch0->dlsch_config.harq_process_nbr];
         rx->pdsch_pdu.harq_pid = dlsch0->dlsch_config.harq_process_nbr;
-        rx->pdsch_pdu.ack_nack = dl_harq0->ack;
+        rx->pdsch_pdu.ack_nack = dl_harq0->decodeResult;
         rx->pdsch_pdu.pdu = b;
         rx->pdsch_pdu.pdu_length = dlsch0->dlsch_config.TBS / 8;
-        if (dl_harq0->ack) {
+        if (dl_harq0->decodeResult) {
           int t = WS_C_RNTI;
           if (pdu_type == FAPI_NR_RX_PDU_TYPE_RAR)
             t = WS_RA_RNTI;

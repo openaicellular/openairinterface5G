@@ -980,8 +980,8 @@ int main(int argc, char **argv)
 
       NR_gNB_DLSCH_t *gNB_dlsch = &msgDataTx->dlsch[0][0];
       nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15 = &gNB_dlsch->harq_process.pdsch_pdu.pdsch_pdu_rel15;
-      
-      UE_harq_process->ack = 0;
+
+      UE_harq_process->decodeResult = 0;
       round = 0;
       UE_harq_process->DLround = round;
       UE_harq_process->first_rx = 1;
@@ -994,7 +994,7 @@ int main(int argc, char **argv)
       memset(Sched_INFO, 0, sizeof(*Sched_INFO));
       Sched_INFO->sched_response_id = -1;
 
-      while ((round<num_rounds) && (UE_harq_process->ack==0)) {
+      while ((round < num_rounds) && (UE_harq_process->decodeResult == 0)) {
         round_trials[round]++;
 
         clear_nr_nfapi_information(RC.nrmac[0], 0, frame, slot, &Sched_INFO->DL_req, &Sched_INFO->TX_req, &Sched_INFO->UL_dci_req);
@@ -1176,7 +1176,8 @@ int main(int argc, char **argv)
 	  printf("errors_bit = %u (trial %d)\n", errors_bit, trial);
       }
       roundStats += ((float)round);
-      if (UE_harq_process->ack==1) effRate += ((float)TBS)/round;
+      if (UE_harq_process->decodeResult == 1)
+        effRate += ((float)TBS) / round;
     } // noise trials
 
     roundStats /= ((float)n_trials);
