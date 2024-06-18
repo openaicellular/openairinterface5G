@@ -177,9 +177,6 @@ int main(int argc, char *argv[])
   cpuf = get_cpu_freq_GHz();
   int msg3_flag = 0;
   int rv_index = 0;
-  float roundStats;
-  double effRate;
-  double effTP;
   float eff_tp_check = 100;
   int ldpc_offload_flag = 0;
   uint8_t max_rounds = 4;
@@ -232,7 +229,7 @@ int main(int argc, char *argv[])
   /* initialize the sin-cos table */
   InitSinLUT();
 
-  while ((c = getopt(argc, argv, "--:a:b:c:d:ef:g:h:i:k:m:n:op:q:r:s:t:u:v:w:y:z:C:F:G:H:I:M:N:PR:S:T:U:L:ZW:E:X:")) != -1) {
+  while ((c = getopt(argc, argv, "--:a:b:c:d:ef:g:h:i:k:m:n:op:q:r:s:t:x:u:v:w:y:z:C:F:G:H:I:M:N:PR:S:T:U:L:ZW:E:X:")) != -1) {
 
     /* ignore long options starting with '--' and their arguments that are handled by configmodule */
     /* with this opstring getopt returns 1 for non-option arguments, refer to 'man 3 getopt' */
@@ -553,6 +550,10 @@ int main(int argc, char *argv[])
   }
 
   int n_false_positive[number_of_UEs];
+  double effRate[number_of_UEs];
+  double effTP[number_of_UEs];
+  float roundStats[number_of_UEs];
+  int max_nb_rb = 0;
   PHY_VARS_NR_UE** UE_list = (PHY_VARS_NR_UE**)malloc(number_of_UEs * sizeof(PHY_VARS_NR_UE*));
   uint16_t n_rnti[number_of_UEs];
   memset((void *)n_rnti,0,number_of_UEs * sizeof(uint16_t));
@@ -576,6 +577,7 @@ int main(int argc, char *argv[])
   cnt = 0;
   token = strtok(nb_rb_str, ",");
   while (token != NULL) {
+    max_nb_rb = max(max_nb_rb, atoi(token));
     nb_rb[cnt++] = atoi(token);
     token = strtok(NULL, ",");
   }
@@ -715,10 +717,9 @@ int main(int argc, char *argv[])
 
   NR_BCCH_BCH_Message_t *mib = get_new_MIB_NR(scc);
 
-  // UE dedicated configuration
-  nr_mac_add_test_ue(RC.nrmac[0], secondaryCellGroup->spCellConfig->reconfigurationWithSync->newUE_Identity, secondaryCellGroup);
-  // FIXME: Add second test UE, not sure if necessary
-  nr_mac_add_test_ue(RC.nrmac[0], secondaryCellGroup->spCellConfig->reconfigurationWithSync->newUE_Identity, secondaryCellGroup);
+  // UE dedicated configuration, not necessary in ulsim
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++)
+    nr_mac_add_test_ue(RC.nrmac[0], secondaryCellGroup->spCellConfig->reconfigurationWithSync->newUE_Identity, secondaryCellGroup);
   frame_parms->nb_antennas_tx = 1;
   frame_parms->nb_antennas_rx = n_rx;
   nfapi_nr_config_request_scf_t *cfg = &gNB->gNB_config;
@@ -890,7 +891,7 @@ int main(int argc, char *argv[])
                                  N_RB_UL,
                                  precod_nbr_layers);
 
-  // FIXME:
+  // For now, nr_ulsim multi-UE does not support setting different nb_antennas_tx for each UE
   if ((UE_list[0]->frame_parms.nb_antennas_tx==4)&&(precod_nbr_layers==4))
     num_dmrs_cdm_grps_no_data = 2;
 
@@ -904,22 +905,26 @@ int main(int argc, char *argv[])
       dmrs_config_type = pusch_dmrs_type1;
       nb_re_dmrs = 6;
 
-      printf("[ULSIM]: UE%d TRANSFORM PRECODING ENABLED. Num RBs: %d, index for DMRS_SEQ: %d\n", UE_id + 1, nb_rb[UE_id], index);
+      printf("[ULSIM]: UE%d TRANSFORM PRECODING ENABLED. Num RBs: %d, index for DMRS_SEQ: %d\n", UE_id, nb_rb[UE_id], index);
     }
   }
 
   nb_re_dmrs = nb_re_dmrs * num_dmrs_cdm_grps_no_data;
   unsigned int TBS[number_of_UEs];
-  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++)
+  int max_TBS = 0;
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
     TBS[UE_id] = nr_compute_tbs(mod_order[UE_id], code_rate[UE_id], nb_rb[UE_id], nb_symb_sch, nb_re_dmrs* number_dmrs_symbols, 0, 0, precod_nbr_layers);
+    max_TBS = max(max_TBS, TBS[UE_id]);
+  }
   
   printf("[ULSIM]: length_dmrs: %u, l_prime_mask: %u	number_dmrs_symbols: %u, mapping_type: %u add_pos: %d \n", length_dmrs, l_prime_mask, number_dmrs_symbols, mapping_type, add_pos);
-  printf("[ULSIM]: UE1 CDM groups: %u, dmrs_config_type: %d, num_rbs: %u, nb_symb_sch: %u\n", num_dmrs_cdm_grps_no_data, dmrs_config_type, nb_rb[0], nb_symb_sch);
-  printf("[ULSIM]: UE2 CDM groups: %u, dmrs_config_type: %d, num_rbs: %u, nb_symb_sch: %u\n", num_dmrs_cdm_grps_no_data, dmrs_config_type, nb_rb[1], nb_symb_sch);
-  printf("[ULSIM]: UE1 MCS: %d, mod order: %u, code_rate: %u\n", Imcs[0], mod_order[0], code_rate[0]);
-  printf("[ULSIM]: UE2 MCS: %d, mod order: %u, code_rate: %u\n", Imcs[1], mod_order[1], code_rate[1]);
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+    printf("[ULSIM]: UE%d CDM groups: %u, dmrs_config_type: %d, num_rbs: %u, nb_symb_sch: %u\n", UE_id, num_dmrs_cdm_grps_no_data, dmrs_config_type, nb_rb[UE_id], nb_symb_sch);
+  }
+  for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+    printf("[ULSIM]: UE%d MCS: %d, mod order: %u, code_rate: %u\n", UE_id, Imcs[UE_id], mod_order[UE_id], code_rate[UE_id]);
+  }
 
-  int max_TBS = max(TBS[0], TBS[1]);
   uint8_t ulsch_input_buffer[number_of_UEs][max_TBS/8];
 
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
@@ -967,8 +972,8 @@ int main(int argc, char *argv[])
 
   unsigned int available_bits[number_of_UEs];
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
-    available_bits[UE_id] = nr_get_G(nb_rb[UE_id], nb_symb_sch, nb_re_dmrs, number_dmrs_symbols, unav_res, mod_order[0], precod_nbr_layers);
-    printf("[ULSIM]: UE%d VALUE OF G: %u, TBS: %u\n", UE_id + 1, available_bits[UE_id], TBS[UE_id]);
+    available_bits[UE_id] = nr_get_G(nb_rb[UE_id], nb_symb_sch, nb_re_dmrs, number_dmrs_symbols, unav_res, mod_order[UE_id], precod_nbr_layers);
+    printf("[ULSIM]: UE%d VALUE OF G: %u, TBS: %u\n", UE_id, available_bits[UE_id], TBS[UE_id]);
   }
 
   int frame_length_complex_samples = frame_parms->samples_per_subframe*NR_NUMBER_OF_SUBFRAMES_PER_FRAME;
@@ -1062,10 +1067,10 @@ int main(int argc, char *argv[])
     memset((void *)error_flag,0,number_of_UEs * sizeof(int));
     for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
       n_false_positive[UE_id] = 0;
+      effRate[UE_id] = 0;
+      roundStats[UE_id] = 0;
+      effTP[UE_id] = 0;
     }
-    effRate = 0;
-    effTP = 0;
-    roundStats = 0;
     reset_meas(&gNB->phy_proc_rx);
     reset_meas(&gNB->rx_pusch_stats);
     reset_meas(&gNB->rx_pusch_init_stats);
@@ -1110,26 +1115,40 @@ int main(int argc, char *argv[])
 
     for (trial = 0; trial < n_trials; trial++) {
 
-      uint8_t round = 0;
+      uint8_t round[number_of_UEs];
+      bool reach_max_rounds_flag = 0;
       for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+        round[UE_id] = 0;
         crc_status[UE_id] = 1;
         errors_decoding[UE_id] = 0;
       }
 
-      // FIXME: Multi-UE, Here I only track the round of one of the UEs
-      while (round < max_rounds && crc_status[0]) {
+      while (!reach_max_rounds_flag) {
+        int crc_fail_flag = 0;
+        // crc_status = 0 -> crc PASS, crc_status = 1 -> crc FAIL, crc_status = 2 -> UE already passed, no data to send
+        for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (crc_status[UE_id] == 1)
+            crc_fail_flag = 1;
+          else if (crc_status[UE_id] == 0)
+            crc_status[UE_id] = 2;
+        }
+        if (!crc_fail_flag)
+          break;
+
         nr_scheduled_response_t scheduled_response[number_of_UEs];
         memset((void *)scheduled_response,0,number_of_UEs * sizeof(nr_scheduled_response_t));
 
         for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (crc_status[UE_id] == 2)
+            continue;
 
           UL_tti_req[UE_id]->SFN = frame;
           UL_tti_req[UE_id]->Slot = slot;
           UL_tti_req[UE_id]->n_pdus = do_SRS == 1 ? 2 : 1;
 
           UE = UE_list[UE_id];
-          round_trials[UE_id][round]++;
-          rv_index = nr_rv_round_map[round % 4];
+          round_trials[UE_id][round[UE_id]]++;
+          rv_index = nr_rv_round_map[round[UE_id] % 4];
 
           /// gNB UL PDUs
           nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element0 = &UL_tti_req[UE_id]->pdus_list[0];
@@ -1190,7 +1209,7 @@ int main(int argc, char *argv[])
           pusch_pdu->maintenance_parms_v3.tbSizeLbrmBytes = tbslbrm;
           pusch_pdu->pusch_data.rv_index = rv_index;
           pusch_pdu->pusch_data.harq_process_id = harq_pid;
-          pusch_pdu->pusch_data.new_data_indicator = round == 0 ? true : false;
+          pusch_pdu->pusch_data.new_data_indicator = round[UE_id] == 0 ? true : false;
           pusch_pdu->pusch_data.num_cb = 0;
           pusch_pdu->pusch_ptrs.ptrs_time_density = ptrs_time_density;
           pusch_pdu->pusch_ptrs.ptrs_freq_density = ptrs_freq_density;
@@ -1237,7 +1256,7 @@ int main(int argc, char *argv[])
 
           /// UE UL PDUs
 
-          UE->ul_harq_processes[harq_pid].round = round;
+          UE->ul_harq_processes[harq_pid].round = round[UE_id];
           UE_proc.nr_slot_tx = slot;
           UE_proc.frame_tx = frame;
           UE_proc.gNB_id = 0;
@@ -1258,7 +1277,7 @@ int main(int argc, char *argv[])
           ul_config0->pdu_type = FAPI_NR_UL_CONFIG_TYPE_PUSCH;
           nfapi_nr_ue_pusch_pdu_t *pusch_config_pdu = &ul_config0->pusch_config_pdu;
           // Config UL TX PDU
-          pusch_config_pdu->tx_request_body.pdu = ulsch_input_buffer[UE_id];
+          pusch_config_pdu->tx_request_body.fapiTxPdu = ulsch_input_buffer[UE_id];
           pusch_config_pdu->tx_request_body.pdu_length = TBS[UE_id] / 8;
           pusch_config_pdu->rnti = n_rnti[UE_id];
           pusch_config_pdu->pdu_bit_map = pdu_bit_map[UE_id];
@@ -1287,7 +1306,7 @@ int main(int argc, char *argv[])
           pusch_config_pdu->tbslbrm = tbslbrm;
           pusch_config_pdu->ldpcBaseGraph = get_BG(TBS[UE_id], code_rate[UE_id]);
           pusch_config_pdu->pusch_data.tb_size = TBS[UE_id] / 8;
-          pusch_config_pdu->pusch_data.new_data_indicator = round == 0 ? true : false;
+          pusch_config_pdu->pusch_data.new_data_indicator = round[UE_id] == 0 ? true : false;
           pusch_config_pdu->pusch_data.rv_index = rv_index;
           pusch_config_pdu->pusch_data.harq_process_id = harq_pid;
           pusch_config_pdu->pusch_ptrs.ptrs_time_density = ptrs_time_density;
@@ -1371,11 +1390,11 @@ int main(int argc, char *argv[])
         if (input_fd == NULL) {
           // Justification of division by precod_nbr_layers:
           // When the channel is the identity matrix, the results in terms of SNR should be almost equal for 2x2 and 4x4.
-          sigma_dB = 10 * log10((double)txlev_sum / precod_nbr_layers * ((double)frame_parms->ofdm_symbol_size / (12 * max(nb_rb[0], nb_rb[1])))) - SNR;
+          sigma_dB = 10 * log10((double)txlev_sum / precod_nbr_layers * ((double)frame_parms->ofdm_symbol_size / (12 * max_nb_rb))) - SNR;
           sigma = pow(10, sigma_dB / 10);
 
           if (n_trials == 1)
-            printf("sigma %f (%f dB), txlev_sum %f (factor %f)\n", sigma, sigma_dB, 10 * log10((double)txlev_sum), (double)(double)frame_parms->ofdm_symbol_size / (12 * max(nb_rb[0], nb_rb[1])));
+            printf("sigma %f (%f dB), txlev_sum %f (factor %f)\n", sigma, sigma_dB, 10 * log10((double)txlev_sum), (double)(double)frame_parms->ofdm_symbol_size / (12 * max_nb_rb));
 
           for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
             multipath_channel(UE2gNB, s_re[UE_id], s_im[UE_id], r_re[UE_id], r_im[UE_id], slot_length, 0, (n_trials == 1) ? 1 : 0);
@@ -1422,7 +1441,7 @@ int main(int argc, char *argv[])
 
         ul_proc_error = phy_procedures_gNB_uespec_RX(gNB, frame, slot);
 
-        if (n_trials == 1 && round == 0) {
+        if (n_trials == 1 && round[0] == 0) {
           LOG_M("rxsig0.m", "rx0", &rxdata[0][slot_offset], slot_length, 1, 1);
           LOG_M("rxsigF0.m", "rxsF0", gNB->common_vars.rxdataF[0], 14 * frame_parms->ofdm_symbol_size, 1, 1);
           if (precod_nbr_layers > 1) {
@@ -1438,10 +1457,12 @@ int main(int argc, char *argv[])
         }
 
         for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (crc_status[UE_id] == 2)
+            continue;
           UE = UE_list[UE_id];
           NR_gNB_PUSCH *pusch_vars = &gNB->pusch_vars[UE_id];
 
-          if (n_trials == 1 && round == 0 && number_of_UEs == 1) {
+          if (n_trials == 1 && round[UE_id] == 0 && number_of_UEs == 1) {
             nfapi_nr_ul_tti_request_number_of_pdus_t *pdu_element0 = &UL_tti_req[UE_id]->pdus_list[0];
             nfapi_nr_pusch_pdu_t *pusch_pdu = &pdu_element0->pusch_pdu;
             __attribute__((unused)) int off = ((nb_rb[0] & 1) == 1) ? 4 : 0;
@@ -1620,12 +1641,12 @@ int main(int argc, char *argv[])
 
           if ((ulsch_gNB[UE_id]->last_iteration_cnt >= ulsch_gNB[UE_id]->max_ldpc_iterations + 1) || ul_proc_error == 1) {
             error_flag[UE_id] = 1;
-            n_errors[UE_id][round]++;
+            n_errors[UE_id][round[UE_id]]++;
             crc_status[UE_id] = 1;
           } else
             crc_status[UE_id] = 0;
           if (n_trials == 1)
-            printf("end of round %d rv_index %d\n", round, rv_index);
+            printf("UE %d end of round %d rv_index %d\n", UE_id, round[UE_id], rv_index);
 
           //----------------------------------------------------------
           //----------------- count and print errors -----------------
@@ -1646,11 +1667,17 @@ int main(int argc, char *argv[])
               //       "[frame %d][trial %d]\t1st bit in error in unscrambling = %d\n"
               //       "\x1B[0m",
               //       frame, trial, i);
-              errors_scrambling[UE_id][round]++;
+              errors_scrambling[UE_id][round[UE_id]]++;
             }
           }
         }  // number_of_UEs
-        round++;
+        for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (crc_status[UE_id] == 2)
+            continue;
+          round[UE_id]++;
+          if (round[UE_id] >= max_rounds)
+            reach_max_rounds_flag = 1;
+        }
       }  // round
 
       for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
@@ -1699,9 +1726,9 @@ int main(int argc, char *argv[])
                 "\x1B[0m",
                 frame, trial, errors_decoding[UE_id]);
         }
-        roundStats += ((float)round);
-        if (!crc_status[UE_id])
-          effRate += ((double)TBS[UE_id]) / (double)round;
+        roundStats[UE_id] += ((float)round[UE_id]);
+        if (crc_status[UE_id] == 2)
+          effRate[UE_id] += ((double)TBS[UE_id]) / (double)round[UE_id];
 
         sum_pusch_delay[UE_id] += ulsch_gNB[UE_id]->delay.est_delay;
         min_pusch_delay = min(ulsch_gNB[UE_id]->delay.est_delay, min_pusch_delay);
@@ -1710,9 +1737,10 @@ int main(int argc, char *argv[])
       }  // number_of_UEs
     }  // trial loop
 
-    roundStats/=((float)n_trials);
-    effRate /= (double)n_trials;
-    
+    for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+      roundStats[UE_id] /= (float)n_trials;
+      effRate[UE_id] /= (double)n_trials;
+    }
 
     // -------csv file-------
 
@@ -1733,7 +1761,7 @@ int main(int argc, char *argv[])
         blerStats[UE_id][r] = (double)n_errors[UE_id][r] / round_trials[UE_id][r];
         berStats[UE_id][r] = (double)errors_scrambling[UE_id][r] / available_bits[UE_id] / round_trials[UE_id][r];
       }
-      effTP = effRate / (double)TBS[UE_id] * (double)100;
+      effTP[UE_id] = effRate[UE_id] / (double)TBS[UE_id] * (double)100;
       printf("SNR %f: Channel BLER (%e", SNR, blerStats[UE_id][0]);
       for (int r = 1; r < max_rounds; r++)
         printf(",%e", blerStats[UE_id][r]);
@@ -1741,7 +1769,7 @@ int main(int argc, char *argv[])
       for (int r = 1; r < max_rounds; r++)
         printf(",%e", berStats[UE_id][r]);
 
-      printf(") Avg round %.2f, Eff Rate %.4f bits/slot, Eff Throughput %.2f, TBS %u bits/slot\n", roundStats, effRate, effTP, TBS[UE_id]);
+      printf(") Avg round %.2f, Eff Rate %.4f bits/slot, Eff Throughput %.2f, TBS %u bits/slot\n", roundStats[UE_id], effRate[UE_id], effTP[UE_id], TBS[UE_id]);
 
       printf("DMRS-PUSCH delay estimation: min %i, max %i, average %f\n",
             min_pusch_delay >> 1, max_pusch_delay >> 1, (double)sum_pusch_delay[UE_id] / (2 * delay_pusch_est_count[UE_id]));
@@ -1756,7 +1784,7 @@ int main(int argc, char *argv[])
         fprintf(csv_file,"%f,%d/%d,",SNR,n_false_positive[UE_id],n_trials);
         for (int r = 0; r < max_rounds; r++)
           fprintf(csv_file,"%d/%d,%u/%u,%f,%e,",n_errors[UE_id][r], round_trials[UE_id][r], errors_scrambling[UE_id][r], available_bits[UE_id] * round_trials[UE_id][r],blerStats[UE_id][r],berStats[UE_id][r]);
-        fprintf(csv_file,"%.2f,%.4f,%.2f,%u,(%i,%i,%f)\n", roundStats, effRate, effTP, TBS[UE_id],min_pusch_delay >> 1, max_pusch_delay >> 1, (double)sum_pusch_delay[UE_id] / (2 * delay_pusch_est_count[UE_id]));
+        fprintf(csv_file,"%.2f,%.4f,%.2f,%u,(%i,%i,%f)\n", roundStats[UE_id], effRate[UE_id], effTP[UE_id], TBS[UE_id],min_pusch_delay >> 1, max_pusch_delay >> 1, (double)sum_pusch_delay[UE_id] / (2 * delay_pusch_est_count[UE_id]));
       }
     }
     FILE *fd=fopen("nr_ulsim.log","w");
@@ -1779,7 +1807,7 @@ int main(int argc, char *argv[])
       printf("\n");
       for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
         UE = UE_list[UE_id];
-        printf("UE%d TX\n", UE_id + 1);
+        printf("UE%d TX\n", UE_id);
         printStatIndent(&UE->ulsch_encoding_stats,"ULSCH total encoding time");
         printStatIndent2(&UE->ulsch_segmentation_stats,"ULSCH segmentation time");
         printStatIndent2(&UE->ulsch_ldpc_encoding_stats,"ULSCH LDPC encoder time");
@@ -1800,9 +1828,16 @@ int main(int argc, char *argv[])
     if(n_trials==1)
       break;
 
-    if ((float)effTP >= eff_tp_check) {
+    bool eff_flag = 1;
+    for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+      if ((float)effTP[UE_id] < eff_tp_check)
+        eff_flag = 0;
+    }
+    if (eff_flag) {
       printf("*************\n");
       printf("PUSCH test OK\n");
+      printf("*************\n");
+      printf("All UEs' Eff Throughput >= %f at SNR %lf\n", eff_tp_check, SNR);
       printf("*************\n");
       ret = 0;
       break;
