@@ -48,17 +48,6 @@ extern uint8_t nfapi_mode;
 void nr_common_signal_procedures(PHY_VARS_gNB *gNB,int frame,int slot, nfapi_nr_dl_tti_ssb_pdu ssb_pdu)
 {
   NR_DL_FRAME_PARMS *fp = &gNB->frame_parms;
-  nfapi_nr_config_request_scf_t *cfg = &gNB->gNB_config;
-  c16_t **txdataF = gNB->common_vars.txdataF;
-  uint8_t n_hf;
-  int txdataF_offset = slot*fp->samples_per_slot_wCP;
-  uint16_t slots_per_hf = (fp->slots_per_frame) >> 1;
-
-  if (slot<slots_per_hf)
-    n_hf=0;
-  else
-    n_hf=1;
-
   uint8_t ssb_index = ssb_pdu.ssb_pdu_rel15.SsbBlockIndex;
   LOG_D(PHY,"common_signal_procedures: frame %d, slot %d ssb index %d\n", frame, slot, ssb_index);
 
@@ -70,6 +59,7 @@ void nr_common_signal_procedures(PHY_VARS_gNB *gNB,int frame,int slot, nfapi_nr_
   // for FR1 offsetToPointA and k_SSB are expressed in terms of 15 kHz SCS
   // for FR2 offsetToPointA is expressed in terms of 60 kHz SCS and k_SSB expressed in terms of the subcarrier spacing provided
   // by the higher-layer parameter subCarrierSpacingCommon
+  nfapi_nr_config_request_scf_t *cfg = &gNB->gNB_config;
   const int scs = cfg->ssb_config.scs_common.value;
   const int prb_offset = (fp->freq_range == FR1) ? ssb_pdu.ssb_pdu_rel15.ssbOffsetPointA >> scs
                                                  : ssb_pdu.ssb_pdu_rel15.ssbOffsetPointA >> (scs - 2);
@@ -105,9 +95,17 @@ void nr_common_signal_procedures(PHY_VARS_gNB *gNB,int frame,int slot, nfapi_nr_
         fp->ssb_start_subcarrier);
 
   LOG_D(PHY,"SS TX: frame %d, slot %d, start_symbol %d\n",frame,slot, ssb_start_symbol);
+  c16_t **txdataF = gNB->common_vars.txdataF;
+  int txdataF_offset = slot * fp->samples_per_slot_wCP;
   nr_generate_pss(&txdataF[0][txdataF_offset], gNB->TX_AMP, ssb_start_symbol, cfg, fp);
   nr_generate_sss(&txdataF[0][txdataF_offset], gNB->TX_AMP, ssb_start_symbol, cfg, fp);
 
+  uint16_t slots_per_hf = (fp->slots_per_frame) >> 1;
+  int n_hf;
+  if (slot < slots_per_hf)
+    n_hf = 0;
+  else
+    n_hf = 1;
   if (fp->Lmax == 4)
     nr_generate_pbch_dmrs(gNB->nr_gold_pbch_dmrs[n_hf][ssb_index & 7],
                           &txdataF[0][txdataF_offset],
@@ -134,9 +132,9 @@ void nr_common_signal_procedures(PHY_VARS_gNB *gNB,int frame,int slot, nfapi_nr_
 #endif
 
   // Beam_id is currently used only for FR2
-  if (fp->freq_range == FR2){
-    LOG_D(PHY,"slot %d, ssb_index %d, beam %d\n",slot,ssb_index,cfg->ssb_table.ssb_beam_id_list[ssb_index].beam_id.value);
-    for (int j=0;j<fp->symbols_per_slot;j++) 
+  if (fp->freq_range == FR2) {
+    LOG_D(PHY,"slot %d, ssb_index %d, beam %d\n", slot, ssb_index, cfg->ssb_table.ssb_beam_id_list[ssb_index].beam_id.value);
+    for (int j = 0; j < fp->symbols_per_slot; j++)
       gNB->common_vars.beam_id[0][slot*fp->symbols_per_slot+j] = cfg->ssb_table.ssb_beam_id_list[ssb_index].beam_id.value;
   }
 
@@ -155,25 +153,24 @@ void nr_common_signal_procedures(PHY_VARS_gNB *gNB,int frame,int slot, nfapi_nr_
 void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
                            int frame,
                            int slot,
-                           int do_meas) {
-
-  int aa;
+                           int do_meas)
+{
   PHY_VARS_gNB *gNB = msgTx->gNB;
-  NR_DL_FRAME_PARMS *fp=&gNB->frame_parms;
+  NR_DL_FRAME_PARMS *fp = &gNB->frame_parms;
   nfapi_nr_config_request_scf_t *cfg = &gNB->gNB_config;
   int slot_prs = 0;
-  int txdataF_offset = slot*fp->samples_per_slot_wCP;
+  int txdataF_offset = slot * fp->samples_per_slot_wCP;
   prs_config_t *prs_config = NULL;
 
-  if ((cfg->cell_config.frame_duplex_type.value == TDD) &&
-      (nr_slot_select(cfg,frame,slot) == NR_UPLINK_SLOT)) return;
+  if ((cfg->cell_config.frame_duplex_type.value == TDD) && (nr_slot_select(cfg,frame,slot) == NR_UPLINK_SLOT))
+    return;
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_gNB_TX + gNB->CC_id, 1);
 
   // clear the transmit data array and beam index for the current slot
-  for (aa=0; aa<cfg->carrier_config.num_tx_ant.value; aa++) {
-    memset(&gNB->common_vars.txdataF[aa][txdataF_offset],0,fp->samples_per_slot_wCP*sizeof(int32_t));
-    memset(&gNB->common_vars.beam_id[aa][slot*fp->symbols_per_slot],255,fp->symbols_per_slot*sizeof(uint8_t));
+  for (int aa = 0; aa < cfg->carrier_config.num_tx_ant.value; aa++) {
+    memset(&gNB->common_vars.txdataF[aa][txdataF_offset], 0, fp->samples_per_slot_wCP*sizeof(int32_t));
+    memset(&gNB->common_vars.beam_id[aa][slot * fp->symbols_per_slot], 255, fp->symbols_per_slot*sizeof(uint8_t));
   }
 
   // Check for PRS slot - section 7.4.1.7.4 in 3GPP rel16 38.211
@@ -192,9 +189,9 @@ void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
   }
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_gNB_COMMON_TX,1);
-  for (int i=0; i<fp->Lmax; i++) {
+  for (int i = 0; i < fp->Lmax; i++) {
     if (msgTx->ssb[i].active) {
-      nr_common_signal_procedures(gNB,frame,slot,msgTx->ssb[i].ssb_pdu);
+      nr_common_signal_procedures(gNB, frame, slot, msgTx->ssb[i].ssb_pdu);
       msgTx->ssb[i].active = false;
     }
   }
@@ -248,7 +245,7 @@ void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
 
   //apply the OFDM symbol rotation here
   if (gNB->phase_comp) {
-    for (aa=0; aa<cfg->carrier_config.num_tx_ant.value; aa++) {
+    for (int aa = 0; aa < cfg->carrier_config.num_tx_ant.value; aa++) {
       apply_nr_rotation_TX(fp,
                            &gNB->common_vars.txdataF[aa][txdataF_offset],
                            fp->symbol_rotation[0],

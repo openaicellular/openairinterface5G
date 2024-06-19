@@ -54,41 +54,43 @@ static void schedule_ssb(frame_t frame,
                          NR_ServingCellConfigCommon_t *scc,
                          nfapi_nr_dl_tti_request_body_t *dl_req,
                          int i_ssb,
+                         int beam_index,
                          uint8_t scoffset,
                          uint16_t offset_pointa,
                          uint32_t payload)
 {
-  uint8_t beam_index = 0;
-  nfapi_nr_dl_tti_request_pdu_t  *dl_config_pdu = &dl_req->dl_tti_pdu_list[dl_req->nPDUs];
-  memset((void *) dl_config_pdu, 0,sizeof(nfapi_nr_dl_tti_request_pdu_t));
-  dl_config_pdu->PDUType      = NFAPI_NR_DL_TTI_SSB_PDU_TYPE;
-  dl_config_pdu->PDUSize      =2 + sizeof(nfapi_nr_dl_tti_ssb_pdu_rel15_t);
+  nfapi_nr_dl_tti_request_pdu_t *dl_config_pdu = &dl_req->dl_tti_pdu_list[dl_req->nPDUs];
+  memset((void *) dl_config_pdu, 0, sizeof(nfapi_nr_dl_tti_request_pdu_t));
+  dl_config_pdu->PDUType = NFAPI_NR_DL_TTI_SSB_PDU_TYPE;
+  dl_config_pdu->PDUSize = 2 + sizeof(nfapi_nr_dl_tti_ssb_pdu_rel15_t);
 
-  AssertFatal(scc->physCellId!=NULL,"ServingCellConfigCommon->physCellId is null\n");
-  AssertFatal(*scc->physCellId < 1008 && *scc->physCellId >=0, "5G physicall cell id out of range: %ld\n", *scc->physCellId); 
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.PhysCellId          = *scc->physCellId;
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.BetaPss             = 0;
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.SsbBlockIndex       = i_ssb;
-  AssertFatal(scc->downlinkConfigCommon!=NULL,"scc->downlinkConfigCommonL is null\n");
-  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL!=NULL,"scc->downlinkConfigCommon->frequencyInfoDL is null\n");
-  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL->absoluteFrequencySSB!=NULL,"scc->downlinkConfigCommon->frequencyInfoDL->absoluteFrequencySSB is null\n");
-  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.count==1,"Frequency Band list does not have 1 element (%d)\n",
+  AssertFatal(scc->physCellId != NULL,"ServingCellConfigCommon->physCellId is null\n");
+  AssertFatal(*scc->physCellId < 1008 && *scc->physCellId >=0, "5G physicall cell id out of range: %ld\n", *scc->physCellId);
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.PhysCellId = *scc->physCellId;
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.BetaPss = 0;
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.SsbBlockIndex = i_ssb;
+  AssertFatal(scc->downlinkConfigCommon,"scc->downlinkConfigCommonL is null\n");
+  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL,"scc->downlinkConfigCommon->frequencyInfoDL is null\n");
+  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL->absoluteFrequencySSB,
+              "scc->downlinkConfigCommon->frequencyInfoDL->absoluteFrequencySSB is null\n");
+  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.count == 1,
+              "Frequency Band list does not have 1 element (%d)\n",
               scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.count);
   AssertFatal(scc->ssbSubcarrierSpacing,"ssbSubcarrierSpacing is null\n");
-  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.array[0],"band is null\n");
+  AssertFatal(scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.array[0], "band is null\n");
 
   dl_config_pdu->ssb_pdu.ssb_pdu_rel15.SsbSubcarrierOffset = scoffset; //kSSB
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.ssbOffsetPointA     = offset_pointa;
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.bchPayloadFlag      = 1;
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.bchPayload          = payload;
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.num_prgs=1;
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.prg_size=275; //1 PRG of max size for analogue beamforming
-  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.dig_bf_interfaces=1;
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.ssbOffsetPointA = offset_pointa;
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.bchPayloadFlag = 1;
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.bchPayload = payload;
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.num_prgs = 1;
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.prg_size = 275; //1 PRG of max size for analogue beamforming
+  dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.dig_bf_interfaces = 1;
   dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.prgs_list[0].pm_idx = 0;
   dl_config_pdu->ssb_pdu.ssb_pdu_rel15.precoding_and_beamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = beam_index;
   dl_req->nPDUs++;
 
-  LOG_D(MAC,"Scheduling ssb %d at frame %d and slot %d\n",i_ssb,frame,slot);
+  LOG_D(MAC,"Scheduling ssb %d at frame %d and slot %d\n", i_ssb, frame, slot);
 }
 
 static void fill_ssb_vrb_map(NR_COMMON_channels_t *cc,
@@ -154,13 +156,12 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
     if (ssb_period > 1) // 0 is every half frame
       ssb_frame_periodicity = 1 << (ssb_period -1);
 
-    if (!(frameP%ssb_frame_periodicity) &&
-        ((slotP<(slots_per_frame>>1)) || (ssb_period == 0))) {
+    if (!(frameP % ssb_frame_periodicity) && ((slotP < (slots_per_frame >> 1)) || (ssb_period == 0))) {
       // schedule SSB only for given frames according to SSB periodicity
       // and in first half frame unless periodicity of 5ms
       int rel_slot;
       if (ssb_period == 0) // scheduling every half frame
-        rel_slot = slotP%(slots_per_frame>>1);
+        rel_slot = slotP % (slots_per_frame >> 1);
       else
         rel_slot = slotP;
 
@@ -173,21 +174,22 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
       const BIT_STRING_t *mediumBitmap = &scc->ssb_PositionsInBurst->choice.mediumBitmap;
       const BIT_STRING_t *longBitmap = &scc->ssb_PositionsInBurst->choice.longBitmap;
 
-      uint16_t ssb_start_symbol;
       const int n_slots_frame = nr_slots_per_frame[scs];
-
+      int n_ssb = 0;
       switch (scc->ssb_PositionsInBurst->present) {
         case 1:
           // short bitmap (<3GHz) max 4 SSBs
           for (int i_ssb = 0; i_ssb < 4; i_ssb++) {
             if ((shortBitmap->buf[0] >> (7 - i_ssb)) & 0x01) {
-              ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
+              int beam_index = select_fapi_beam_index_from_ssb(scc, i_ssb, n_ssb);
+              n_ssb++;
+              uint16_t ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
               // if start symbol is in current slot, schedule current SSB, fill VRB map and call get_type0_PDCCH_CSS_config_parameters
-              if ((ssb_start_symbol / 14) == rel_slot){
-                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
+              if ((ssb_start_symbol / 14) == rel_slot) {
+                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, beam_index, n_slots_frame);
                 AssertFatal(beam.idx >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
                 const int prb_offset = offset_pointa >> scs;
-                schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, ssbSubcarrierOffset, offset_pointa, mib_pdu);
+                schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, beam_index, ssbSubcarrierOffset, offset_pointa, mib_pdu);
                 fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset, ssb_start_symbol, CC_id, beam.idx);
                 if (get_softmodem_params()->sa == 1) {
                   get_type0_PDCCH_CSS_config_parameters(&gNB->type0_PDCCH_CSS_config[i_ssb],
@@ -212,13 +214,15 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
           // medium bitmap (<6GHz) max 8 SSBs
           for (int i_ssb = 0; i_ssb < 8; i_ssb++) {
             if ((mediumBitmap->buf[0] >> (7 - i_ssb)) & 0x01) {
-              ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
+              int beam_index = select_fapi_beam_index_from_ssb(scc, i_ssb, n_ssb);
+              n_ssb++;
+              uint16_t ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
               // if start symbol is in current slot, schedule current SSB, fill VRB map and call get_type0_PDCCH_CSS_config_parameters
               if ((ssb_start_symbol / 14) == rel_slot){
-                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
+                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, beam_index, n_slots_frame);
                 AssertFatal(beam.idx >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
                 const int prb_offset = offset_pointa >> scs;
-                schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, ssbSubcarrierOffset, offset_pointa, mib_pdu);
+                schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, beam_index, ssbSubcarrierOffset, offset_pointa, mib_pdu);
                 fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset, ssb_start_symbol, CC_id, beam.idx);
                 if (get_softmodem_params()->sa == 1) {
                   get_type0_PDCCH_CSS_config_parameters(&gNB->type0_PDCCH_CSS_config[i_ssb],
@@ -243,13 +247,15 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
           // long bitmap FR2 max 64 SSBs
           for (int i_ssb = 0; i_ssb < 64; i_ssb++) {
             if ((longBitmap->buf[i_ssb / 8] >> (7 - (i_ssb % 8))) & 0x01) {
-              ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
+              int beam_index = select_fapi_beam_index_from_ssb(scc, i_ssb, n_ssb);
+              n_ssb++;
+              uint16_t ssb_start_symbol = get_ssb_start_symbol(band, scs, i_ssb);
               // if start symbol is in current slot, schedule current SSB, fill VRB map and call get_type0_PDCCH_CSS_config_parameters
-              if ((ssb_start_symbol / 14) == rel_slot){
-                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, i_ssb, n_slots_frame);
+              if ((ssb_start_symbol / 14) == rel_slot) {
+                NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, beam_index, n_slots_frame);
                 AssertFatal(beam.idx >= 0, "Cannot allocate SSB %d in any available beam\n", i_ssb);
                 const int prb_offset = offset_pointa >> (scs-2); // reference 60kHz
-                schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, ssbSubcarrierOffset, offset_pointa, mib_pdu);
+                schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, beam_index, ssbSubcarrierOffset, offset_pointa, mib_pdu);
                 fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset >> (scs - 2), ssb_start_symbol, CC_id, beam.idx);
                 if (get_softmodem_params()->sa == 1) {
                   get_type0_PDCCH_CSS_config_parameters(&gNB->type0_PDCCH_CSS_config[i_ssb],
@@ -406,7 +412,8 @@ static void nr_fill_nfapi_dl_sib1_pdu(int Mod_idP,
                                       NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config,
                                       uint32_t TBS,
                                       int StartSymbolIndex,
-                                      int NrOfSymbols)
+                                      int NrOfSymbols,
+                                      int beam_index)
 {
   gNB_MAC_INST *gNB_mac = RC.nrmac[Mod_idP];
   NR_COMMON_channels_t *cc = gNB_mac->common_channels;
@@ -430,11 +437,11 @@ static void nr_fill_nfapi_dl_sib1_pdu(int Mod_idP,
   dl_req->nPDUs += 1;
   nfapi_nr_dl_tti_pdsch_pdu_rel15_t *pdsch_pdu_rel15 = &dl_tti_pdsch_pdu->pdsch_pdu.pdsch_pdu_rel15;
 
-  pdsch_pdu_rel15->precodingAndBeamforming.num_prgs=0;
-  pdsch_pdu_rel15->precodingAndBeamforming.prg_size=0;
-  pdsch_pdu_rel15->precodingAndBeamforming.dig_bf_interfaces=0;
+  pdsch_pdu_rel15->precodingAndBeamforming.num_prgs = 0;
+  pdsch_pdu_rel15->precodingAndBeamforming.prg_size = 0;
+  pdsch_pdu_rel15->precodingAndBeamforming.dig_bf_interfaces = 1;
   pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
-  pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = 0;
+  pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = beam_index;
 
   pdcch_pdu_rel15->CoreSetType = NFAPI_NR_CSET_CONFIG_MIB_SIB1;
 
@@ -442,7 +449,7 @@ static void nr_fill_nfapi_dl_sib1_pdu(int Mod_idP,
   pdsch_pdu_rel15->rnti = SI_RNTI;
   pdsch_pdu_rel15->pduIndex = pdu_index;
 
-  pdsch_pdu_rel15->BWPSize  = type0_PDCCH_CSS_config->num_rbs;
+  pdsch_pdu_rel15->BWPSize = type0_PDCCH_CSS_config->num_rbs;
   pdsch_pdu_rel15->BWPStart = type0_PDCCH_CSS_config->cset_start_rb;
 
   pdsch_pdu_rel15->SubcarrierSpacing = type0_PDCCH_CSS_config->scs_pdcch;
@@ -490,6 +497,12 @@ static void nr_fill_nfapi_dl_sib1_pdu(int Mod_idP,
   dci_pdu->CceIndex = gNB_mac->sched_ctrlCommon->cce_index;
   dci_pdu->beta_PDCCH_1_0 = 0;
   dci_pdu->powerControlOffsetSS = 1;
+
+  dci_pdu->precodingAndBeamforming.num_prgs = 0;
+  dci_pdu->precodingAndBeamforming.prg_size = 0;
+  dci_pdu->precodingAndBeamforming.dig_bf_interfaces = 1;
+  dci_pdu->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
+  dci_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = beam_index;
 
   /* DCI payload */
   dci_pdu_rel15_t dci_payload;
@@ -587,7 +600,8 @@ void schedule_nr_sib1(module_id_t module_idP,
        (type0_PDCCH_CSS_config->active == true)) {
 
       const int n_slots_frame = nr_slots_per_frame[*scc->ssbSubcarrierSpacing];
-      NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB_mac->beam_info, frameP, slotP, i, n_slots_frame);
+      int beam_index = select_fapi_beam_index_from_ssb(scc, type0_PDCCH_CSS_config->ssb_index, -1);
+      NR_beam_alloc_stuct_t beam = beam_allocation_procedure(&gNB_mac->beam_info, frameP, slotP, beam_index, n_slots_frame);
       AssertFatal(beam.idx >= 0, "Cannot allocate SIB1 corresponding to SSB %d in any available beam\n", i);
       LOG_D(NR_MAC,"(%d.%d) SIB1 transmission: ssb_index %d\n", frameP, slotP, type0_PDCCH_CSS_config->ssb_index);
 
@@ -616,7 +630,14 @@ void schedule_nr_sib1(module_id_t module_idP,
 
       nfapi_nr_dl_tti_request_body_t *dl_req = &DL_req->dl_tti_request_body;
       int pdu_index = gNB_mac->pdu_index[0]++;
-      nr_fill_nfapi_dl_sib1_pdu(module_idP, dl_req, pdu_index, type0_PDCCH_CSS_config, TBS, tda_info.startSymbolIndex, tda_info.nrOfSymbols);
+      nr_fill_nfapi_dl_sib1_pdu(module_idP,
+                                dl_req,
+                                pdu_index,
+                                type0_PDCCH_CSS_config,
+                                TBS,
+                                tda_info.startSymbolIndex,
+                                tda_info.nrOfSymbols,
+                                beam_index);
 
       const int ntx_req = TX_req->Number_of_PDUs;
       nfapi_nr_pdu_t *tx_req = &TX_req->pdu_list[ntx_req];

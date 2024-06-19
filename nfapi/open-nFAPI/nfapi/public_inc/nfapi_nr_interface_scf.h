@@ -1106,7 +1106,7 @@ typedef struct {
 //for prach_pdu:
 typedef struct
 {
-  nfapi_nr_dig_bf_interface_t* dig_bf_interface_list;
+  nfapi_nr_dig_bf_interface_t dig_bf_interface_list[1];
 } nfapi_nr_ul_beamforming_number_of_prgs_t;
 
 typedef struct
@@ -1115,7 +1115,7 @@ typedef struct
   uint16_t num_prgs;          // Number of PRGs spanning this allocation. Value : 1->275
   uint16_t prg_size;          // Size in RBs of a precoding resource block group (PRG) – to which the same digital beamforming gets applied. Value: 1->275
   uint8_t dig_bf_interface;   // Number of logical antenna ports (parallel streams) resulting from the Rx combining. Value: 0->255
-  nfapi_nr_ul_beamforming_number_of_prgs_t *prgs_list;
+  nfapi_nr_ul_beamforming_number_of_prgs_t prgs_list[1];
 } nfapi_nr_ul_beamforming_t;
 
 typedef struct

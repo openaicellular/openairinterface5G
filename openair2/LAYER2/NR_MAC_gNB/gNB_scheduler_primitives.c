@@ -797,10 +797,12 @@ void config_uldci(const NR_UE_ServingCell_Info_t *sc_info,
   dci_pdu_rel15->rv = pusch_pdu->pusch_data.rv_index;
   dci_pdu_rel15->harq_pid = pusch_pdu->pusch_data.harq_process_id;
   dci_pdu_rel15->tpc = tpc;
-  NR_PUSCH_Config_t *pusch_Config = ul_bwp->pusch_Config;
 
-  if (pusch_Config) AssertFatal(pusch_Config->resourceAllocation == NR_PUSCH_Config__resourceAllocation_resourceAllocationType1,
-			"Only frequency resource allocation type 1 is currently supported\n");
+  NR_PUSCH_Config_t *pusch_Config = ul_bwp->pusch_Config;
+  if (pusch_Config)
+    AssertFatal(pusch_Config->resourceAllocation == NR_PUSCH_Config__resourceAllocation_resourceAllocationType1,
+                "Only frequency resource allocation type 1 is currently supported\n");
+
   switch (dci_format) {
     case NR_UL_DCI_FORMAT_0_0:
       dci_pdu_rel15->format_indicator = 0;
@@ -1128,18 +1130,7 @@ void nr_configure_pucch(nfapi_nr_pucch_pdu_t *pucch_pdu,
   pucch_pdu->beamforming.num_prgs = 0;
   pucch_pdu->beamforming.prg_size = 0; // pucch_pdu->prb_size;
   pucch_pdu->beamforming.dig_bf_interface = 0;
-  if (pucch_pdu->beamforming.num_prgs > 0) {
-    if (pucch_pdu->beamforming.prgs_list == NULL) {
-      pucch_pdu->beamforming.prgs_list = calloc(pucch_pdu->beamforming.num_prgs, sizeof(*pucch_pdu->beamforming.prgs_list));
-    }
-    if (pucch_pdu->beamforming.dig_bf_interface > 0) {
-      if (pucch_pdu->beamforming.prgs_list[0].dig_bf_interface_list == NULL) {
-        pucch_pdu->beamforming.prgs_list[0].dig_bf_interface_list =
-            calloc(pucch_pdu->beamforming.dig_bf_interface, sizeof(*pucch_pdu->beamforming.prgs_list[0].dig_bf_interface_list));
-      }
-    }
-    pucch_pdu->beamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = 0;
-  }
+  pucch_pdu->beamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = UE->UE_beam_index;
 }
 
 void set_r_pucch_parms(int rsetindex,
@@ -2432,12 +2423,14 @@ void configure_UE_BWP(gNB_MAC_INST *nr_mac,
     AssertFatal(ra->ra_ss!=NULL,"SearchSpace cannot be null for RA\n");
 
     ra->coreset = get_coreset(nr_mac, scc, dl_bwp, ra->ra_ss, NR_SearchSpace__searchSpaceType_PR_common);
+    NR_COMMON_channels_t *cc = &nr_mac->common_channels[0];
+    int ssb_index = cc->ssb_index[ra->beam_id];
     ra->sched_pdcch = set_pdcch_structure(nr_mac,
                                           ra->ra_ss,
                                           ra->coreset,
                                           scc,
                                           &dl_genericParameters,
-                                          &nr_mac->type0_PDCCH_CSS_config[ra->beam_id]);
+                                          &nr_mac->type0_PDCCH_CSS_config[ssb_index]);
 
     UL_BWP->dci_format = NR_UL_DCI_FORMAT_0_0;
     DL_BWP->dci_format = NR_DL_DCI_FORMAT_1_0;
@@ -3097,6 +3090,38 @@ void UL_tti_req_ahead_initialization(gNB_MAC_INST *gNB, int n, int CCid, frame_t
     req->SFN = (abs_slot / n) % MAX_FRAME_NUMBER;
     req->Slot = abs_slot % n;
   }
+}
+
+// TODO this is a placeholder for a possibly more complex function
+// for now we just return the number of SSBs transmitted before ssb_index
+int select_fapi_beam_index_from_ssb(NR_ServingCellConfigCommon_t *scc, int ssb_index, int n_ssb)
+{
+  if (n_ssb >= 0)
+    return n_ssb;
+
+  AssertFatal(scc && ssb_index >= 0, "ServingCellConfigCommon cannot be NULL here\n");
+
+  if (ssb_index == 0)
+    return 0;
+
+  int fapi_index = 0;
+  switch (scc->ssb_PositionsInBurst->present) {
+    case NR_ServingCellConfigCommon__ssb_PositionsInBurst_PR_shortBitmap :
+      for (int i = 0; i < ssb_index; i++)
+        fapi_index += ((scc->ssb_PositionsInBurst->choice.shortBitmap.buf[0] >> (7 - i)) & 0x01);
+      break;
+    case NR_ServingCellConfigCommon__ssb_PositionsInBurst_PR_mediumBitmap :
+      for (int i = 0; i < ssb_index; i++)
+        fapi_index += ((scc->ssb_PositionsInBurst->choice.mediumBitmap.buf[0] >> (7 - i)) & 0x01);
+      break;
+    case NR_ServingCellConfigCommon__ssb_PositionsInBurst_PR_longBitmap :
+      for (int i = 0; i < ssb_index; i++)
+        fapi_index += ((scc->ssb_PositionsInBurst->choice.mediumBitmap.buf[i / 8] >> (7 - (i % 8))) & 0x01);
+      break;
+    default :
+      AssertFatal(false, "Invalid configuration\n");
+  }
+  return fapi_index;
 }
 
 // return index of beam in period if valid or -1 if not valid

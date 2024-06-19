@@ -54,16 +54,13 @@ extern uint16_t sl_ahead;
 // forward declaration of functions used in this file
 static void fill_msg3_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu,
                                 NR_ServingCellConfigCommon_t *scc,
-                                int round,
+                                NR_RA_t *ra,
                                 int startSymbolAndLength,
-                                rnti_t rnti,
                                 int scs,
                                 int bwp_size,
                                 int bwp_start,
                                 int mappingtype,
-                                int fh,
-                                int msg3_first_rb,
-                                int msg3_nb_rb);
+                                int fh);
 static void nr_fill_rar(uint8_t Mod_idP, NR_RA_t *ra, uint8_t *dlsch_buffer, nfapi_nr_pusch_pdu_t *pusch_pdu);
 
 static const uint8_t DELTA[4] = {2, 3, 4, 6};
@@ -330,15 +327,18 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
             continue;
 
           float num_ssb_per_RO = ssb_per_rach_occasion[cfg->prach_config.ssb_per_rach.value];
+          int beam_index = 0;
           if(num_ssb_per_RO <= 1) {
-            int ssb_index = (int) (prach_occasion_id / (int)(1 / num_ssb_per_RO)) % cc->num_active_ssb;
-            beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, ssb_index, nr_slots_per_frame[mu]);
-            AssertFatal(beam.idx >= 0, "Cannot allocate PRACH corresponding to SSB %d in any available beam\n", ssb_index);
+            int n_ssb = (int) (prach_occasion_id / (int)(1 / num_ssb_per_RO)) % cc->num_active_ssb;
+            beam_index = select_fapi_beam_index_from_ssb(NULL, -1, n_ssb);
+            beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, beam_index, nr_slots_per_frame[mu]);
+            AssertFatal(beam.idx >= 0, "Cannot allocate PRACH corresponding to %d SSB transmitted in any available beam\n", n_ssb + 1);
           }
           else {
             int first_ssb_index = (prach_occasion_id * (int)num_ssb_per_RO) % cc->num_active_ssb;
             for(int j = first_ssb_index; j < num_ssb_per_RO; j++) {
-              beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, j, nr_slots_per_frame[mu]);
+              beam_index = select_fapi_beam_index_from_ssb(NULL, -1, j);
+              beam = beam_allocation_procedure(&gNB->beam_info, frameP, slotP, beam_index, nr_slots_per_frame[mu]);
               AssertFatal(beam.idx >= 0, "Cannot allocate PRACH corresponding to SSB %d in any available beam\n", j);
             }
           }
@@ -360,6 +360,11 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
             prach_pdu->num_cs = get_NCS(rach_ConfigGeneric->zeroCorrelationZoneConfig,
                                         format0,
                                         rach_ConfigCommon->restrictedSetConfig);
+
+            prach_pdu->beamforming.num_prgs = 0;
+            prach_pdu->beamforming.prg_size = 0;
+            prach_pdu->beamforming.dig_bf_interface = 1;
+            prach_pdu->beamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = beam_index;
 
             LOG_D(NR_MAC,
                   "Frame %d, Slot %d: Prach Occasion id = %u  fdm index = %u start symbol = %u slot index = %u subframe index = %u \n",
@@ -544,8 +549,8 @@ void nr_initiate_ra_proc(module_id_t module_idP,
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
   configure_UE_BWP(nr_mac, scc, NULL, ra, NULL, -1, -1);
 
-  uint8_t beam_index = ssb_index_from_prach(module_idP, frameP, slotP, preamble_index, freq_index, symbol);
-  ra->beam_id = cc->ssb_index[beam_index];
+  int n_ssb = ssb_index_from_prach(module_idP, frameP, slotP, preamble_index, freq_index, symbol);
+  ra->beam_id = select_fapi_beam_index_from_ssb(NULL, -1, n_ssb);
 
   NR_SCHED_UNLOCK(&nr_mac->sched_lock);
 
@@ -651,13 +656,7 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     nfapi_nr_pusch_pdu_t *pusch_pdu = &future_ul_tti_req->pdus_list[future_ul_tti_req->n_pdus].pusch_pdu;
     memset(pusch_pdu, 0, sizeof(nfapi_nr_pusch_pdu_t));
 
-    fill_msg3_pusch_pdu(pusch_pdu, scc,
-                        ra->msg3_round,
-                        startSymbolAndLength,
-                        ra->rnti, mu,
-                        BWPSize, BWPStart,
-                        mappingtype, fh,
-                        rbStart, ra->msg3_nb_rb);
+    fill_msg3_pusch_pdu(pusch_pdu, scc, ra, startSymbolAndLength, mu, BWPSize, BWPStart, mappingtype, fh);
     future_ul_tti_req->n_pdus += 1;
 
     // generation of DCI 0_0 to schedule msg3 retransmission
@@ -702,6 +701,12 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     dci_pdu->CceIndex = CCEIndex;
     dci_pdu->beta_PDCCH_1_0 = 0;
     dci_pdu->powerControlOffsetSS = 1;
+
+    dci_pdu->precodingAndBeamforming.num_prgs = 0;
+    dci_pdu->precodingAndBeamforming.prg_size = 0;
+    dci_pdu->precodingAndBeamforming.dig_bf_interfaces = 1;
+    dci_pdu->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
+    dci_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = ra->beam_id;
 
     dci_pdu_rel15_t uldci_payload={0};
 
@@ -880,16 +885,13 @@ static void nr_get_Msg3alloc(module_id_t module_id,
 
 static void fill_msg3_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu,
                                 NR_ServingCellConfigCommon_t *scc,
-                                int round,
+                                NR_RA_t *ra,
                                 int startSymbolAndLength,
-                                rnti_t rnti,
                                 int scs,
                                 int bwp_size,
                                 int bwp_start,
                                 int mappingtype,
-                                int fh,
-                                int msg3_first_rb,
-                                int msg3_nb_rb)
+                                int fh)
 {
   int start_symbol_index,nr_of_symbols;
 
@@ -897,7 +899,7 @@ static void fill_msg3_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu,
   int mcsindex = -1; // init value
 
   pusch_pdu->pdu_bit_map = PUSCH_PDU_BITMAP_PUSCH_DATA;
-  pusch_pdu->rnti = rnti;
+  pusch_pdu->rnti = ra->rnti;
   pusch_pdu->handle = 0;
   pusch_pdu->bwp_start = bwp_start;
   pusch_pdu->bwp_size = bwp_size;
@@ -925,11 +927,11 @@ static void fill_msg3_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu,
   pusch_pdu->num_dmrs_cdm_grps_no_data = 2;  // no data in dmrs symbols as in 6.2.2 in 38.214
   pusch_pdu->resource_alloc = 1; //type 1
   memset(pusch_pdu->rb_bitmap, 0, sizeof(pusch_pdu->rb_bitmap));
-  pusch_pdu->rb_start = msg3_first_rb;
-  if (msg3_nb_rb > pusch_pdu->bwp_size)
-    AssertFatal(1==0,"MSG3 allocated number of RBs exceed the BWP size\n");
+  pusch_pdu->rb_start = ra->msg3_first_rb;
+  if (ra->msg3_nb_rb > pusch_pdu->bwp_size)
+    AssertFatal(false, "MSG3 allocated number of RBs exceed the BWP size\n");
   else
-    pusch_pdu->rb_size = msg3_nb_rb;
+    pusch_pdu->rb_size = ra->msg3_nb_rb;
   pusch_pdu->vrb_to_prb_mapping = 0;
 
   pusch_pdu->frequency_hopping = fh;
@@ -942,27 +944,17 @@ static void fill_msg3_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu,
   pusch_pdu->start_symbol_index = start_symbol_index;
   pusch_pdu->nr_of_symbols = nr_of_symbols;
   //Optional Data only included if indicated in pduBitmap
-  pusch_pdu->pusch_data.rv_index = nr_rv_round_map[round%4];
+  pusch_pdu->pusch_data.rv_index = nr_rv_round_map[ra->msg3_round % 4];
   pusch_pdu->pusch_data.harq_process_id = 0;
-  pusch_pdu->pusch_data.new_data_indicator = (round == 0) ? 1 : 0;;
+  pusch_pdu->pusch_data.new_data_indicator = (ra->msg3_round == 0) ? 1 : 0;;
   pusch_pdu->pusch_data.num_cb = 0;
 
   // Beamforming
   pusch_pdu->beamforming.num_prgs = 0;
   pusch_pdu->beamforming.prg_size = 0; // bwp_size;
-  pusch_pdu->beamforming.dig_bf_interface = 0;
-  if (pusch_pdu->beamforming.num_prgs > 0) {
-    if (pusch_pdu->beamforming.prgs_list == NULL) {
-      pusch_pdu->beamforming.prgs_list = calloc(pusch_pdu->beamforming.num_prgs, sizeof(*pusch_pdu->beamforming.prgs_list));
-    }
-    if (pusch_pdu->beamforming.dig_bf_interface > 0) {
-      if (pusch_pdu->beamforming.prgs_list[0].dig_bf_interface_list == NULL) {
-        pusch_pdu->beamforming.prgs_list[0].dig_bf_interface_list =
-            calloc(pusch_pdu->beamforming.dig_bf_interface, sizeof(*pusch_pdu->beamforming.prgs_list[0].dig_bf_interface_list));
-      }
-    }
-    pusch_pdu->beamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = 0;
-  }
+  pusch_pdu->beamforming.dig_bf_interface = 1;
+  pusch_pdu->beamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = ra->beam_id;
+
   int num_dmrs_symb = 0;
   for(int i = start_symbol_index; i < start_symbol_index+nr_of_symbols; i++)
     num_dmrs_symb += (pusch_pdu->ul_dmrs_symb_pos >> i) & 1;
@@ -1045,13 +1037,7 @@ static void nr_add_msg3(module_id_t module_idP, int CC_id, frame_t frameP, sub_f
         ra->msg3_first_rb,
         ra->msg3_round);
 
-  fill_msg3_pusch_pdu(pusch_pdu,scc,
-                      ra->msg3_round,
-                      startSymbolAndLength,
-                      ra->rnti, scs,
-                      ibwp_size, ra->msg3_bwp_start,
-                      mappingtype, fh,
-                      ra->msg3_first_rb, ra->msg3_nb_rb);
+  fill_msg3_pusch_pdu(pusch_pdu, scc, ra, startSymbolAndLength, scs, ibwp_size, ra->msg3_bwp_start, mappingtype, fh);
   future_ul_tti_req->n_pdus += 1;
 
   // calling function to fill rar message
@@ -1267,7 +1253,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
     BWPStart = dl_bwp->BWPStart;
     BWPSize = sc_info->initial_dl_BWPSize;
   } else {
-    type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[ra->beam_id];
+    type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[cc->ssb_index[ra->beam_id]];
     BWPStart = type0_PDCCH_CSS_config->cset_start_rb;
     BWPSize = type0_PDCCH_CSS_config->num_rbs;
   }
@@ -1354,7 +1340,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
   pdsch_pdu_rel15->precodingAndBeamforming.prg_size = 0;
   pdsch_pdu_rel15->precodingAndBeamforming.dig_bf_interfaces = 0;
   pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
-  pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = 0;
+  pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = ra->beam_id;
 
   LOG_A(NR_MAC,
         "UE %04x: %d.%d Generating RA-Msg2 DCI, RA RNTI 0x%x, state %d, CoreSetType %d, RAPID %d\n",
@@ -1437,6 +1423,12 @@ static void nr_generate_Msg2(module_id_t module_idP,
   dci_pdu->CceIndex = CCEIndex;
   dci_pdu->beta_PDCCH_1_0 = 0;
   dci_pdu->powerControlOffsetSS = 1;
+
+  dci_pdu->precodingAndBeamforming.num_prgs = 0;
+  dci_pdu->precodingAndBeamforming.prg_size = 0;
+  dci_pdu->precodingAndBeamforming.dig_bf_interfaces = 1;
+  dci_pdu->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
+  dci_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = ra->beam_id;
 
   dci_pdu_rel15_t dci_payload;
   dci_payload.frequency_domain_assignment.val =
@@ -1603,7 +1595,7 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
     BWPStart = dl_bwp->BWPStart;
     BWPSize  = dl_bwp->BWPSize;
   } else {
-    type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[ra->beam_id];
+    type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[cc->ssb_index[ra->beam_id]];
     BWPStart = type0_PDCCH_CSS_config->cset_start_rb;
     BWPSize = type0_PDCCH_CSS_config->num_rbs;
   }
@@ -1664,6 +1656,12 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
   dci_pdu->CceIndex = CCEIndex;
   dci_pdu->beta_PDCCH_1_0 = 0;
   dci_pdu->powerControlOffsetSS = 1;
+
+  dci_pdu->precodingAndBeamforming.num_prgs = 0;
+  dci_pdu->precodingAndBeamforming.prg_size = 0;
+  dci_pdu->precodingAndBeamforming.dig_bf_interfaces = 1;
+  dci_pdu->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
+  dci_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = ra->beam_id;
 
   dci_pdu_rel15_t dci_payload;
   dci_payload.frequency_domain_assignment.val = PRBalloc_to_locationandbandwidth0(pdsch_pdu_rel15->rbSize,
@@ -1799,7 +1797,7 @@ static void nr_generate_Msg4(module_id_t module_idP,
       BWPStart = dl_bwp->BWPStart;
       BWPSize  = dl_bwp->BWPSize;
     } else {
-      type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[ra->beam_id];
+      type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[cc->ssb_index[ra->beam_id]];
       BWPStart = type0_PDCCH_CSS_config->cset_start_rb;
       BWPSize = type0_PDCCH_CSS_config->num_rbs;
     }

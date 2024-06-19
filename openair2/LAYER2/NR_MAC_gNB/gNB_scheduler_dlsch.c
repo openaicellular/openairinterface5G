@@ -1115,7 +1115,7 @@ void nr_schedule_ue_spec(module_id_t module_id,
     pdsch_pdu->precodingAndBeamforming.prg_size = pdsch_pdu->rbSize;
     pdsch_pdu->precodingAndBeamforming.dig_bf_interfaces = 0;
     pdsch_pdu->precodingAndBeamforming.prgs_list[0].pm_idx = sched_pdsch->pm_index;
-    pdsch_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = 0;
+    pdsch_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = UE->UE_beam_index;
     // TBS_LBRM according to section 5.4.2.1 of 38.212
     // TODO: verify the case where maxMIMO_Layers is NULL, in which case
     //       in principle maxMIMO_layers should be given by the maximum number of layers
@@ -1175,7 +1175,7 @@ void nr_schedule_ue_spec(module_id_t module_id,
     dci_pdu->precodingAndBeamforming.prg_size = 0;
     dci_pdu->precodingAndBeamforming.dig_bf_interfaces = 0;
     dci_pdu->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
-    dci_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = 0;
+    dci_pdu->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = UE->UE_beam_index;
 
     /* DCI payload */
     dci_pdu_rel15_t dci_payload;
