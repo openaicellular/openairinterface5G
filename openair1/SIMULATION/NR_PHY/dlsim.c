@@ -73,8 +73,6 @@
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include <executables/nr-uesoftmodem.h>
 
-#define MAX_UE_CONNECT 8
-
 const char *__asan_default_options()
 {
   /* don't do leak checking in nr_ulsim, not finished yet */
@@ -129,8 +127,8 @@ extern void fix_scd(NR_ServingCellConfig_t *scd);// forward declaration
 /* specific dlsim DL preprocessor: uses rbStart/rbSize/mcs/nrOfLayers from command line of dlsim */
 int g_mcsTableIdx = 0, g_rbStart = -1, g_nrOfLayers = 1, g_pmi = 0;
 /* Multi-UE */
-int g_rbSize[MAX_UE_CONNECT] = {0};
-int g_mcsIndex[MAX_UE_CONNECT] = {9};
+int *g_rbSize;
+int *g_mcsIndex;
 int number_of_UEs = 1;
 
 void nr_dlsim_preprocessor(module_id_t module_id, frame_t frame, sub_frame_t slot) {
@@ -241,7 +239,6 @@ int main(int argc, char **argv)
   int i,aa;//,l;
   double sigma2, sigma2_dB=10, SNR, snr0=-2.0, snr1=2.0;
   uint8_t snr1set=0;
-  float effRate[MAX_UE_CONNECT];
   //float psnr;
   float eff_tp_check = 0.7;
   uint32_t TBS = 0;
@@ -257,7 +254,7 @@ int main(int argc, char **argv)
   //int freq_offset;
   //  int subframe_offset;
   //  char fname[40], vname[40];
-  int trial, n_trials = 1, n_false_positive[MAX_UE_CONNECT] = {0};
+  int trial, n_trials = 1;
   //int n_errors2, n_alamouti;
   uint8_t n_tx=1,n_rx=1;
   uint8_t num_rounds = 4;
@@ -320,8 +317,9 @@ int main(int argc, char **argv)
 
   /* Multi-UE */
   int cnt;
-  PHY_VARS_NR_UE** UE_list = (PHY_VARS_NR_UE**)malloc(MAX_UE_CONNECT * sizeof(PHY_VARS_NR_UE*));
   char *token;
+  char *g_rbSize_str = NULL;
+  char *g_mcsIndex_str = NULL;
 
   randominit(0);
 
@@ -466,12 +464,8 @@ int main(int argc, char **argv)
       break;
 
     case 'b':
-      cnt = 0;
-      token = strtok(optarg, ",");
-      while (token != NULL) {
-        g_rbSize[cnt++] = atoi(token);
-        token = strtok(NULL, ",");
-      }
+      g_rbSize_str = calloc(strlen(optarg) + 1, sizeof(char));
+      strcpy(g_rbSize_str, optarg);
       break;
 
     case 'd':
@@ -479,12 +473,8 @@ int main(int argc, char **argv)
       break;
 
     case 'e':
-      cnt = 0;
-      token = strtok(optarg, ",");
-      while (token != NULL) {
-        g_mcsIndex[cnt++] = atoi(token);
-        token = strtok(NULL, ",");
-      }
+      g_mcsIndex_str = calloc(strlen(optarg) + 1, sizeof(char));
+      strcpy(g_mcsIndex_str, optarg);
       break;
 
     case 'q':
@@ -493,10 +483,6 @@ int main(int argc, char **argv)
 
     case 'k':
       number_of_UEs = atoi(optarg);
-      if (number_of_UEs > MAX_UE_CONNECT) {
-        printf("Unsupported number of UEs, maximum number of UEs is %d, MAX_MOBILES_PER_GNB %d, MAX_DCI_CORESET %d\n", MAX_UE_CONNECT, MAX_MOBILES_PER_GNB, MAX_DCI_CORESET);
-        exit(-1);
-      }
       break;
 
     case 'm':
@@ -559,7 +545,7 @@ int main(int argc, char **argv)
       printf("-h This message\n");
       printf("-i Change channel estimation technique. Arguments list: Frequency domain {0:Linear interpolation, 1:PRB based averaging}, Time domain {0:Estimates of last DMRS symbol, 1:Average of DMRS symbols}\n");
       // printf("-j Relative strength of second intefering gNB (in dB) - cell_id mod 3 = 2\n");
-      printf("-k Set the number of UEs, maximum number of UEs is %d, MAX_MOBILES_PER_GNB %d, MAX_DCI_CORESET %d\n", MAX_UE_CONNECT, MAX_MOBILES_PER_GNB, MAX_DCI_CORESET);
+      printf("-k Set the number of UEs, maximum number of UEs is %d, MAX_MOBILES_PER_GNB %d, MAX_DCI_CORESET %d\n", 8, MAX_MOBILES_PER_GNB, MAX_DCI_CORESET);
       printf("-m Numerology\n");
       printf("-n Number of frames to simulate\n");
       printf("-o Introduce delay in terms of number of samples\n");
@@ -593,9 +579,36 @@ int main(int argc, char **argv)
     }
   }
 
+  if (number_of_UEs > MAX_DCI_CORESET) {
+    printf("For now maximum number of UEs is %d due to MAX_DCI_CORESET %d\n", 8, MAX_DCI_CORESET);
+    exit(-1);
+  }
+
   int8_t ack_status[number_of_UEs];
   uint8_t round[number_of_UEs];
   float effTP[number_of_UEs];
+  float effRate[number_of_UEs];
+  int n_false_positive[number_of_UEs];
+  memset((void *)n_false_positive, 0, number_of_UEs * sizeof(int));
+  g_rbSize = malloc(number_of_UEs * sizeof(int));
+  g_mcsIndex = malloc(number_of_UEs * sizeof(int));
+  PHY_VARS_NR_UE** UE_list = (PHY_VARS_NR_UE**)malloc(number_of_UEs * sizeof(PHY_VARS_NR_UE*));
+
+  cnt = 0;
+  token = strtok(g_rbSize_str, ",");
+  while (token != NULL) {
+    g_rbSize[cnt++] = atoi(token);
+    token = strtok(NULL, ",");
+  }
+  free(g_rbSize_str);
+  cnt = 0;
+  token = strtok(g_mcsIndex_str, ",");
+  while (token != NULL) {
+    g_mcsIndex[cnt++] = atoi(token);
+    token = strtok(NULL, ",");
+  }
+  free(g_mcsIndex_str);
+
 
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
     if (g_rbSize[UE_id] == 0) {
@@ -891,14 +904,16 @@ int main(int argc, char **argv)
     UE_list[UE_id] = UE;
   }
 
-  unsigned int available_bits[MAX_UE_CONNECT] = {0};
-  unsigned char *estimated_output_bit[MAX_UE_CONNECT];
-  unsigned char *test_input_bit[MAX_UE_CONNECT];
-  unsigned int errors_bit[MAX_UE_CONNECT] = {0};
+  unsigned int available_bits[number_of_UEs];
+  unsigned int errors_bit[number_of_UEs];
+  unsigned char *estimated_output_bit[number_of_UEs];
+  unsigned char *test_input_bit[number_of_UEs];
 
   initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
 
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+    available_bits[UE_id] = 0;
+    errors_bit[UE_id] = 0;
     test_input_bit[UE_id] = (unsigned char *)malloc16(sizeof(unsigned char) * 16 * 68 * 384);
     estimated_output_bit[UE_id] = (unsigned char *)malloc16(sizeof(unsigned char) * 16 * 68 * 384);
   }
@@ -922,9 +937,12 @@ int main(int argc, char **argv)
     UE_mac->ra.ra_state = nrRA_SUCCEEDED;
   }
 
-  nr_phy_data_t phy_data[MAX_UE_CONNECT] = {0};
-  fapi_nr_dl_config_request_t dl_config[MAX_UE_CONNECT] = {0};
-  nr_scheduled_response_t scheduled_response[MAX_UE_CONNECT] = {0};
+  nr_phy_data_t phy_data[number_of_UEs];
+  fapi_nr_dl_config_request_t dl_config[number_of_UEs];
+  nr_scheduled_response_t scheduled_response[number_of_UEs];
+  memset((void *)phy_data, 0, number_of_UEs * sizeof(nr_phy_data_t));
+  memset((void *)dl_config, 0, number_of_UEs * sizeof(fapi_nr_dl_config_request_t));
+  memset((void *)scheduled_response, 0, number_of_UEs * sizeof(nr_scheduled_response_t));
 
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
     UE_mac = get_mac_inst(UE_id);
@@ -1004,12 +1022,18 @@ int main(int argc, char **argv)
     reset_meas(&gNB->tparity);
     reset_meas(&gNB->toutput);
 
-    uint32_t errors_scrambling[MAX_UE_CONNECT][16] = {0};
-    int n_errors[MAX_UE_CONNECT][16] = {0};
-    int round_trials[MAX_UE_CONNECT][16] = {0};
-    double roundStats[MAX_UE_CONNECT] = {0};
-    double blerStats[MAX_UE_CONNECT][16] = {0};
-    double berStats[MAX_UE_CONNECT][16] = {0};
+    uint32_t errors_scrambling[number_of_UEs][16];
+    int n_errors[number_of_UEs][16];
+    int round_trials[number_of_UEs][16];
+    double roundStats[number_of_UEs];
+    double blerStats[number_of_UEs][16];
+    double berStats[number_of_UEs][16];
+    memset((void *)errors_scrambling, 0, number_of_UEs * 16 * sizeof(uint32_t));
+    memset((void *)n_errors, 0, number_of_UEs * 16 * sizeof(int));
+    memset((void *)round_trials, 0, number_of_UEs * 16 * sizeof(int));
+    memset((void *)roundStats, 0, number_of_UEs * sizeof(double));
+    memset((void *)blerStats, 0, number_of_UEs * 16 * sizeof(double));
+    memset((void *)berStats, 0, number_of_UEs * 16 * sizeof(double));
 
     //n_errors2 = 0;
     //n_alamouti = 0;
