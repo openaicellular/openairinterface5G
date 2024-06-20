@@ -260,7 +260,6 @@ int main(int argc, char **argv)
   int trial, n_trials = 1, n_false_positive[MAX_UE_CONNECT] = {0};
   //int n_errors2, n_alamouti;
   uint8_t n_tx=1,n_rx=1;
-  uint8_t round;
   uint8_t num_rounds = 4;
   int ldpc_offload_flag = 0;
   char gNBthreads[128]="n";
@@ -593,6 +592,10 @@ int main(int argc, char **argv)
       break;
     }
   }
+
+  int8_t ack_status[number_of_UEs];
+  uint8_t round[number_of_UEs];
+  float effTP[number_of_UEs];
 
   for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
     if (g_rbSize[UE_id] == 0) {
@@ -1013,6 +1016,7 @@ int main(int argc, char **argv)
     for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
       effRate[UE_id] = 0;
       n_false_positive[UE_id] = 0;
+      effTP[UE_id] = 0;
     }
     if (n_trials== 1) num_rounds = 1;
 
@@ -1027,8 +1031,8 @@ int main(int argc, char **argv)
       UE_proc.nr_slot_rx = slot;
       UE_proc.gNB_id = 0;
 
+      bool reach_max_rounds_flag = 0;
       int harq_pid = slot;
-      round = 0;
       NR_gNB_DLSCH_t *gNB_dlsch = &msgDataTx->dlsch[0][0];
       nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15 = &gNB_dlsch->harq_process.pdsch_pdu.pdsch_pdu_rel15;
       UE = UE_list[0];
@@ -1036,8 +1040,10 @@ int main(int argc, char **argv)
       for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
         UE = UE_list[UE_id];
         UE_harq_process = &UE->dl_harq_processes[0][harq_pid];
+        ack_status[UE_id] = 0;
         UE_harq_process->ack = 0;
-        UE_harq_process->DLround = round;
+        round[UE_id] = 0;
+        UE_harq_process->DLround = round[UE_id];
         UE_harq_process->first_rx = 1;
       }
 
@@ -1049,17 +1055,26 @@ int main(int argc, char **argv)
       memset(Sched_INFO, 0, sizeof(*Sched_INFO));
       Sched_INFO->sched_response_id = -1;
 
-      // FIXME: Multi-UE, Here I only track the round of UE0
-      UE = UE_list[0];
-      UE_harq_process = &UE->dl_harq_processes[0][harq_pid];
-      while ((round < num_rounds) && (UE_harq_process->ack == 0)) {
+      while (!reach_max_rounds_flag) {
+        int ack_fail_flag = 0;
+        // ack_status = 0 -> ack FAIL, ack_status = 1 -> ack PASS, ack_status = 2 -> UE already passed, no data to send
+        for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (ack_status[UE_id] == 0)
+            ack_fail_flag = 1;
+          else if (ack_status[UE_id] == 1)
+            ack_status[UE_id] = 2;
+        }
+        if (!ack_fail_flag)
+          break;
 
         clear_nr_nfapi_information(RC.nrmac[0], 0, frame, slot, &Sched_INFO->DL_req, &Sched_INFO->TX_req, &Sched_INFO->UL_dci_req);
         for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
-          round_trials[UE_id][round]++;
           NR_UE_info_t *UE_info = RC.nrmac[0]->UE_info.list[UE_id];
           UE_info->UE_sched_ctrl.harq_processes[harq_pid].ndi = !(trial&1);
-          UE_info->UE_sched_ctrl.harq_processes[harq_pid].round = round;
+          UE_info->UE_sched_ctrl.harq_processes[harq_pid].round = round[UE_id];
+          if (ack_status[UE_id] == 2)
+            continue;
+          round_trials[UE_id][round[UE_id]]++;
         }
 
         // nr_schedule_ue_spec() requires the mutex to be locked
@@ -1168,6 +1183,8 @@ int main(int argc, char **argv)
         // Apply MIMO Channel
         multipath_channel(gNB2UE, s_re, s_im, r_re, r_im, slot_length, 0, (n_trials == 1) ? 1 : 0);
         for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (ack_status[UE_id] == 2)
+            continue;
           UE = UE_list[UE_id];
           UE_mac = get_mac_inst(UE_id);
 
@@ -1188,12 +1205,14 @@ int main(int argc, char **argv)
         //----------------------------------------------------------
 
         for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (ack_status[UE_id] == 2)
+            continue;
           UE = UE_list[UE_id];
           NR_UE_DLSCH_t *dlsch0 = &phy_data[UE_id].dlsch[0];
           gNB_dlsch = &msgDataTx->dlsch[UE_id][0];
           rel15 = &gNB_dlsch->harq_process.pdsch_pdu.pdsch_pdu_rel15;
 
-          if (dlsch0->last_iteration_cnt >= dlsch0->max_ldpc_iterations + 1) n_errors[UE_id][round]++;
+          if (dlsch0->last_iteration_cnt >= dlsch0->max_ldpc_iterations + 1) n_errors[UE_id][round[UE_id]]++;
 
           int16_t *UE_llr = (int16_t *)UE->phy_sim_pdsch_llr;
 
@@ -1207,7 +1226,7 @@ int main(int argc, char **argv)
           uint32_t unav_res = ptrsSymbPerSlot * ptrsRePerSymb;
           available_bits[UE_id] = nr_get_G(nb_rb, nb_symb_sch, nb_re_dmrs, length_dmrs, unav_res, mod_order, rel15->nrOfLayers);
           if (pdu_bit_map & 0x1) {
-            if (trial == 0 && round == 0) {
+            if (trial == 0 && round[UE_id] == 0) {
               printf("[DLSIM][PTRS] Available bits are: %5u, removed PTRS bits are: %5u \n", available_bits[UE_id],
                     (ptrsSymbPerSlot * ptrsRePerSymb * rel15->nrOfLayers * mod_order));
             }
@@ -1215,15 +1234,23 @@ int main(int argc, char **argv)
 
           for (i = 0; i < available_bits[UE_id]; i++) {
             if (((gNB_dlsch->harq_process.f[i] == 0) && (UE_llr[i] <= 0)) || ((gNB_dlsch->harq_process.f[i] == 1) && (UE_llr[i] >= 0))) {
-              if (errors_scrambling[UE_id][round] == 0) {
+              if (errors_scrambling[UE_id][round[UE_id]] == 0) {
                 LOG_D(PHY, "First bit in error in unscrambling = %d\n", i);
               }
-              errors_scrambling[UE_id][round]++;
+              errors_scrambling[UE_id][round[UE_id]]++;
             }
           }
         }  // number_of_UEs
         //printf("dlsim round %d ends\n",round);
-        round++;
+        for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+          if (ack_status[UE_id] == 2)
+            continue;
+          round[UE_id]++;
+          if (round[UE_id] >= num_rounds)
+            reach_max_rounds_flag = 1;
+          UE = UE_list[UE_id];
+          ack_status[UE_id] = UE->dl_harq_processes[0][harq_pid].ack;
+        }
       } // round
 
       for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
@@ -1246,19 +1273,19 @@ int main(int argc, char **argv)
         if (errors_bit[UE_id] > 0) {
           n_false_positive[UE_id]++;
           if (n_trials == 1)
-            printf("errors_bit[0] = %u (trial %d)\n", errors_bit[0], trial);
+            printf("errors_bit[%d] = %u (trial %d)\n", UE_id, errors_bit[UE_id], trial);
         }
 
-        if (UE_list[UE_id]->dl_harq_processes[0][harq_pid].ack == 1) effRate[UE_id] += ((float)TBS)/round;
+        if (UE_list[UE_id]->dl_harq_processes[0][harq_pid].ack == 1) effRate[UE_id] += ((float)TBS)/round[UE_id];
+        roundStats[UE_id] += ((float)round[UE_id]);
       }
-      roundStats[0] += ((float)round);
       ////////////////////////////////////////////////////////////
     } // noise trials
 
-    roundStats[0] /= ((float)n_trials);
-    for (int UE_id = 0; UE_id < number_of_UEs; UE_id++)
+    for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
       effRate[UE_id] /= n_trials;
-    float effTP = 0;
+      roundStats[UE_id] /= ((float)n_trials);
+    }
 
     printf("\n*****************************************\n");
     for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
@@ -1268,7 +1295,7 @@ int main(int argc, char **argv)
         blerStats[UE_id][r] = (double)n_errors[UE_id][r] / round_trials[UE_id][r];
         berStats[UE_id][r] = (double)errors_scrambling[UE_id][r] / available_bits[UE_id] / round_trials[UE_id][r];
       }
-      effTP += effRate[UE_id] / TBS;
+      effTP[UE_id] += effRate[UE_id] / TBS;
 
       printf("SNR %f: n_errors[%d] (%d/%d", SNR, UE_id, n_errors[UE_id][0], round_trials[UE_id][0]);
       for (int r = 1; r < num_rounds; r++)
@@ -1283,16 +1310,16 @@ int main(int argc, char **argv)
       printf("), Channel BER (%e", berStats[UE_id][0]);
       for (int r = 1; r < num_rounds; r++)
         printf(",%e", berStats[UE_id][r]);
-      printf(") Avg round %.2f, Eff Rate %.4f bits/slot, Eff Throughput %.2f, TBS %u bits/slot\n", roundStats[0], effRate[UE_id], effRate[UE_id] / TBS * 100, TBS);
+      printf(") Avg round %.2f, Eff Rate %.4f bits/slot, Eff Throughput %.2f, TBS %u bits/slot\n", roundStats[UE_id], effRate[UE_id], effRate[UE_id] / TBS * 100, TBS);
       if (UE_id != number_of_UEs - 1)
         printf("-----------------------------------------\n");
       // writing to csv file
       if (filename_csv != NULL) {  // means we are asked to print stats to CSV
-        fprintf(csv_file, "%f,%d/%d,", SNR, n_false_positive[0], n_trials);
+        fprintf(csv_file, "%f,%d/%d,", SNR, n_false_positive[UE_id], n_trials);
         for (int r = 0; r < num_rounds; r++)
-          fprintf(csv_file, "%d/%d,%u/%u,%f,%e,", n_errors[0][r], round_trials[0][r], errors_scrambling[0][r], available_bits[0] * round_trials[0][r],
-                  blerStats[0][r], berStats[0][r]);
-        fprintf(csv_file, "%.2f,%.4f,%.2f,%u\n", roundStats[0], effRate[UE_id], effRate[UE_id] / TBS * 100, TBS);
+          fprintf(csv_file, "%d/%d,%u/%u,%f,%e,", n_errors[UE_id][r], round_trials[UE_id][r], errors_scrambling[UE_id][r], available_bits[UE_id] * round_trials[UE_id][r],
+                  blerStats[UE_id][r], berStats[UE_id][r]);
+        fprintf(csv_file, "%.2f,%.4f,%.2f,%u\n", roundStats[UE_id], effRate[UE_id], effRate[UE_id] / TBS * 100, TBS);
       }
     }
     printf("*****************************************\n");
@@ -1356,9 +1383,16 @@ int main(int argc, char **argv)
       break;
     }
 
-    if (effTP > (eff_tp_check * number_of_UEs)) {
+    bool eff_flag = 1;
+    for (int UE_id = 0; UE_id < number_of_UEs; UE_id++) {
+      if (effTP[UE_id] < eff_tp_check)
+        eff_flag = 0;
+    }
+    if (eff_flag) {
       printf("*************\n");
       printf("PDSCH test OK\n");
+      printf("*************\n");
+      printf("All UEs' Eff Throughput >= %f at SNR %lf\n", eff_tp_check * 100, SNR);
       printf("*************\n");
       break;
     }
