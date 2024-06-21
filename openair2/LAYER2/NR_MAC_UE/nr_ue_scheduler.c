@@ -1737,7 +1737,7 @@ static void build_ro_list(NR_UE_MAC_INST_t *mac)
                 slot_map->prach_occasion[n_prach_occ_in_time * nb_fdm + n_prach_occ_in_freq] =
                     (prach_occasion_info_t){.start_symbol = start_symbol,
                                             .fdm = n_prach_occ_in_freq,
-                                            .frame = frame,
+                                            .frame = frame_idx,
                                             .slot = slot,
                                             .format = format};
                 prach_assoc_pattern->prach_conf_period_list[period_idx].nb_of_prach_occasion++;
@@ -1866,6 +1866,7 @@ static void map_ssb_to_ro(NR_UE_MAC_INST_t *mac)
   // Map all the association periods within the association pattern period
   LOG_D(NR_MAC,"Proceed to the SSB to RO mapping\n");
   // Check if we need to map multiple SSBs per RO or multiple ROs per SSB
+
   if (multiple_ssb_per_ro) {
     const prach_association_period_t *end =
         prach_assoc_pattern->prach_association_period_list + prach_assoc_pattern->nb_of_assoc_period;
@@ -1928,13 +1929,17 @@ static void map_ssb_to_ro(NR_UE_MAC_INST_t *mac)
       }
     }
   } else {
+    int frame = 0;
+    int slot = 0;
+    int ro_in_time = 0;
+    int ro_in_freq = 0;
     prach_association_period_t *end = prach_assoc_pattern->prach_association_period_list + prach_assoc_pattern->nb_of_assoc_period;
     for (prach_association_period_t *prach_period = prach_assoc_pattern->prach_association_period_list; prach_period < end;
          prach_period++) {
       // Go through the list of transmitted SSBs
       for (int idx = 0; idx < ssb_list->nb_tx_ssb; idx++) {
         ssb_info_t *tx_ssb = ssb_list->tx_ssb + idx;
-        uint8_t nb_mapped_ro_in_association_period=0; // Reset the nb of mapped ROs for the new SSB index
+        uint8_t nb_mapped_ro_in_association_period = 0; // Reset the nb of mapped ROs for the new SSB index
         bool done = false;
         // Map all the required ROs to this SSB
         // Go through the list of PRACH config periods within this association period
@@ -1942,11 +1947,11 @@ static void map_ssb_to_ro(NR_UE_MAC_INST_t *mac)
           // Build the association period with its association PRACH Configuration indexes
           prach_period->prach_conf_period_list[i] = &prach_assoc_pattern->prach_conf_period_list[prach_configuration_period_idx];
 	  prach_conf_period_t *prach_conf = prach_period->prach_conf_period_list[i];
-          for (int frame = 0; frame < prach_conf->nb_of_frame && !done; frame++) {
-            for (int slot = 0; slot < prach_conf->nb_of_slot && !done; slot++) {
+          for (; frame < prach_conf->nb_of_frame; frame++) {
+            for (; slot < prach_conf->nb_of_slot; slot++) {
               prach_occasion_slot_t *slot_map = &prach_conf->prach_occasion_slot_map[frame][slot];
-              for (int ro_in_time = 0; ro_in_time < slot_map->nb_of_prach_occasion_in_time && !done; ro_in_time++) {
-                for (int ro_in_freq = 0; ro_in_freq < slot_map->nb_of_prach_occasion_in_freq && !done; ro_in_freq++) {
+              for (; ro_in_time < slot_map->nb_of_prach_occasion_in_time; ro_in_time++) {
+                for (; ro_in_freq < slot_map->nb_of_prach_occasion_in_freq; ro_in_freq++) {
                   prach_occasion_info_t *ro_p =
                       slot_map->prach_occasion + ro_in_time * slot_map->nb_of_prach_occasion_in_freq + ro_in_freq;
                   int ssb_idx = get_ssb_idx_from_list(ssb_list, idx);
@@ -1958,14 +1963,15 @@ static void map_ssb_to_ro(NR_UE_MAC_INST_t *mac)
                   tx_ssb->mapped_ro[tx_ssb->nb_mapped_ro] = ro_p;
                   tx_ssb->nb_mapped_ro++;
                   nb_mapped_ro_in_association_period++;
-                  done = nb_mapped_ro_in_association_period == ssb_rach_ratio;
 
                   LOG_D(NR_MAC,
-                        "Mapped ssb_idx %u to RO slot-symbol %u-%u, %u-%u-%u/%u\n"
+                        "Mapped ssb_idx %u to RO slot-symbol %u-%u-%u, %u-%u-%u-%u/%u\n"
                         "Nb mapped ROs for this ssb idx: in the association period only %u / total %u\n",
                         ssb_idx,
+                        ro_p->frame,
                         ro_p->slot,
                         ro_p->start_symbol,
+                        frame,
                         slot,
                         ro_in_time,
                         ro_in_freq,
@@ -1977,10 +1983,30 @@ static void map_ssb_to_ro(NR_UE_MAC_INST_t *mac)
                   // WIP: Assuming that ssb_rach_ratio equals the maximum nb of times a given ssb_idx is mapped within an
                   // association period:
                   //      this is true if no PRACH occasions are conflicting with SSBs nor TDD_UL_DL_ConfigurationCommon schedule
+                  if (nb_mapped_ro_in_association_period == ssb_rach_ratio) {
+                    ro_in_freq++;
+                    break;
+                  }
                 }
+                if (nb_mapped_ro_in_association_period == ssb_rach_ratio)
+                  break;
+                else
+                  ro_in_freq = 0;
               }
+              if (nb_mapped_ro_in_association_period == ssb_rach_ratio)
+                break;
+              else
+                ro_in_time = 0;
             }
+            if (nb_mapped_ro_in_association_period == ssb_rach_ratio)
+              break;
+            else
+              slot = 0;
           }
+          if (nb_mapped_ro_in_association_period == ssb_rach_ratio)
+            break;
+          else
+            frame = 0;
         }
       }
     }
@@ -2031,8 +2057,8 @@ static int get_nr_prach_info_from_ssb_index(prach_association_pattern_t *prach_a
     // First count the number of times the SSB index is found in that RO
     uint8_t nb_mapped_ssb = 0;
 
-    for (int ro_in_time=0; ro_in_time < prach_occasion_slot_p->nb_of_prach_occasion_in_time; ro_in_time++) {
-      for (int ro_in_freq=0; ro_in_freq < prach_occasion_slot_p->nb_of_prach_occasion_in_freq; ro_in_freq++) {
+    for (int ro_in_time = 0; ro_in_time < prach_occasion_slot_p->nb_of_prach_occasion_in_time; ro_in_time++) {
+      for (int ro_in_freq = 0; ro_in_freq < prach_occasion_slot_p->nb_of_prach_occasion_in_freq; ro_in_freq++) {
         prach_occasion_info_t *ro_p =
             prach_occasion_slot_p->prach_occasion + ro_in_time * prach_occasion_slot_p->nb_of_prach_occasion_in_freq + ro_in_freq;
         for (uint8_t ssb_nb = 0; ssb_nb < ro_p->nb_mapped_ssb; ssb_nb++) {
