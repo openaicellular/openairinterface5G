@@ -3709,15 +3709,7 @@ void nr_ue_process_mac_pdu(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_i
                 pduP[5],
                 pduP[6]);
 
-          bool ra_success = true;
-	  if (!IS_SOFTMODEM_IQPLAYER) { // Control is bypassed when replaying IQs (BMC)
-	    for(int i = 0; i < mac_len; i++) {
-	      if(ra->cont_res_id[i] != pduP[i + 1]) {
-		ra_success = false;
-		break;
-	      }
-	    }
-	  }
+          bool ra_success = check_ra_contention_resolution(&pduP[1], ra->cont_res_id);
 
           if (ra->RA_active && ra_success) {
             nr_ra_succeeded(mac, gNB_index, frameP, slot);
