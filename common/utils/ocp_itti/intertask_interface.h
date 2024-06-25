@@ -321,6 +321,7 @@ typedef struct {
   TASK_DEF(TASK_DU_F1, 200)           \
   TASK_DEF(TASK_CUCP_E1, 200)         \
   TASK_DEF(TASK_CUUP_E1, 200)         \
+  TASK_DEF(TASK_XNAP, 200)            \
   TASK_DEF(TASK_RRC_UE_SIM, 200)      \
   TASK_DEF(TASK_RRC_GNB_SIM, 200)     \
   TASK_DEF(TASK_RRC_NSA_UE, 200)      \

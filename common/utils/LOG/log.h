@@ -161,6 +161,7 @@ extern "C" {
   COMP_DEF(M2AP, )              \
   COMP_DEF(M3AP, )              \
   COMP_DEF(NGAP, )              \
+  COMP_DEF(XNAP, )              \
   COMP_DEF(GNB_APP, log)        \
   COMP_DEF(NR_RRC, log)         \
   COMP_DEF(NR_MAC, log)         \
