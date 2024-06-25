@@ -39,6 +39,10 @@
 #include "f1ap_du_ue_context_management.h"
 #include "f1ap_du_paging.h"
 
+/*NRPPA*/
+#include "f1ap_cu_position_information_transfer.h"
+#include "f1ap_du_position_information_transfer.h"
+
 /* Handlers matrix. Only f1 related procedure present here */
 static const f1ap_message_processing_t f1ap_messages_processing[][3] = {
 
@@ -52,7 +56,9 @@ static const f1ap_message_processing_t f1ap_messages_processing[][3] = {
     {DU_handle_UE_CONTEXT_SETUP_REQUEST, CU_handle_UE_CONTEXT_SETUP_RESPONSE, 0}, /* UEContextSetup */
     {DU_handle_UE_CONTEXT_RELEASE_COMMAND, CU_handle_UE_CONTEXT_RELEASE_COMPLETE, 0}, /* UEContextRelease */
     {DU_handle_UE_CONTEXT_MODIFICATION_REQUEST, CU_handle_UE_CONTEXT_MODIFICATION_RESPONSE, 0}, /* UEContextModification */
-    {CU_handle_UE_CONTEXT_MODIFICATION_REQUIRED, DU_handle_UE_CONTEXT_MODIFICATION_CONFIRM, DU_handle_UE_CONTEXT_MODIFICATION_REFUSE}, /* UEContextModificationRequired */
+    {CU_handle_UE_CONTEXT_MODIFICATION_REQUIRED,
+     DU_handle_UE_CONTEXT_MODIFICATION_CONFIRM,
+     DU_handle_UE_CONTEXT_MODIFICATION_REFUSE}, /* UEContextModificationRequired */
     {0, 0, 0}, /* UEMobilityCommand */
     {CU_handle_UE_CONTEXT_RELEASE_REQUEST, 0, 0}, /* UEContextReleaseRequest */
     {CU_handle_INITIAL_UL_RRC_MESSAGE_TRANSFER, 0, 0}, /* InitialULRRCMessageTransfer */
@@ -68,16 +74,64 @@ static const f1ap_message_processing_t f1ap_messages_processing[][3] = {
     {0, 0, 0}, /* PWSCancel */
     {0, 0, 0}, /* PWSRestartIndication */
     {0, 0, 0}, /* PWSFailureIndication */
+    {0, 0, 0}, /*GNBDUStatusIndication */
+    {0, 0, 0}, /*RRCDeliveryReport */
+    {0, 0, 0}, /*UEContextModificationRefuse*/
+    {0, 0, 0},
+    /*F1RemovalRequest*/ /*F1RemovalResponse*/ /*F1RemovalFailure*/
+    {0, 0, 0}, /*NetworkAccessRateReduction,*/
+    {0, 0, 0}, /*TraceStart,*/
+    {0, 0, 0}, /*DeactivateTrace,*/
+    {0, 0, 0}, /*DUCURadioInformationTransfer,*/
+    {0, 0, 0}, /*CUDURadioInformationTransfer,*/
+    {0, 0, 0},
+    /*BAPMappingConfiguration,*/ /*BAPMappingConfigurationAcknowledge,*/
+    {0, 0, 0},
+    /*GNBDUResourceConfiguration,*/ /*GNBDUResourceConfigurationAcknowledge,*/
+    {0, 0, 0},
+    /*IABTNLAddressRequest,*/ /*IABTNLAddressResponse,*/
+    {0, 0, 0},
+    /*IABUPConfigurationUpdateRequest,*/ /*IABUPConfigurationUpdateResponse,*/ /*IABUPConfigurationUpdateFailure,*/
+    {0, 0, 0},
+    /*ResourceStatusRequest,*/ /*ResourceStatusResponse,*/ /*ResourceStatusFailure,*/
+    {0, 0, 0}, /*ResourceStatusUpdate,*/
+    {0, 0, 0}, /*AccessAndMobilityIndication,*/
+    {0, 0, 0}, /*ReferenceTimeInformationReportingControl,*/
+    {0, 0, 0}, /*ReferenceTimeInformationReport,*/
+    {0, 0, 0}, /*AccessSuccess,*/
+    {0, 0, 0}, /*CellTrafficTrace,*/
+    {0, 0, 0},
+    /*PositioningMeasurementRequest,*/ /*PositioningMeasurementResponse,*/ /*PositioningMeasurementFailure,*/
+    {0, 0, 0}, /*PositioningAssistanceInformationControl,*/
+    {0, 0, 0}, /*PositioningAssistanceInformationFeedback,*/
+    {0, 0, 0}, /*PositioningMeasurementReport,*/
+    {0, 0, 0}, /*PositioningMeasurementAbort,*/
+    {0, 0, 0}, /*PositioningMeasurementFailureIndication,*/
+    {0, 0, 0}, /*PositioningMeasurementUpdate,*/
+    {0, 0, 0},
+    /*TRPInformationRequest,*/ /*TRPInformationResponse,*/ /*TRPInformationFailure,*/
+    {0, CU_handle_POSITIONING_INFORMATION_RESPONSE, CU_handle_POSITIONING_INFORMATION_FAILURE},
+    /*PositioningInformationRequest,*/ /*PositioningInformationResponse,*/ /*PositioningInformationFailure,*/
+    {0, 0, 0},
+    /*PositioningActivationRequest,*/ /*PositioningActivationResponse,*/ /*PositioningActivationFailure,*/
+    {0, 0, 0}, /*PositioningDeactivation,*/
+    {0, 0, 0}, /*PositioningInformationUpdate,*/
+    {0, 0, 0},
+    /*E-CIDMeasurementInitiationRequest,*/ /*E-CIDMeasurementInitiationResponse,*/ /*E-CIDMeasurementInitiationFailure,*/
+    {0, 0, 0}, /*E-CIDMeasurementFailureIndication,*/
+    {0, 0, 0}, /*E-CIDMeasurementReport,*/
+    {0, 0, 0}, /*E-CIDMeasurementTerminationCommand*/
 };
 
-const char *f1ap_direction2String(int f1ap_dir) {
+const char *f1ap_direction2String(int f1ap_dir)
+{
   static const char *const f1ap_direction_String[] = {
       "", /* Nothing */
       "Initiating message", /* initiating message */
       "Successfull outcome", /* successfull outcome */
       "UnSuccessfull outcome", /* successfull outcome */
   };
-  return(f1ap_direction_String[f1ap_dir]);
+  return (f1ap_direction_String[f1ap_dir]);
 }
 
 static F1AP_F1AP_PDU_t *f1ap_decode_pdu(const uint8_t *const buffer, uint32_t length)
@@ -130,10 +184,10 @@ int f1ap_handle_message(instance_t instance,
           assoc_id,
           pdu->choice.initiatingMessage->procedureCode,
           f1ap_direction2String(pdu->present - 1));
-    ret=-1;
+    ret = -1;
   } else {
     /* Calling the right handler */
-    LOG_D(F1AP, "Calling handler with instance %ld\n",instance);
+    LOG_D(F1AP, "Calling handler with instance %ld\n", instance);
     ret = (*f1ap_messages_processing[pdu->choice.initiatingMessage->procedureCode][pdu->present - 1])(instance,
                                                                                                       assoc_id,
                                                                                                       stream,

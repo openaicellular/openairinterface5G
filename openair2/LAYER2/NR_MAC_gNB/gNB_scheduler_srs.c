@@ -476,13 +476,80 @@ static void nr_configure_srs(nfapi_nr_srs_pdu_t *srs_pdu,
     vrb_map_UL[i + srs_pdu->bwp_start] |= mask;
 }
 
+static void nr_configure_srs_f1ap(nfapi_nr_srs_pdu_t *srs_pdu,
+				  int slot,
+				  int module_id,
+				  int CC_id,
+				  NR_UE_info_t *UE,
+				  f1ap_srs_resource_set_t *srs_resource_set,
+				  f1ap_srs_resource_t *srs_resource,
+				  int buffer_index)
+{
+  NR_UE_UL_BWP_t *current_BWP = &UE->current_UL_BWP;
+
+  srs_pdu->rnti = UE->rnti;
+  srs_pdu->handle = 0;
+  srs_pdu->bwp_size = current_BWP->BWPSize;
+  srs_pdu->bwp_start = current_BWP->BWPStart;
+  srs_pdu->subcarrier_spacing = current_BWP->scs;
+  srs_pdu->cyclic_prefix = 0;
+  srs_pdu->num_ant_ports = srs_resource->nrofSRS_Ports;
+  srs_pdu->num_symbols = srs_resource->nrofSymbols;
+  srs_pdu->num_repetitions = srs_resource->repetitionFactor;
+  srs_pdu->time_start_position = srs_resource->startPosition;
+  srs_pdu->config_index = srs_resource->c_SRS;
+  srs_pdu->sequence_id = srs_resource->sequenceId;
+  srs_pdu->bandwidth_index = srs_resource->b_SRS;
+  srs_pdu->comb_size = srs_resource->transmissionComb.present;
+
+  switch(srs_resource->transmissionComb.present) {
+  case f1ap_transmission_comb_pr_n2:
+    srs_pdu->comb_offset = srs_resource->transmissionComb.choice.n2.combOffset_n2;
+    srs_pdu->cyclic_shift = srs_resource->transmissionComb.choice.n2.cyclicShift_n2;
+    break;
+  case f1ap_transmission_comb_pr_n4:
+    srs_pdu->comb_offset = srs_resource->transmissionComb.choice.n4.combOffset_n4;
+    srs_pdu->cyclic_shift = srs_resource->transmissionComb.choice.n4.cyclicShift_n4;
+    break;
+  default:
+    LOG_W(NR_MAC, "Invalid or not implemented comb_size!\n");
+  }
+
+  srs_pdu->frequency_position = srs_resource->freqDomainPosition;
+  srs_pdu->frequency_shift = srs_resource->freqDomainShift;
+  srs_pdu->frequency_hopping = srs_resource->b_hop;
+  srs_pdu->group_or_sequence_hopping = srs_resource->groupOrSequenceHopping;
+  srs_pdu->resource_type = srs_resource->resourceType.present;
+  srs_pdu->t_srs = srs_period[srs_resource->resourceType.choice.periodic.periodicity];
+  srs_pdu->t_offset = srs_resource->resourceType.choice.periodic.offset;
+
+  // TODO: This should be completed
+  srs_pdu->srs_parameters_v4.srs_bandwidth_size = m_SRS[srs_pdu->config_index];
+  srs_pdu->srs_parameters_v4.usage = 1 << NFAPI_NR_SRS_LOCALIZATION;
+  srs_pdu->srs_parameters_v4.report_type[0] = 1;
+  srs_pdu->srs_parameters_v4.iq_representation = 1;
+  srs_pdu->srs_parameters_v4.prg_size = 1;
+  srs_pdu->srs_parameters_v4.num_total_ue_antennas = 1<<srs_pdu->num_ant_ports;
+  if (/*usage==*/1) {
+    srs_pdu->beamforming.trp_scheme = 0;
+    srs_pdu->beamforming.num_prgs = m_SRS[srs_pdu->config_index];
+    srs_pdu->beamforming.prg_size = 1;
+  }
+
+  uint16_t *vrb_map_UL = &RC.nrmac[module_id]->common_channels[CC_id].vrb_map_UL[buffer_index * MAX_BWP_SIZE];
+  uint64_t mask = SL_to_bitmap(13 - srs_pdu->time_start_position, srs_pdu->num_symbols);
+  for (int i = 0; i < srs_pdu->bwp_size; ++i)
+    vrb_map_UL[i + srs_pdu->bwp_start] |= mask;
+}
+
 static void nr_fill_nfapi_srs(int module_id,
                               int CC_id,
                               NR_UE_info_t *UE,
                               int frame,
                               int slot,
-                              NR_SRS_ResourceSet_t *srs_resource_set,
-                              NR_SRS_Resource_t *srs_resource)
+                              void *srs_resource_set,
+                              void *srs_resource,
+			      int is_f1ap)
 {
 
   int index = ul_buffer_index(frame, slot, UE->current_UL_BWP.scs, RC.nrmac[module_id]->UL_tti_req_ahead_size);
@@ -496,7 +563,26 @@ static void nr_fill_nfapi_srs(int module_id,
   memset(srs_pdu, 0, sizeof(nfapi_nr_srs_pdu_t));
   future_ul_tti_req->n_pdus += 1;
   index = ul_buffer_index(frame, slot, UE->current_UL_BWP.scs, RC.nrmac[module_id]->vrb_map_UL_size);
-  nr_configure_srs(srs_pdu, slot, module_id, CC_id, UE, srs_resource_set, srs_resource, index);
+  //LOG_I(MAC,"nr_fill_nfapi_srs: is_f1ap %d, num_pdu %d\n",is_f1ap,future_ul_tti_req->n_pdus);
+  if (is_f1ap)
+    nr_configure_srs_f1ap(srs_pdu,
+			  slot,
+			  module_id,
+			  CC_id,
+			  UE,
+			  (f1ap_srs_resource_set_t *) srs_resource_set,
+			  (f1ap_srs_resource_t *) srs_resource,
+			  index);
+  else
+    nr_configure_srs(srs_pdu,
+		     slot,
+		     module_id,
+		     CC_id,
+		     UE,
+		     (NR_SRS_ResourceSet_t*) srs_resource_set,
+		     (NR_SRS_Resource_t*) srs_resource,
+		     index);
+    
 }
 
 /*******************************************************************
@@ -539,7 +625,6 @@ void nr_schedule_srs(int module_id, frame_t frame, int slot)
     NR_SRS_Config_t *srs_config = current_BWP->srs_Config;
     if (!srs_config)
       continue;
-
     for(int rs = 0; rs < srs_config->srs_ResourceSetToAddModList->list.count; rs++) {
 
       // Find periodic resource set
@@ -588,12 +673,69 @@ void nr_schedule_srs(int module_id, frame_t frame, int slot)
 
       // Check if UE will transmit the SRS in this frame
       if ((sched_frame * n_slots_frame + sched_slot - offset) % period == 0) {
-        LOG_D(NR_MAC," %d.%d Scheduling SRS reception for %d.%d\n", frame, slot, sched_frame, sched_slot);
-        nr_fill_nfapi_srs(module_id, CC_id, UE, sched_frame, sched_slot, srs_resource_set, srs_resource);
+        //LOG_I(NR_MAC," %d.%d Scheduling SRS reception for %d.%d\n", frame, slot, sched_frame, sched_slot);
+        nr_fill_nfapi_srs(module_id, CC_id, UE, sched_frame, sched_slot, srs_resource_set, srs_resource, 0);
         sched_ctrl->sched_srs.frame = sched_frame;
         sched_ctrl->sched_srs.slot = sched_slot;
         sched_ctrl->sched_srs.srs_scheduled = true;
       }
     }
+  }
+}
+
+/*******************************************************************
+*
+* NAME :         nr_schedule_srs_secondary
+*
+* PARAMETERS :   module id
+*                frame number for possible SRS reception
+*
+* DESCRIPTION :  It informs the PHY layer that has an SRS to receive.
+*                To be used at secondary gNB (where UE is not connected).
+*                Only for periodic scheduling yet.
+*
+*********************************************************************/
+void nr_schedule_srs_secondary(int module_id, frame_t frame, int slot) {
+
+  if (RC.nrmac[module_id]->do_srs_meas==0)
+    return;
+  
+  const int CC_id = 0;
+  // lets configure SRS on the initial BWP. This will only work for cell sizes of 60MHz or lower.
+  // for anything else this needs to be adapted to use the dedicated BWP.
+
+  NR_ServingCellConfigCommon_t *scc = RC.nrmac[module_id]->common_channels[CC_id].ServingCellConfigCommon;
+  //NR_SRS_Config_t *srs_config = RC.nrmac[module_id]->setup_srs_config[0]->choice.setup;
+
+  if(!scc) {
+    LOG_W(MAC,"no scc, returning\n");
+    return;
+  }
+
+  f1ap_srs_resource_t *srs_resource = &RC.nrmac[module_id]->srs_resource;
+  f1ap_srs_resource_set_t *srs_resource_set = &RC.nrmac[module_id]->srs_resource_set;
+
+  NR_BWP_t ubwp = scc->uplinkConfigCommon->initialUplinkBWP->genericParameters;
+
+  //we have to add 1 here since the first entry of the field srs_period corresponds to the RRC enmum NR_SRS_PeriodicityAndOffset_PR_NOTHING which does not exist in the NRPPA or F1AP structure. 
+  uint16_t period = srs_period[srs_resource->resourceType.choice.periodic.periodicity+1];
+  uint16_t offset = srs_resource->resourceType.choice.periodic.offset;
+  
+  LOG_D(MAC, "nr_schedule_srs_secondary: period %d, offset %d\n",period,offset);
+  
+  int n_slots_frame = nr_slots_per_frame[ubwp.subcarrierSpacing];
+  
+  NR_UE_info_t dummy_ue_info;
+  dummy_ue_info.current_UL_BWP.BWPSize = NRRIV2BW(ubwp.locationAndBandwidth,MAX_BWP_SIZE);
+  dummy_ue_info.current_UL_BWP.BWPStart = NRRIV2PRBOFFSET(ubwp.locationAndBandwidth,MAX_BWP_SIZE);
+  dummy_ue_info.current_UL_BWP.scs = ubwp.subcarrierSpacing;
+  dummy_ue_info.rnti = NON_UE_ASSOCIATED_SRS_DUMMY_RNTI;
+  
+  // Check if UE will transmit the SRS in this frame
+  //if ( ((frame - offset/n_slots_frame)*n_slots_frame)%period == 0) {
+  if ( (frame*n_slots_frame + slot)%period == offset) {  	    
+    LOG_I(NR_MAC,"Scheduling non-ue associated SRS measurement for %d.%d\n", frame, offset%n_slots_frame);
+    nr_fill_nfapi_srs(module_id, CC_id, &dummy_ue_info, frame, offset%n_slots_frame, srs_resource_set, srs_resource, 1);
+    RC.nrmac[module_id]->do_srs_meas = 0;
   }
 }

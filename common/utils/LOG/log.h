@@ -161,6 +161,7 @@ extern "C" {
   COMP_DEF(M2AP, )              \
   COMP_DEF(M3AP, )              \
   COMP_DEF(NGAP, )              \
+  COMP_DEF(NRPPA, )              \
   COMP_DEF(GNB_APP, log)        \
   COMP_DEF(NR_RRC, log)         \
   COMP_DEF(NR_MAC, log)         \
@@ -207,7 +208,6 @@ typedef struct  {
   log_vprint_func_t vprint;
   log_print_func_t print;
 } log_component_t;
-
 
 typedef struct {
   log_component_t         log_component[MAX_LOG_COMPONENTS];

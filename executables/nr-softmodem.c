@@ -74,6 +74,7 @@ unsigned short config_frames[4] = {2,9,11,13};
 #include "NB_IoT_interface.h"
 #include "x2ap_eNB.h"
 #include "ngap_gNB.h"
+#include "nrppa_gNB.h"
 #include "gnb_paramdef.h"
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "nfapi/oai_integration/vendor_ext.h"
@@ -367,6 +368,10 @@ static int create_gNB_tasks(ngran_node_t node_type, configmodule_interface_t *cf
     if (gnb_nb > 0) {
       if (itti_create_task (TASK_NGAP, ngap_gNB_task, NULL) < 0) {
         LOG_E(NGAP, "Create task for NGAP failed\n");
+        return -1;
+      }
+      if (itti_create_task (TASK_NRPPA, nrppa_gNB_task, NULL) < 0) {
+        LOG_E(NRPPA, "Create task for NRPPA failed\n");
         return -1;
       }
     }

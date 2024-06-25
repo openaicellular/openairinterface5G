@@ -38,14 +38,15 @@
 
 extern openair0_config_t openair0_cfg[MAX_CARDS];
 
-int nr_est_timing_advance_srs(const NR_DL_FRAME_PARMS *frame_parms, 
-                              const int32_t srs_estimated_channel_time[][frame_parms->ofdm_symbol_size]) {
+int nr_est_timing_advance_srs(const NR_DL_FRAME_PARMS *frame_parms,
+			      const uint8_t N_ap_srs, 
+                              const int32_t srs_estimated_channel_time[N_ap_srs][frame_parms->ofdm_symbol_size]) {
   int timing_advance = 0;
   int max_val = 0;
 
   for (int i = 0; i < frame_parms->ofdm_symbol_size; i++) {
     int temp = 0;
-    for (int aa = 0; aa < frame_parms->nb_antennas_rx; aa++) {
+    for (int aa = 0; aa < N_ap_srs; aa++) {
       int Re = ((c16_t*)srs_estimated_channel_time[aa])[i].r;
       int Im = ((c16_t*)srs_estimated_channel_time[aa])[i].i;
       temp += (Re*Re/2) + (Im*Im/2);

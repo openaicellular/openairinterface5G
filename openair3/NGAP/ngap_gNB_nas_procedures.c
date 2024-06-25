@@ -21,14 +21,14 @@
 
 /*! \file ngap_gNB_nas_procedures.c
  * \brief NGAP gNb NAS procedure handler
- * \author  Yoshio INOUE, Masayuki HARADA 
+ * \author  Yoshio INOUE, Masayuki HARADA
  * \date 2020
  * \email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com (yoshio.inoue%40fujitsu.com%2cmasayuki.harada%40fujitsu.com)
  * \version 1.0
  * @ingroup _ngap
  */
 
- 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -319,6 +319,7 @@ int ngap_gNB_handle_nas_downlink(sctp_assoc_t assoc_id, uint32_t stream, NGAP_NG
   }
 
   ngap_gNB_instance = amf_desc_p->ngap_gNB_instance;
+
   /* Prepare the NGAP message to encode */
   container = &pdu->choice.initiatingMessage->value.choice.DownlinkNASTransport;
   NGAP_FIND_PROTOCOLIE_BY_ID(NGAP_DownlinkNASTransport_IEs_t, ie, container,
@@ -666,7 +667,7 @@ int ngap_gNB_initial_ctxt_resp(instance_t instance, ngap_initial_context_setup_r
     for (i = 0; i < initial_ctxt_resp_p->nb_of_pdusessions_failed; i++) {
       asn1cSequenceAdd(ie->value.choice.PDUSessionResourceFailedToSetupListCxtRes.list, NGAP_PDUSessionResourceFailedToSetupItemCxtRes_t, item);
       NGAP_PDUSessionResourceSetupUnsuccessfulTransfer_t pdusessionUnTransfer = {0};
-    
+
       /* pDUSessionID */
       item->pDUSessionID = initial_ctxt_resp_p->pdusessions_failed[i].pdusession_id;
 
@@ -1219,7 +1220,7 @@ int ngap_gNB_pdusession_release_resp(instance_t instance, ngap_pdusession_releas
     ie->id = NGAP_ProtocolIE_ID_id_PDUSessionResourceReleasedListRelRes;
     ie->criticality = NGAP_Criticality_ignore;
     ie->value.present = NGAP_PDUSessionResourceReleaseResponseIEs__value_PR_PDUSessionResourceReleasedListRelRes;
-    
+
     for (i = 0; i < pdusession_release_resp_p->nb_of_pdusessions_released; i++) {
       asn1cSequenceAdd(ie->value.choice.PDUSessionResourceReleasedListRelRes.list, NGAP_PDUSessionResourceReleasedItemRelRes_t, item);
       item->pDUSessionID = pdusession_release_resp_p->pdusession_release[i].pdusession_id;
@@ -1227,7 +1228,7 @@ int ngap_gNB_pdusession_release_resp(instance_t instance, ngap_pdusession_releas
       NGAP_DEBUG("pdusession_release_resp: pdusession ID %ld\n", item->pDUSessionID);
     }
   }
-  
+
   if (ngap_gNB_encode_pdu(&pdu, &buffer, &length) < 0) {
     NGAP_ERROR("Failed to encode release response\n");
     /* Encode procedure has failed... */

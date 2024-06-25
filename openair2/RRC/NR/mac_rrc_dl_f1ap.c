@@ -213,6 +213,54 @@ static void dl_rrc_message_transfer_f1ap(sctp_assoc_t assoc_id, const f1ap_dl_rr
   itti_send_msg_to_task (TASK_CU_F1, 0, message_p);
 }
 
+/* handlers of Positioning Information Transfer related NRPPA DL messages */
+static void positioning_information_request_f1ap(const f1ap_positioning_information_req_t *req)
+{
+  // printf("[NRPPA]Split CU-DU Mode :Processing Received PositioningInformationRequest \n");
+  // TODO forward task to CU
+  //        MessageDef *msg = itti_alloc_new_message(TASK_NRPPA, 0, F1AP_POSITIONING_INFORMATION_REQ);
+  MessageDef *msg = itti_alloc_new_message(TASK_RRC_GNB, 0, F1AP_POSITIONING_INFORMATION_REQ);
+  // f1ap_positioning_information_req_t *f1ap_msg = &msg->ittiMsg.f1ap_positioning_information_req;
+  f1ap_positioning_information_req_t *f1ap_msg = &F1AP_POSITIONING_INFORMATION_REQ(msg);
+
+  f1ap_msg->gNB_CU_ue_id = 0; // TODO retrieve and add
+  // LOG_D(RRC, "f1ap_positioning_information_req->gNB_CU_ue_id is: %d \n", f1ap_msg->gNB_CU_ue_id);
+  f1ap_msg->gNB_DU_ue_id = 0; // TODO retrieve and add
+  // LOG_D(RRC, "f1ap_positioning_information_req->gNB_DU_ue_id is: %d \n", f1ap_msg->gNB_DU_ue_id);
+  itti_send_msg_to_task(TASK_CU_F1, 0, msg);
+}
+
+static void positioning_activation_request_f1ap(const f1ap_positioning_activation_req_t *req)
+{
+  AssertFatal(false, "positioning_activation_request_f1ap() Not Implemented \n");
+}
+
+static void positioning_deactivation_f1ap(const f1ap_positioning_deactivation_t *req)
+{
+  AssertFatal(false, "positioning_deactivation_f1ap() Not Implemented \n");
+}
+
+/* handlers of trp Information Transfer related NRPPA DL messages */
+static void trp_information_request_f1ap(const f1ap_trp_information_req_t *req)
+{
+  AssertFatal(false, "trp_information_request_f1ap() Not Implemented \n");
+}
+/* handlers of measurement Information Transfer related NRPPA DL messages */
+static void positioning_measurement_request_f1ap(const f1ap_measurement_req_t *req)
+{
+  AssertFatal(false, "measurement_request_f1ap() Not Implemented \n");
+}
+
+static void positioning_measurement_update_f1ap(const f1ap_measurement_update_t *req)
+{
+  AssertFatal(false, "measurement_request_f1ap() Not Implemented \n");
+}
+
+static void positioning_measurement_abort_f1ap(const f1ap_measurement_abort_t *meas_abort)
+{
+  AssertFatal(false, "measurement_request_f1ap() Not Implemented \n");
+}
+
 void mac_rrc_dl_f1ap_init(nr_mac_rrc_dl_if_t *mac_rrc)
 {
   mac_rrc->f1_setup_response = f1_setup_response_f1ap;
@@ -224,4 +272,11 @@ void mac_rrc_dl_f1ap_init(nr_mac_rrc_dl_if_t *mac_rrc)
   mac_rrc->ue_context_modification_refuse = ue_context_modification_refuse_f1ap;
   mac_rrc->ue_context_release_command = ue_context_release_command_f1ap;
   mac_rrc->dl_rrc_message_transfer = dl_rrc_message_transfer_f1ap;
+  mac_rrc->positioning_information_request = positioning_information_request_f1ap; // nrppa adeel
+  mac_rrc->positioning_activation_request = positioning_activation_request_f1ap;
+  mac_rrc->positioning_deactivation = positioning_deactivation_f1ap;
+  mac_rrc->trp_information_request = trp_information_request_f1ap;
+  mac_rrc->positioning_measurement_request = positioning_measurement_request_f1ap;
+  mac_rrc->positioning_measurement_update = positioning_measurement_update_f1ap;
+  mac_rrc->positioning_measurement_abort = positioning_measurement_abort_f1ap;
 }

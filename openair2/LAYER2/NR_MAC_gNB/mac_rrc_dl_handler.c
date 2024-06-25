@@ -712,3 +712,161 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
   /* the DU ue id is the RNTI */
   nr_rlc_srb_recv_sdu(dl_rrc->gNB_DU_ue_id, dl_rrc->srb_id, dl_rrc->rrc_container, dl_rrc->rrc_container_length);
 }
+
+/* handlers of Position Information Transfer related NRPPA DL messages */
+void positioning_information_request(const f1ap_positioning_information_req_t *req)
+{
+  LOG_I(MAC,
+        "DL Processing Received PositioningInformationRequest gNB_CU_ue_id=%d, gNB_DU_ue_id=%d \n",
+        req->gNB_CU_ue_id,
+        req->gNB_DU_ue_id);
+
+  /*f1ap_positioning_information_resp_t resp;
+  resp.gNB_CU_ue_id = req->gNB_CU_ue_id;
+  resp.gNB_DU_ue_id = req->gNB_DU_ue_id;
+  resp.nrppa_msg_info.nrppa_transaction_id = req->nrppa_msg_info.nrppa_transaction_id;
+  resp.nrppa_msg_info.instance = req->nrppa_msg_info.instance;
+  resp.nrppa_msg_info.gNB_ue_ngap_id = req->nrppa_msg_info.gNB_ue_ngap_id;
+  resp.nrppa_msg_info.amf_ue_ngap_id = req->nrppa_msg_info.amf_ue_ngap_id;
+  resp.nrppa_msg_info.ue_rnti = req->nrppa_msg_info.ue_rnti;
+  resp.nrppa_msg_info.routing_id_buffer = req->nrppa_msg_info.routing_id_buffer;
+  resp.nrppa_msg_info.routing_id_length = req->nrppa_msg_info.routing_id_length;*/
+
+  f1ap_positioning_information_resp_t resp= {
+      .gNB_CU_ue_id = req->gNB_CU_ue_id,
+      .gNB_DU_ue_id = req->gNB_DU_ue_id,
+      .nrppa_msg_info.nrppa_transaction_id = req->nrppa_msg_info.nrppa_transaction_id,
+      .nrppa_msg_info.instance = req->nrppa_msg_info.instance,
+      .nrppa_msg_info.gNB_ue_ngap_id = req->nrppa_msg_info.gNB_ue_ngap_id,
+      .nrppa_msg_info.amf_ue_ngap_id = req->nrppa_msg_info.amf_ue_ngap_id,
+      .nrppa_msg_info.ue_rnti = req->nrppa_msg_info.ue_rnti,
+      .nrppa_msg_info.routing_id_buffer = req->nrppa_msg_info.routing_id_buffer,
+      .nrppa_msg_info.routing_id_length = req->nrppa_msg_info.routing_id_length,
+  };
+
+  gNB_MAC_INST *mac = RC.nrmac[req->nrppa_msg_info.instance];
+  mac->mac_rrc.positioning_information_response(&resp);
+}
+
+void positioning_activation_request(const f1ap_positioning_activation_req_t *req)
+{
+  LOG_I(MAC,
+        "DL Processing Received PositioningactivationRequest gNB_CU_ue_id=%d, gNB_DU_ue_id=%d \n",
+        req->gNB_CU_ue_id,
+        req->gNB_DU_ue_id);
+//  AssertFatal(false, " Not Implemented \n");
+  f1ap_positioning_activation_resp_t resp= {
+      .gNB_CU_ue_id = req->gNB_CU_ue_id,
+      .gNB_DU_ue_id = req->gNB_DU_ue_id,
+      .nrppa_msg_info.nrppa_transaction_id = req->nrppa_msg_info.nrppa_transaction_id,
+      .nrppa_msg_info.instance = req->nrppa_msg_info.instance,
+      .nrppa_msg_info.gNB_ue_ngap_id = req->nrppa_msg_info.gNB_ue_ngap_id,
+      .nrppa_msg_info.amf_ue_ngap_id = req->nrppa_msg_info.amf_ue_ngap_id,
+      .nrppa_msg_info.ue_rnti = req->nrppa_msg_info.ue_rnti,
+      .nrppa_msg_info.routing_id_buffer = req->nrppa_msg_info.routing_id_buffer,
+      .nrppa_msg_info.routing_id_length = req->nrppa_msg_info.routing_id_length,
+  };
+
+  gNB_MAC_INST *mac = RC.nrmac[req->nrppa_msg_info.instance];
+  mac->mac_rrc.positioning_activation_response(&resp);
+}
+
+void positioning_deactivation(const f1ap_positioning_deactivation_t *req)
+{
+  LOG_I(MAC,
+        "DL Processing Received PositioningDeactivation gNB_CU_ue_id=%d, gNB_DU_ue_id=%d \n",
+        req->gNB_CU_ue_id,
+        req->gNB_DU_ue_id);
+  AssertFatal(false, " Not Implemented \n");
+}
+
+/* handlers of TRP Information Transfer related NRPPA DL messages */
+void trp_information_request(const f1ap_trp_information_req_t *req)
+{
+  LOG_I(MAC, "DL Processing Received TRPInformationRequest transaction_id=%d \n", req->transaction_id);
+  //AssertFatal(false, " Not Implemented \n");
+    f1ap_trp_information_resp_t resp= {
+      .transaction_id=req->transaction_id,
+      .nrppa_msg_info.nrppa_transaction_id = req->nrppa_msg_info.nrppa_transaction_id,
+      .nrppa_msg_info.instance = req->nrppa_msg_info.instance,
+      .nrppa_msg_info.gNB_ue_ngap_id = req->nrppa_msg_info.gNB_ue_ngap_id,
+      .nrppa_msg_info.amf_ue_ngap_id = req->nrppa_msg_info.amf_ue_ngap_id,
+      .nrppa_msg_info.ue_rnti = req->nrppa_msg_info.ue_rnti,
+      .nrppa_msg_info.routing_id_buffer = req->nrppa_msg_info.routing_id_buffer,
+      .nrppa_msg_info.routing_id_length = req->nrppa_msg_info.routing_id_length,
+  };
+
+  gNB_MAC_INST *mac = RC.nrmac[req->nrppa_msg_info.instance];
+  mac->mac_rrc.trp_information_response(&resp);
+}
+
+/* handlers of Measurement Information Transfer related NRPPA DL messages */
+void positioning_measurement_request(const f1ap_measurement_req_t *req)
+{
+  LOG_I(MAC,
+        "DL Processing Received measurement_Request transaction_id=%d, lmf_measurement_id=%d, ran_measurement_id=%d \n",
+        req->transaction_id,
+        req->lmf_measurement_id,
+        req->ran_measurement_id);
+
+  if (req->pos_report_characteristics != 0) {
+    LOG_W(MAC, "periodic positioning measurements not yet supported\n");
+    AssertFatal(false, "Not implemented\n");
+  }
+
+  //store SRS config from measurement in MAC
+
+  f1ap_srs_configuration_t *srs_configuration = &req->srs_configuration;
+  if (!srs_configuration) {
+    LOG_I(MAC, "no srs configuration in F1AP measurement reuqest, skipping\n");
+    return;
+  }
+
+  if (srs_configuration->srs_carrier_list.srs_carrier_list_length !=1) {
+    LOG_I(MAC, "expecting exactly 1 item in srs carrier list, skipping\n");
+  }
+
+  f1ap_srs_config_t *sRSConfig = &srs_configuration->srs_carrier_list.srs_carrier_list_item[0].active_ul_bwp.sRSConfig;
+  if (sRSConfig->sRSResource_List.srs_resource_list_length != 1 ||
+      sRSConfig->sRSResourceSet_List.srs_resource_set_list_length != 1) {
+    LOG_I(MAC, "Need exactly 1 SRS Resoure and 1 SRS Resource set in F1AP measurment request\n");
+    return;
+  }
+
+  gNB_MAC_INST *mac = RC.nrmac[req->nrppa_msg_info.instance];
+  mac->srs_resource = *sRSConfig->sRSResource_List.srs_resource; 
+  mac->srs_resource_set = *sRSConfig->sRSResourceSet_List.srs_resource_set; 
+
+  mac->f1ap_meas_resp_header.transaction_id = req->transaction_id;
+  mac->f1ap_meas_resp_header.lmf_measurement_id = req->lmf_measurement_id;
+  mac->f1ap_meas_resp_header.ran_measurement_id = req->ran_measurement_id;
+  //mac->nrppa_msg_info = req->nrppa_msg_info;
+  mac->nrppa_msg_info.nrppa_transaction_id = req->nrppa_msg_info.nrppa_transaction_id;
+  mac->nrppa_msg_info.instance = req->nrppa_msg_info.instance;
+  mac->nrppa_msg_info.gNB_ue_ngap_id = req->nrppa_msg_info.gNB_ue_ngap_id;
+  mac->nrppa_msg_info.amf_ue_ngap_id = req->nrppa_msg_info.amf_ue_ngap_id;
+  mac->nrppa_msg_info.ue_rnti = req->nrppa_msg_info.ue_rnti;
+  mac->nrppa_msg_info.routing_id_buffer = req->nrppa_msg_info.routing_id_buffer;
+  mac->nrppa_msg_info.routing_id_length = req->nrppa_msg_info.routing_id_length;
+
+
+  mac->do_srs_meas = 1;
+}
+
+void positioning_measurement_update(const f1ap_measurement_update_t *update)
+{
+  LOG_I(MAC,
+        "DL Processing Received measurement_Update transaction_id=%d, lmf_measurement_id=%d \n",
+        update->transaction_id,
+        update->lmf_measurement_id);
+  AssertFatal(false, " Not Implemented \n");
+}
+
+void positioning_measurement_abort(const f1ap_measurement_abort_t *meas_abort)
+{
+  LOG_I(MAC,
+        "DL Processing Received measurement_Abort transaction_id=%d, lmf_measurement_id=%d \n",
+        meas_abort->transaction_id,
+        meas_abort->lmf_measurement_id);
+  AssertFatal(false, " Not Implemented \n");
+}

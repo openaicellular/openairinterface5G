@@ -114,6 +114,14 @@ ID = GNB_PHY_DL_OUTPUT_SIGNAL
     DESC = gNodeB output data in the freq domain for slots
     GROUP = ALL:PHY:GRAPHIC:HEAVY:GNB
     FORMAT = int,gNB_ID : int,frame : int,slot : int,antenna : buffer,txdata
+ID = GNB_PHY_UL_FREQ_CHANNEL_ESTIMATE_OVER_SAMPLING
+    DESC = gNodeB channel estimation in the frequency domain
+    GROUP = ALL:PHY:GRAPHIC:HEAVY:GNB
+    FORMAT = int,gNB_ID : int,rnti : int,frame : int,subframe : int,antenna : buffer,chest_f
+ID = GNB_PHY_UL_TIME_CHANNEL_ESTIMATE_OVER_SAMPLING
+    DESC = gNodeB channel estimation in the time domain
+    GROUP = ALL:PHY:GRAPHIC:HEAVY:GNB
+    FORMAT = int,gNB_ID : int,rnti : int,frame : int,subframe : int,antenna : buffer,chest_t
 
 #MAC logs
 ID = ENB_MAC_UE_DL_SDU
@@ -490,6 +498,23 @@ ID = LEGACY_NGAP_DEBUG
 ID = LEGACY_NGAP_TRACE
     DESC = NGAP legacy logs - trace level
     GROUP = ALL:LEGACY_NGAP:LEGACY_GROUP_TRACE:LEGACY
+    FORMAT = string,log
+
+ID = LEGACY_NRPPA_INFO
+    DESC = NRPPA legacy logs - info level
+    GROUP = ALL:LEGACY_NRPPA:LEGACY_GROUP_INFO:LEGACY
+    FORMAT = string,log
+ID = LEGACY_NRPPA_ERROR
+    DESC = NRPPA legacy logs - error level
+    GROUP = ALL:LEGACY_NRPPA:LEGACY_GROUP_ERROR:LEGACY
+    FORMAT = string,log
+ID = LEGACY_NRPPA_WARNING
+    DESC = NRPPA legacy logs - warning level
+    GROUP = ALL:LEGACY_NRPPA:LEGACY_GROUP_WARNING:LEGACY
+    FORMAT = string,log
+ID = LEGACY_NRPPA_DEBUG
+    DESC = NRPPA legacy logs - debug level
+    GROUP = ALL:LEGACY_NRPPA:LEGACY_GROUP_DEBUG:LEGACY
     FORMAT = string,log
 
 ID = LEGACY_X2AP_INFO

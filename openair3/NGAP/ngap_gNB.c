@@ -28,7 +28,6 @@
  * @ingroup _ngap
  */
 
-
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +56,7 @@
 #include "ngap_gNB_itti_messaging.h"
 
 #include "ngap_gNB_ue_context.h" // test, to be removed
+#include "ngap_gNB_NRPPa_transport_procedures.h"
 
 #include "assertions.h"
 #include "conversions.h"
@@ -118,7 +118,7 @@ static void ngap_gNB_register_amf(ngap_gNB_instance_t *instance_p,
   /* Create new AMF descriptor */
   ngap_amf_data_p = calloc(1, sizeof(*ngap_amf_data_p));
   DevAssert(ngap_amf_data_p != NULL);
-  ngap_amf_data_p->cnx_id                = ngap_gNB_fetch_add_global_cnx_id();
+  ngap_amf_data_p->cnx_id = ngap_gNB_fetch_add_global_cnx_id();
   sctp_new_association_req_p->ulp_cnx_id = ngap_amf_data_p->cnx_id;
   ngap_amf_data_p->assoc_id          = -1;
   ngap_amf_data_p->broadcast_plmn_num = broadcast_plmn_num;
@@ -177,7 +177,7 @@ void ngap_gNB_handle_register_gNB(instance_t instance, ngap_register_gnb_req_t *
     new_instance->gNB_id           = ngap_register_gNB->gNB_id;
     new_instance->cell_type        = ngap_register_gNB->cell_type;
     new_instance->tac              = ngap_register_gNB->tac;
-    
+
     memcpy(&new_instance->gNB_ng_ip,
        &ngap_register_gNB->gnb_ip_address,
        sizeof(ngap_register_gNB->gnb_ip_address));
@@ -356,6 +356,14 @@ void *ngap_gNB_process_itti_msg(void *notUsed) {
         ngap_gNB_pdusession_release_resp(instance, &NGAP_PDUSESSION_RELEASE_RESPONSE(received_msg));
         break;
 
+      case NGAP_UPLINKUEASSOCIATEDNRPPA:
+        ngap_gNB_UplinkUEAssociatedNRPPaTransport(instance, &NGAP_UPLINKUEASSOCIATEDNRPPA(received_msg));
+        break;
+
+      case NGAP_UPLINKNONUEASSOCIATEDNRPPA:
+        ngap_gNB_UplinkNonUEAssociatedNRPPaTransport(instance, &NGAP_UPLINKNONUEASSOCIATEDNRPPA(received_msg));
+        break;
+
       default:
         NGAP_ERROR("Received unhandled message: %d:%s\n", ITTI_MSG_ID(received_msg), ITTI_MSG_NAME(received_msg));
         break;
@@ -387,15 +395,15 @@ static int ngap_gNB_generate_ng_setup_request(
   ngap_gNB_amf_data_t *ngap_amf_data_p)
 //-----------------------------------------------------------------------------
 {
-  NGAP_NGAP_PDU_t            pdu;
-  NGAP_NGSetupRequest_t      *out = NULL;
-  NGAP_NGSetupRequestIEs_t   *ie = NULL;
-  NGAP_SupportedTAItem_t     *ta = NULL;
-  NGAP_BroadcastPLMNItem_t   *plmn = NULL;
-  NGAP_SliceSupportItem_t    *ssi = NULL;
-  uint8_t  *buffer = NULL;
-  uint32_t  len = 0;
-  int       ret = 0;
+  NGAP_NGAP_PDU_t pdu;
+  NGAP_NGSetupRequest_t *out = NULL;
+  NGAP_NGSetupRequestIEs_t *ie = NULL;
+  NGAP_SupportedTAItem_t *ta = NULL;
+  NGAP_BroadcastPLMNItem_t *plmn = NULL;
+  NGAP_SliceSupportItem_t *ssi = NULL;
+  uint8_t *buffer = NULL;
+  uint32_t len = 0;
+  int ret = 0;
   DevAssert(instance_p != NULL);
   DevAssert(ngap_amf_data_p != NULL);
   ngap_amf_data_p->state = NGAP_GNB_STATE_WAITING;
@@ -476,7 +484,7 @@ static int ngap_gNB_generate_ng_setup_request(
     asn1cSeqAdd(&ie->value.choice.SupportedTAList.list, ta);
   }
   asn1cSeqAdd(&out->protocolIEs.list, ie);
-  
+
   /* mandatory */
   ie = (NGAP_NGSetupRequestIEs_t *)calloc(1, sizeof(NGAP_NGSetupRequestIEs_t));
   ie->id = NGAP_ProtocolIE_ID_id_DefaultPagingDRX;
@@ -484,7 +492,6 @@ static int ngap_gNB_generate_ng_setup_request(
   ie->value.present = NGAP_NGSetupRequestIEs__value_PR_PagingDRX;
   ie->value.choice.PagingDRX = instance_p->default_drx;
   asn1cSeqAdd(&out->protocolIEs.list, ie);
-
 
   if (ngap_gNB_encode_pdu(&pdu, &buffer, &len) < 0) {
     NGAP_ERROR("Failed to encode NG setup request\n");
@@ -495,7 +502,3 @@ static int ngap_gNB_generate_ng_setup_request(
   ngap_gNB_itti_send_sctp_data_req(instance_p->instance, ngap_amf_data_p->assoc_id, buffer, len, 0);
   return ret;
 }
-
-
-
-

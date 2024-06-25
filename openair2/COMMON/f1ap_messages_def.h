@@ -61,3 +61,25 @@ MESSAGE_DEF(F1AP_UE_CONTEXT_MODIFICATION_REFUSE, MESSAGE_PRIORITY_MED, f1ap_ue_c
 
 /* CU -> DU*/
 MESSAGE_DEF(F1AP_PAGING_IND, MESSAGE_PRIORITY_MED, f1ap_paging_ind_t, f1ap_paging_ind)
+
+/*NRPPa CU -> DU */ // adeel
+MESSAGE_DEF(F1AP_POSITIONING_INFORMATION_REQ, MESSAGE_PRIORITY_MED, f1ap_positioning_information_req_t, f1ap_positioning_information_req)
+MESSAGE_DEF(F1AP_POSITIONING_ACTIVATION_REQ, MESSAGE_PRIORITY_MED, f1ap_positioning_activation_req_t, f1ap_positioning_activation_req)
+MESSAGE_DEF(F1AP_POSITIONING_DEACTIVATION, MESSAGE_PRIORITY_MED, f1ap_positioning_deactivation_t, f1ap_positioning_deactivation)
+MESSAGE_DEF(F1AP_TRP_INFORMATION_REQ, MESSAGE_PRIORITY_MED, f1ap_trp_information_req_t, f1ap_trp_information_req)
+MESSAGE_DEF(F1AP_MEASUREMENT_REQ, MESSAGE_PRIORITY_MED, f1ap_measurement_req_t, f1ap_measurement_req)
+MESSAGE_DEF(F1AP_MEASUREMENT_ABORT, MESSAGE_PRIORITY_MED, f1ap_measurement_abort_t, f1ap_measurement_abort)
+MESSAGE_DEF(F1AP_MEASUREMENT_UPDATE, MESSAGE_PRIORITY_MED, f1ap_measurement_update_t, f1ap_measurement_update)
+
+/*NRPPa DU -> CU */ // adeel
+MESSAGE_DEF(F1AP_POSITIONING_INFORMATION_RESP, MESSAGE_PRIORITY_MED, f1ap_positioning_information_resp_t, f1ap_positioning_information_resp)
+MESSAGE_DEF(F1AP_POSITIONING_INFORMATION_FAILURE, MESSAGE_PRIORITY_MED, f1ap_positioning_information_failure_t, f1ap_positioning_information_failure)
+MESSAGE_DEF(F1AP_POSITIONING_INFORMATION_UPDATE, MESSAGE_PRIORITY_MED, f1ap_positioning_information_update_t, f1ap_positioning_information_update)
+MESSAGE_DEF(F1AP_POSITIONING_ACTIVATION_RESP, MESSAGE_PRIORITY_MED, f1ap_positioning_activation_resp_t, f1ap_positioning_activation_resp)
+MESSAGE_DEF(F1AP_POSITIONING_ACTIVATION_FAILURE, MESSAGE_PRIORITY_MED, f1ap_positioning_activation_failure_t, f1ap_positioning_activation_failure)
+MESSAGE_DEF(F1AP_TRP_INFORMATION_RESP, MESSAGE_PRIORITY_MED, f1ap_trp_information_resp_t, f1ap_trp_information_resp)
+MESSAGE_DEF(F1AP_TRP_INFORMATION_FAILURE, MESSAGE_PRIORITY_MED, f1ap_trp_information_failure_t, f1ap_trp_information_failure)
+MESSAGE_DEF(F1AP_MEASUREMENT_RESP, MESSAGE_PRIORITY_MED, f1ap_measurement_resp_t, f1ap_measurement_resp)
+MESSAGE_DEF(F1AP_MEASUREMENT_FAILURE, MESSAGE_PRIORITY_MED, f1ap_measurement_failure_t, f1ap_measurement_failure)
+MESSAGE_DEF(F1AP_MEASUREMENT_REPORT, MESSAGE_PRIORITY_MED, f1ap_measurement_report_t, f1ap_measurement_report)
+MESSAGE_DEF(F1AP_MEASUREMENT_FAILURE_IND, MESSAGE_PRIORITY_MED, f1ap_measurement_failure_ind_t, f1ap_measurement_failure_ind)

@@ -89,4 +89,11 @@ void mac_rrc_dl_direct_init(nr_mac_rrc_dl_if_t *mac_rrc)
   mac_rrc->ue_context_modification_refuse = ue_context_modification_refuse_direct;
   mac_rrc->ue_context_release_command = ue_context_release_command_direct;
   mac_rrc->dl_rrc_message_transfer = dl_rrc_message_transfer_direct;
+  mac_rrc->positioning_information_request = positioning_information_request; // nrppa adeel                                                                                   
+  mac_rrc->positioning_activation_request = positioning_activation_request;                                                                                                    
+  mac_rrc->positioning_deactivation = positioning_deactivation;                                                                                                                
+  mac_rrc->trp_information_request = trp_information_request;                                                                                                                  
+  mac_rrc->positioning_measurement_request = positioning_measurement_request;                                                                                                  
+  mac_rrc->positioning_measurement_update = positioning_measurement_update;                                                                                                    
+  mac_rrc->positioning_measurement_abort = positioning_measurement_abort;   
 }

@@ -18,7 +18,7 @@
  * For more information about the OpenAirInterface (OAI) Software Alliance:
  *      contact@openairinterface.org
  */
- 
+
 /*! \file ngap_gNB_itti_messaging.h
  * \brief ngap itti messages handlers for gNB
  * \author Yoshio INOUE, Masayuki HARADA
@@ -39,5 +39,19 @@ void ngap_gNB_itti_send_sctp_data_req(instance_t instance,
 void ngap_gNB_itti_send_nas_downlink_ind(instance_t instance, uint32_t gNB_ue_ngap_id, uint8_t *nas_pdu, uint32_t nas_pdu_length);
 
 void ngap_gNB_itti_send_sctp_close_association(instance_t instance, sctp_assoc_t assoc_id);
+
+void ngap_gNB_itti_send_DownlinkUEAssociatedNRPPa(instance_t instance,
+                                                  uint32_t gNB_ue_ngap_id,
+                                                  uint64_t amf_ue_ngap_id,
+                                                  uint8_t *routingId_buffer,
+                                                  uint32_t routingId_buffer_length,
+                                                  uint8_t *nrppa_pdu,
+                                                  uint32_t nrppa_pdu_length);
+
+void ngap_gNB_itti_send_DownlinkNonUEAssociatedNRPPa(instance_t instance,
+                                                     uint8_t *routingId_buffer,
+                                                     uint32_t routingId_buffer_length,
+                                                     uint8_t *nrppa_pdu,
+                                                     uint32_t nrppa_pdu_length);
 
 #endif /* NGAP_GNB_ITTI_MESSAGING_H_ */

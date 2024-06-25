@@ -53,7 +53,6 @@ static f1ap_net_config_t read_DU_IP_config(const eth_params_t* f1_params, const 
   return nc;
 }
 
-
 static void f1_setup_request_f1ap(const f1ap_setup_req_t *req)
 {
   MessageDef *msg = itti_alloc_new_message(TASK_MAC_GNB, 0, F1AP_DU_REGISTER_REQ);
@@ -142,7 +141,7 @@ static void ue_context_setup_response_f1ap(const f1ap_ue_context_setup_t *req, c
   DevAssert(req->drbs_to_be_setup_length == resp->drbs_to_be_setup_length);
 
   DevAssert(req->srbs_to_be_setup_length == resp->srbs_to_be_setup_length);
-  MessageDef *msg = itti_alloc_new_message (TASK_MAC_GNB, 0, F1AP_UE_CONTEXT_SETUP_RESP);
+  MessageDef *msg = itti_alloc_new_message(TASK_MAC_GNB, 0, F1AP_UE_CONTEXT_SETUP_RESP);
   f1ap_ue_context_setup_t *f1ap_msg = &F1AP_UE_CONTEXT_SETUP_RESP(msg);
   /* copy all fields, but reallocate rrc_containers! */
   *f1ap_msg = *resp;
@@ -273,6 +272,64 @@ static void initial_ul_rrc_message_transfer_f1ap(module_id_t module_id, const f1
   itti_send_msg_to_task(TASK_DU_F1, module_id, msg);
 }
 
+static void positioning_information_response_f1ap(const f1ap_positioning_information_resp_t *resp)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+static void positioning_information_failure_f1ap(const f1ap_positioning_information_failure_t *failure)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+static void positioning_information_update_f1ap(const f1ap_positioning_information_update_t *update)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+/* handlers of Positioning Information Transfer related NRPPA UL messages */
+static void positioning_activation_response_f1ap(const f1ap_positioning_activation_resp_t *resp)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+static void positioning_activation_failure_f1ap(const f1ap_positioning_activation_failure_t *failure)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+/* handlers of TRP Information Transfer related NRPPA UL messages */
+static void trp_information_response_f1ap(const f1ap_trp_information_resp_t *resp)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+static void trp_information_failure_f1ap(const f1ap_trp_information_failure_t *failure)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+/* handlers of Measurement Information Transfer related NRPPA UL messages */
+static void positioning_measurement_response_f1ap(const f1ap_measurement_resp_t *resp)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+static void positioning_measurement_failure_f1ap(const f1ap_measurement_failure_t *failure)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+static void positioning_measurement_report_f1ap(const f1ap_measurement_report_t *report)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
+static void positioning_measurement_failure_indication_f1ap(const f1ap_measurement_failure_ind_t *failure_ind)
+{
+  AssertFatal(false, "not implemented\n");
+}
+
 void mac_rrc_ul_f1ap_init(struct nr_mac_rrc_ul_if_s *mac_rrc)
 {
   mac_rrc->f1_setup_request = f1_setup_request_f1ap;
@@ -283,5 +340,15 @@ void mac_rrc_ul_f1ap_init(struct nr_mac_rrc_ul_if_s *mac_rrc)
   mac_rrc->ue_context_release_request = ue_context_release_request_f1ap;
   mac_rrc->ue_context_release_complete = ue_context_release_complete_f1ap;
   mac_rrc->initial_ul_rrc_message_transfer = initial_ul_rrc_message_transfer_f1ap;
+  mac_rrc->positioning_information_response = positioning_information_response_f1ap; // nrppa adeel
+  mac_rrc->positioning_information_failure = positioning_information_failure_f1ap;
+  mac_rrc->positioning_information_update = positioning_information_update_f1ap;
+  mac_rrc->positioning_activation_response = positioning_activation_response_f1ap;
+  mac_rrc->positioning_activation_failure = positioning_activation_failure_f1ap;
+  mac_rrc->trp_information_response = trp_information_response_f1ap;
+  mac_rrc->trp_information_failure = trp_information_failure_f1ap;
+  mac_rrc->positioning_measurement_response = positioning_measurement_response_f1ap;
+  mac_rrc->positioning_measurement_failure = positioning_measurement_failure_f1ap;
+  mac_rrc->positioning_measurement_report = positioning_measurement_report_f1ap;
+  mac_rrc->positioning_measurement_failure_indication = positioning_measurement_failure_indication_f1ap;
 }
-

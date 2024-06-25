@@ -28,14 +28,31 @@
 typedef void (*f1_setup_request_func_t)(const f1ap_setup_req_t* req);
 typedef void (*gnb_du_configuration_update_t)(const f1ap_gnb_du_configuration_update_t *upd);
 
-typedef void (*ue_context_setup_response_func_t)(const f1ap_ue_context_setup_t* req, const f1ap_ue_context_setup_t *resp);
+typedef void (*ue_context_setup_response_func_t)(const f1ap_ue_context_setup_t *req, const f1ap_ue_context_setup_t *resp);
 typedef void (*ue_context_modification_response_func_t)(const f1ap_ue_context_modif_req_t *req,
                                                         const f1ap_ue_context_modif_resp_t *resp);
 typedef void (*ue_context_modification_required_func_t)(const f1ap_ue_context_modif_required_t *t);
-typedef void (*ue_context_release_request_func_t)(const f1ap_ue_context_release_req_t* req);
+typedef void (*ue_context_release_request_func_t)(const f1ap_ue_context_release_req_t *req);
 typedef void (*ue_context_release_complete_func_t)(const f1ap_ue_context_release_complete_t *complete);
 
 typedef void (*initial_ul_rrc_message_transfer_func_t)(module_id_t module_id, const f1ap_initial_ul_rrc_message_t *ul_rrc);
+
+/* handlers of Position Information Transfer related NRPPA UL messages */
+typedef void (*positioning_information_response_func_t)(const f1ap_positioning_information_resp_t *pos_resp); // nrppa adeel
+typedef void (*positioning_information_failure_func_t)(const f1ap_positioning_information_failure_t *pos_failure);
+typedef void (*positioning_information_update_func_t)(const f1ap_positioning_information_update_t *pos_update);
+typedef void (*positioning_activation_response_func_t)(const f1ap_positioning_activation_resp_t *act_resp);
+typedef void (*positioning_activation_failure_func_t)(const f1ap_positioning_activation_failure_t *act_failure);
+
+/* handlers of TRP Information Transfer related NRPPA UL messages */
+typedef void (*trp_information_response_func_t)(const f1ap_trp_information_resp_t *resp);
+typedef void (*trp_information_failure_func_t)(const f1ap_trp_information_failure_t *failure);
+
+/* handlers of Measurement Information Transfer related NRPPA UL messages */
+typedef void (*positioning_measurement_response_func_t)(const f1ap_measurement_resp_t *resp);
+typedef void (*positioning_measurement_failure_func_t)(const f1ap_measurement_failure_t *failure);
+typedef void (*positioning_measurement_report_func_t)(const f1ap_measurement_report_t *report);
+typedef void (*positioning_measurement_failure_indication_func_t)(const f1ap_measurement_failure_ind_t *failure_ind);
 
 struct nr_mac_rrc_ul_if_s;
 void mac_rrc_ul_direct_init(struct nr_mac_rrc_ul_if_s *mac_rrc);

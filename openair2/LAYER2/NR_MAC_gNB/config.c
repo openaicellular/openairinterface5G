@@ -46,6 +46,7 @@
 #include "openair1/PHY/defs_gNB.h"
 
 #include "NR_MIB.h"
+#include "RRC/NR/nr_rrc_config.h"
 #include "LAYER2/NR_MAC_COMMON/nr_mac_common.h"
 #include "../../../../nfapi/oai_integration/vendor_ext.h"
 /* Softmodem params */
@@ -680,6 +681,7 @@ void nr_mac_config_scc(gNB_MAC_INST *nrmac, NR_ServingCellConfigCommon_t *scc, c
         ra->preambles.preamble_list[i] = i;
     }
   }
+
   //NR_SCHED_UNLOCK(&nrmac->sched_lock);
 }
 

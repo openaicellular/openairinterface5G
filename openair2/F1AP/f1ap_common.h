@@ -342,6 +342,31 @@
 
 #include "f1ap_default_values.h"
 
+/* NRPPA IE*/
+#include "F1AP_SRSConfiguration.h"
+
+/* NRPPA Procedures*/
+#include "F1AP_TRPInformationResponse.h"
+#include "F1AP_TRPInformationRequest.h"
+#include "F1AP_TRPInformationRequest.h"
+
+#include "F1AP_PositioningInformationRequest.h"
+#include "F1AP_PositioningInformationResponse.h"
+#include "F1AP_PositioningInformationFailure.h"
+#include "F1AP_PositioningActivationRequest.h"
+#include "F1AP_PositioningActivationResponse.h"
+#include "F1AP_PositioningActivationFailure.h"
+#include "F1AP_PositioningInformationUpdate.h"
+#include "F1AP_PositioningDeactivation.h"
+
+#include "F1AP_PositioningMeasurementRequest.h"
+#include "F1AP_PositioningMeasurementResponse.h"
+#include "F1AP_PositioningMeasurementFailure.h"
+#include "F1AP_PositioningMeasurementReport.h"
+#include "F1AP_PositioningMeasurementUpdate.h"
+#include "F1AP_PositioningMeasurementFailureIndication.h"
+#include "F1AP_PositioningMeasurementAbort.h"
+
 #include "conversions.h"
 #include "common/platform_types.h"
 #include "common/utils/LOG/log.h"
@@ -354,36 +379,36 @@
 
 /* Checking version of ASN1C compiler */
 #if (ASN1C_ENVIRONMENT_VERSION < ASN1C_MINIMUM_VERSION)
-  # error "You are compiling f1ap with the wrong version of ASN1C"
+#error "You are compiling f1ap with the wrong version of ASN1C"
 #endif
 
-#define F1AP_UE_ID_FMT  "0x%06"PRIX32
+#define F1AP_UE_ID_FMT "0x%06" PRIX32
 
 #include "assertions.h"
 
 #include "common/utils/LOG/log.h"
 #include "f1ap_default_values.h"
 #define F1AP_ERROR(x, args...) LOG_E(F1AP, x, ##args)
-#define F1AP_WARN(x, args...)  LOG_W(F1AP, x, ##args)
-#define F1AP_TRAF(x, args...)  LOG_I(F1AP, x, ##args)
+#define F1AP_WARN(x, args...) LOG_W(F1AP, x, ##args)
+#define F1AP_TRAF(x, args...) LOG_I(F1AP, x, ##args)
 #define F1AP_INFO(x, args...) LOG_I(F1AP, x, ##args)
 #define F1AP_DEBUG(x, args...) LOG_I(F1AP, x, ##args)
 
-//Forward declaration
-#define F1AP_FIND_PROTOCOLIE_BY_ID(IE_TYPE, ie, container, IE_ID, mandatory) \
-  do {\
-    IE_TYPE **ptr; \
-    ie = NULL; \
-    for (ptr = container->protocolIEs.list.array; \
-         ptr < &container->protocolIEs.list.array[container->protocolIEs.list.count]; \
-         ptr++) { \
-      if((*ptr)->id == IE_ID) { \
-        ie = *ptr; \
-        break; \
-      } \
-    } \
-    if (mandatory) DevAssert(ie != NULL); \
-  } while(0)
+// Forward declaration
+#define F1AP_FIND_PROTOCOLIE_BY_ID(IE_TYPE, ie, container, IE_ID, mandatory)                                                   \
+  do {                                                                                                                         \
+    IE_TYPE **ptr;                                                                                                             \
+    ie = NULL;                                                                                                                 \
+    for (ptr = container->protocolIEs.list.array; ptr < &container->protocolIEs.list.array[container->protocolIEs.list.count]; \
+         ptr++) {                                                                                                              \
+      if ((*ptr)->id == IE_ID) {                                                                                               \
+        ie = *ptr;                                                                                                             \
+        break;                                                                                                                 \
+      }                                                                                                                        \
+    }                                                                                                                          \
+    if (mandatory)                                                                                                             \
+      DevAssert(ie != NULL);                                                                                                   \
+  } while (0)
 
 /** \brief Function array prototype.
  **/
@@ -411,7 +436,8 @@ typedef struct f1ap_cudu_inst_s {
   instance_t gtpInst;
 } f1ap_cudu_inst_t;
 
-static const int nrb_lut[29] = {11, 18, 24, 25, 31, 32, 38, 51, 52, 65, 66, 78, 79, 93, 106, 107, 121, 132, 133, 135, 160, 162, 189, 216, 217, 245, 264, 270, 273};
+static const int nrb_lut[29] = {11,  18,  24,  25,  31,  32,  38,  51,  52,  65,  66,  78,  79,  93, 106,
+                                107, 121, 132, 133, 135, 160, 162, 189, 216, 217, 245, 264, 270, 273};
 
 uint8_t F1AP_get_next_transaction_identifier(instance_t mod_idP, instance_t cu_mod_idP);
 
@@ -420,10 +446,12 @@ f1ap_cudu_inst_t *getCxt(instance_t instanceP);
 void createF1inst(instance_t instanceP, f1ap_setup_req_t *req, f1ap_net_config_t *nc);
 void destroyF1inst(instance_t instance);
 
-//lts: C struct type is not homogeneous, so we need macros instead of functions
-#define addnRCGI(nRCGi, servedCelL) \
-  MCC_MNC_TO_PLMNID((servedCelL)->plmn.mcc,(servedCelL)->plmn.mnc,(servedCelL)->plmn.mnc_digit_length, \
-                    &((nRCGi).pLMN_Identity));        \
+// lts: C struct type is not homogeneous, so we need macros instead of functions
+#define addnRCGI(nRCGi, servedCelL)                      \
+  MCC_MNC_TO_PLMNID((servedCelL)->plmn.mcc,              \
+                    (servedCelL)->plmn.mnc,              \
+                    (servedCelL)->plmn.mnc_digit_length, \
+                    &((nRCGi).pLMN_Identity));           \
   NR_CELL_ID_TO_BIT_STRING((servedCelL)->nr_cellid, &((nRCGi).nRCellIdentity));
 extern RAN_CONTEXT_t RC;
 

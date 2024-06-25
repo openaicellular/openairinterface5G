@@ -44,6 +44,10 @@
 #include <pthread.h>
 #include "common/utils/ds/seq_arr.h"
 
+#define NON_UE_ASSOCIATED_SRS_DUMMY_RNTI 0xcafe
+
+#define NON_UE_ASSOCIATED_SRS_DUMMY_RNTI 0xcafe
+
 #define NR_SCHED_LOCK(lock)                                        \
   do {                                                             \
     int rc = pthread_mutex_lock(lock);                             \
@@ -250,6 +254,8 @@ typedef struct {
   NR_ServingCellConfigCommon_t *ServingCellConfigCommon;
   /// pre-configured ServingCellConfig that is default for every UE
   NR_ServingCellConfig_t *pre_ServingCellConfig;
+  NR_ARFCN_ValueEUTRA_t ul_CarrierFreq;
+  long ul_Bandwidth;  
   /// Outgoing MIB PDU for PHY
   uint8_t MIB_pdu[3];
   /// Outgoing BCCH pdu for PHY
@@ -322,7 +328,7 @@ typedef struct SPCSIReportingpucch {
   bool s0tos3_actDeact[4];
 } SPCSIReportingpucch_t;
 
-#define MAX_APERIODIC_TRIGGER_STATES 128 //38.331                               
+#define MAX_APERIODIC_TRIGGER_STATES 128 //38.331
 typedef struct aperiodicCSI_triggerStateSelection {
   bool is_scheduled;
   uint8_t servingCellId;
@@ -331,7 +337,7 @@ typedef struct aperiodicCSI_triggerStateSelection {
   bool triggerStateSelection[MAX_APERIODIC_TRIGGER_STATES];
 } aperiodicCSI_triggerStateSelection_t;
 
-#define MAX_TCI_STATES 128 //38.331                                             
+#define MAX_TCI_STATES 128 //38.331
 typedef struct pdschTciStatesActDeact {
   bool is_scheduled;
   uint8_t servingCellId;
@@ -510,9 +516,9 @@ struct CSI_Report {
 
 #define MAX_SR_BITLEN 8
 
-/*! As per the spec 38.212 and table:  6.3.1.1.2-12 in a single UCI sequence we can have multiple CSI_report 
+/*! As per the spec 38.212 and table:  6.3.1.1.2-12 in a single UCI sequence we can have multiple CSI_report
   the number of CSI_report will depend on number of CSI resource sets that are configured in CSI-ResourceConfig RRC IE
-  From spec 38.331 from the IE CSI-ResourceConfig for SSB RSRP reporting we can configure only one resource set 
+  From spec 38.331 from the IE CSI-ResourceConfig for SSB RSRP reporting we can configure only one resource set
   From spec 38.214 section 5.2.1.2 For periodic and semi-persistent CSI Resource Settings, the number of CSI-RS Resource Sets configured is limited to S=1
  */
 #define MAX_CSI_RESOURCE_SET_IN_CSI_RESOURCE_CONFIG 16
@@ -697,7 +703,31 @@ typedef struct nr_mac_rrc_ul_if_s {
   ue_context_release_request_func_t ue_context_release_request;
   ue_context_release_complete_func_t ue_context_release_complete;
   initial_ul_rrc_message_transfer_func_t initial_ul_rrc_message_transfer;
+  positioning_information_response_func_t positioning_information_response; // nrppa adeel
+  positioning_information_failure_func_t positioning_information_failure;
+  positioning_information_update_func_t positioning_information_update;
+  positioning_activation_response_func_t positioning_activation_response;
+  positioning_activation_failure_func_t positioning_activation_failure;
+  trp_information_response_func_t trp_information_response;
+  trp_information_failure_func_t trp_information_failure;
+  positioning_measurement_response_func_t positioning_measurement_response;
+  positioning_measurement_failure_func_t positioning_measurement_failure;
+  positioning_measurement_report_func_t positioning_measurement_report;
+  positioning_measurement_failure_indication_func_t positioning_measurement_failure_indication;
 } nr_mac_rrc_ul_if_t;
+
+typedef struct {
+  uint8_t transaction_id; // IE 9.3.1.23 (M)
+  uint16_t lmf_measurement_id; // (M)
+  uint16_t ran_measurement_id; // (M)
+} f1ap_meas_resp_header_t;
+
+typedef struct {
+  uint8_t pos_report_characteristics; // (M) //	ondemand	= 0, periodic	= 1
+  uint8_t pos_measurement_periodicity; //(C) if report characteristics periodic	ms120=0, ms240=1, ms480=2, ms640=3, ms1024=4, ms20
+  uint8_t pos_report_valid; // (C) if report characteristics ondemand the request sets this to 1 and once response is sent its set back to 0
+  int16_t toa_ns[NB_ANTENNAS_RX]; // for the moment we only support toa measurements, others can be added here later
+} NR_meas_pos_t;
 
 /*! \brief UE list used by gNB to order UEs/CC for scheduling*/
 typedef struct {
@@ -868,8 +898,20 @@ typedef struct gNB_MAC_INST_s {
   nr_mac_rrc_ul_if_t mac_rrc;
   f1_config_t f1_config;
   int16_t frame;
+  int16_t slot;
 
   pthread_mutex_t sched_lock;
+
+  //holds the SRS config for NRPPa measurement request
+  //f1ap_measurement_req_t *f1ap_meas_req;
+  uint8_t do_srs_meas;//=0;
+  f1ap_srs_resource_t srs_resource;
+  f1ap_srs_resource_set_t srs_resource_set;
+  f1ap_meas_resp_header_t f1ap_meas_resp_header;
+  nrppa_f1ap_info_t nrppa_msg_info;
+
+  //holds measurement response (non-ue associated)
+  NR_meas_pos_t meas_pos_info;
 
 } gNB_MAC_INST;
 
