@@ -122,6 +122,8 @@ int nr_allocate_CCEs(int module_idP, int CC_idP, frame_t frameP, sub_frame_t slo
 
 void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP);
 
+int nr_get_mu(NR_ServingCellConfigCommon_t *scc);
+
 uint16_t nr_mac_compute_RIV(uint16_t N_RB_DL, uint16_t RBstart, uint16_t Lcrbs);
 
 /////// Phy test scheduler ///////

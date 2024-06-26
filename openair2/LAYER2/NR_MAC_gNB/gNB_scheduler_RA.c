@@ -278,6 +278,29 @@ void print_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu){
   LOG_W(NR_MAC, "pusch_pdu->transform_precoding %d\n", pusch_pdu->transform_precoding);
 }
 
+int nr_get_mu(NR_ServingCellConfigCommon_t *scc)
+{
+  int mu;
+  // if 2-Step configuration file exists
+  if (scc->uplinkConfigCommon->initialUplinkBWP->ext1 && scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16) {
+    if (scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup->rach_ConfigCommonTwoStepRA_r16
+            .msgA_SubcarrierSpacing_r16)
+      // Choose Subcarrier Spacing of configuration file of 2-Step
+      mu = (int)*scc->uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice.setup
+               ->rach_ConfigCommonTwoStepRA_r16.msgA_SubcarrierSpacing_r16;
+    else
+      // Choose Subcarrier Spacing of configuration file of 4-Step
+      mu = (int)scc->uplinkConfigCommon->frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
+  } else {
+    if (scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->msg1_SubcarrierSpacing)
+      mu = (int)*scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->msg1_SubcarrierSpacing;
+    else
+      mu = (int)scc->uplinkConfigCommon->frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
+  }
+
+  return mu;
+}
+
 static void schedule_nr_MsgA_pusch(NR_ServingCellConfigCommon_t *scc,
                                    gNB_MAC_INST *nr_mac,
                                    module_id_t module_idP,
