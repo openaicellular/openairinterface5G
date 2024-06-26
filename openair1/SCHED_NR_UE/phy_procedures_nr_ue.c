@@ -80,35 +80,6 @@ static const unsigned int gain_table[31] = {100,  112,  126,  141,  158,  178,  
                                             359,  398,  447,  501,  562,  631,  708,  794,  891, 1000, 1122,
                                             1258, 1412, 1585, 1778, 1995, 2239, 2512, 2818, 3162};
 
-void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
-                           fapi_nr_dci_indication_t *dci_ind,
-                           fapi_nr_rx_indication_t *rx_ind,
-                           const UE_nr_rxtx_proc_t *proc,
-                           PHY_VARS_NR_UE *ue,
-                           void *phy_data)
-{
-  memset((void*)dl_ind, 0, sizeof(nr_downlink_indication_t));
-
-  dl_ind->gNB_index = proc->gNB_id;
-  dl_ind->module_id = ue->Mod_id;
-  dl_ind->cc_id     = ue->CC_id;
-  dl_ind->frame     = proc->frame_rx;
-  dl_ind->slot      = proc->nr_slot_rx;
-  dl_ind->phy_data  = phy_data;
-
-  if (dci_ind) {
-
-    dl_ind->rx_ind = NULL; //no data, only dci for now
-    dl_ind->dci_ind = dci_ind;
-
-  } else if (rx_ind) {
-
-    dl_ind->rx_ind = rx_ind; //  hang on rx_ind instance
-    dl_ind->dci_ind = NULL;
-
-  }
-}
-
 static uint32_t get_ssb_arfcn(NR_DL_FRAME_PARMS *frame_parms)
 {
   uint32_t band_size_hz = frame_parms->N_RB_DL * 12 * frame_parms->subcarrier_spacing;
@@ -154,7 +125,7 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
       }
       break;
     case FAPI_NR_RX_PDU_TYPE_SSB: {
-      if (typeSpecific) {
+      if (typeSpecific && ue) {
         NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
         fapiPbch_t *pbch = (fapiPbch_t *)typeSpecific;
         memcpy(rx->ssb_pdu.pdu, pbch->decoded_output, sizeof(pbch->decoded_output));
@@ -416,12 +387,13 @@ int nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
                            const UE_nr_rxtx_proc_t *proc,
                            int32_t pdcch_est_size,
                            c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
-                           nr_phy_data_t *phy_data,
                            int n_ss,
-                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP],
+                           nr_downlink_indication_t *dl_indication)
 {
   int frame_rx = proc->frame_rx;
   int nr_slot_rx = proc->nr_slot_rx;
+  nr_phy_data_t *phy_data = (nr_phy_data_t *)dl_indication->phy_data;
   NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
 
   fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15 = &phy_pdcch_config->pdcch_config[n_ss];
@@ -449,11 +421,10 @@ int nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
           dci_ind.dci_list[i].dci_format);
   }
 
-  nr_downlink_indication_t dl_indication;
-  // fill dl_indication message
-  nr_fill_dl_indication(&dl_indication, &dci_ind, NULL, proc, ue, phy_data);
+  //  add in   the decoded pdcch (dl_indication contains already the DCI configuration we tried)
+  dl_indication->dci_ind = &dci_ind;
   //  send to mac
-  ue->if_inst->dl_indication(&dl_indication);
+  ue->if_inst->dl_indication(dl_indication);
 
   stop_meas(&ue->dlsch_rx_pdcch_stats);
 
@@ -705,7 +676,6 @@ static bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
   NR_DL_UE_HARQ_t *dl_harq0 = &ue->dl_harq_processes[0][harq_pid];
   NR_DL_UE_HARQ_t *dl_harq1 = &ue->dl_harq_processes[1][harq_pid];
   uint16_t dmrs_len = get_num_dmrs(dlsch[0].dlsch_config.dlDmrsSymbPos);
-  nr_downlink_indication_t dl_indication;
   fapi_nr_rx_indication_t rx_ind = {0};
   uint16_t number_pdus = 1;
 
@@ -790,8 +760,14 @@ static bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
       AssertFatal(true, "Invalid DLSCH type %d\n", dlsch[0].rnti_type);
       break;
   }
-
-  nr_fill_dl_indication(&dl_indication, NULL, &rx_ind, proc, ue, NULL);
+  nr_downlink_indication_t dl_indication = {.gNB_index = proc->gNB_id,
+                                            .module_id = ue->Mod_id,
+                                            .cc_id = ue->CC_id,
+                                            .frame = proc->frame_rx,
+                                            .slot = proc->nr_slot_rx,
+                                            .phy_data = NULL,
+                                            .dci_ind = NULL,
+                                            .rx_ind = &rx_ind};
   nr_fill_rx_indication(&rx_ind, ind_type, ue, &dlsch[0], NULL, number_pdus, proc, NULL, p_b);
 
   LOG_D(PHY, "DL PDU length in bits: %d, in bytes: %d \n", dlsch[0].dlsch_config.TBS, dlsch[0].dlsch_config.TBS / 8);
@@ -872,13 +848,14 @@ static bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
   return dec;
 }
 
-int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
+int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_downlink_indication_t *dl_indication)
 {
   int frame_rx = proc->frame_rx;
   int nr_slot_rx = proc->nr_slot_rx;
   int gNB_id = proc->gNB_id;
   fapi_nr_config_request_t *cfg = &ue->nrUE_config;
   NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
+  nr_phy_data_t *phy_data = (nr_phy_data_t *)dl_indication->phy_data;
   NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
   int sampleShift = 0;
   nr_ue_dlsch_init(phy_data->dlsch, NR_MAX_NB_LAYERS>4 ? 2:1, ue->max_ldpc_iterations);
@@ -1034,7 +1011,7 @@ int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_
       stop_meas(&ue->ofdm_demod_stats);
 
     }
-    dci_cnt = dci_cnt + nr_ue_pdcch_procedures(ue, proc, pdcch_est_size, pdcch_dl_ch_estimates, phy_data, n_ss, rxdataF);
+    dci_cnt = dci_cnt + nr_ue_pdcch_procedures(ue, proc, pdcch_est_size, pdcch_dl_ch_estimates, n_ss, rxdataF, dl_indication);
   }
   LOG_D(PHY, "[UE %d] Frame %d, nr_slot_rx %d: found %d DCIs\n", ue->Mod_id, frame_rx, nr_slot_rx, dci_cnt);
   phy_pdcch_config->nb_search_space = 0;

@@ -92,7 +92,7 @@
 */
 void phy_procedures_nrUE_TX(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_tx_t *phy_data);
 
-int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data);
+int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_downlink_indication_t *dl_indication);
 
 void pdsch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data);
 
@@ -118,15 +118,6 @@ int is_pbch_in_slot(fapi_nr_config_request_t *config, int frame, int slot, NR_DL
 int is_ssb_in_slot(fapi_nr_config_request_t *config, int frame, int slot, NR_DL_FRAME_PARMS *fp);
 bool is_csi_rs_in_symbol(fapi_nr_dl_config_csirs_pdu_rel15_t csirs_config_pdu, int symbol);
 
-/*! \brief This function prepares the dl indication to pass to the MAC
- */
-void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
-                           fapi_nr_dci_indication_t *dci_ind,
-                           fapi_nr_rx_indication_t *rx_ind,
-                           const UE_nr_rxtx_proc_t *proc,
-                           PHY_VARS_NR_UE *ue,
-                           void *phy_data);
-
 /*@}*/
 
 /*! \brief This function prepares the dl rx indication
@@ -145,9 +136,9 @@ int nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
                            const UE_nr_rxtx_proc_t *proc,
                            int32_t pdcch_est_size,
                            c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
-                           nr_phy_data_t *phy_data,
                            int n_ss,
-                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP],
+                           nr_downlink_indication_t *dl_indication);
 
 void nr_ue_csi_im_procedures(PHY_VARS_NR_UE *ue,
                              const UE_nr_rxtx_proc_t *proc,
