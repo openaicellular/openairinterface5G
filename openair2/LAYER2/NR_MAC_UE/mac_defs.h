@@ -172,6 +172,12 @@
   UE_STATE(UE_CONNECTED) \
   UE_STATE(UE_DETACHING)
 
+typedef enum {
+  phr_cause_prohibit_timer = 0,
+  phr_cause_periodic_timer,
+  phr_cause_phr_config,
+} NR_UE_PHR_Reporting_cause_t;
+
 /*!\brief UE layer 2 status */
 typedef enum {
 #define UE_STATE(state) state,
@@ -222,6 +228,24 @@ typedef struct {
   uint32_t maxTransmissions;
 } nr_sr_info_t;
 
+typedef struct {
+  bool is_configured;
+  ///timer before triggering a periodic PHR
+  NR_timer_t periodicPHR_Timer;
+  ///timer before triggering a prohibit PHR
+  NR_timer_t prohibitPHR_Timer;
+  ///DL Pathloss change value
+  uint16_t PathlossLastValue;
+  ///number of subframe before triggering a periodic PHR
+  int16_t periodicPHR_SF;
+  ///number of subframe before triggering a prohibit PHR
+  int16_t prohibitPHR_SF;
+  ///DL Pathloss Change in db
+  uint16_t PathlossChange_db;
+  int phr_reporting;
+  bool was_mac_reset;
+} nr_phr_info_t;
+
 // LTE structure, might need to be adapted for NR
 typedef struct {
   // lcs scheduling info
@@ -240,18 +264,8 @@ typedef struct {
   NR_timer_t retxBSR_Timer;
   /// periodicBSR-Timer
   NR_timer_t periodicBSR_Timer;
-  ///timer before triggering a periodic PHR
-  uint16_t periodicPHR_Timer;
-  ///timer before triggering a prohibit PHR
-  uint16_t prohibitPHR_Timer;
-  ///DL Pathloss change value
-  uint16_t PathlossChange;
-  ///number of subframe before triggering a periodic PHR
-  int16_t periodicPHR_SF;
-  ///number of subframe before triggering a prohibit PHR
-  int16_t prohibitPHR_SF;
-  ///DL Pathloss Change in db
-  uint16_t PathlossChange_db;
+
+  nr_phr_info_t phr_info;
 } NR_UE_SCHEDULING_INFO;
 
 typedef enum {
@@ -559,9 +573,6 @@ typedef struct NR_UE_MAC_INST_s {
   A_SEQUENCE_OF(nr_lcordered_info_t) lc_ordered_list;
 
   NR_UE_SCHEDULING_INFO scheduling_info;
-
-  /// PHR
-  uint8_t PHR_reporting_active;
 
   int dmrs_TypeA_Position;
   int p_Max;

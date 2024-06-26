@@ -118,8 +118,10 @@ void nr_ue_mac_default_configs(NR_UE_MAC_INST_t *mac)
   nr_timer_setup(&mac->scheduling_info.retxBSR_Timer, 80 * subframes_per_slot, 1); // 1 slot update rate
   nr_timer_setup(&mac->scheduling_info.periodicBSR_Timer, 10 * subframes_per_slot, 1); // 1 slot update rate
 
-  mac->scheduling_info.periodicPHR_Timer = NR_PHR_Config__phr_PeriodicTimer_sf10;
-  mac->scheduling_info.prohibitPHR_Timer = NR_PHR_Config__phr_ProhibitTimer_sf10;
+  mac->scheduling_info.phr_info.is_configured = true;
+  mac->scheduling_info.phr_info.PathlossChange_db = 1;
+  nr_timer_setup(&mac->scheduling_info.phr_info.periodicPHR_Timer, 10 * subframes_per_slot, 1);
+  nr_timer_setup(&mac->scheduling_info.phr_info.prohibitPHR_Timer, 10 * subframes_per_slot, 1);
 }
 
 void nr_ue_send_synch_request(NR_UE_MAC_INST_t *mac, module_id_t module_id, int cc_id, const fapi_nr_synch_request_t *sync_req)
@@ -229,7 +231,8 @@ void reset_mac_inst(NR_UE_MAC_INST_t *nr_mac)
   nr_mac->scheduling_info.BSR_reporting_active = NR_BSR_TRIGGER_NONE;
 
   // cancel any triggered Power Headroom Reporting procedure
-  // TODO PHR not implemented yet
+  nr_mac->scheduling_info.phr_info.phr_reporting = 0;
+  nr_mac->scheduling_info.phr_info.was_mac_reset = true;
 
   // flush the soft buffers for all DL HARQ processes
   for (int k = 0; k < NR_MAX_HARQ_PROCESSES; k++)
