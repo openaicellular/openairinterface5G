@@ -294,6 +294,8 @@ void nr_ra_failed(NR_UE_MAC_INST_t *mac, uint8_t CC_id, NR_PRACH_RESOURCES_t *pr
 
 void nr_ra_succeeded(NR_UE_MAC_INST_t *mac, const uint8_t gNB_index, const frame_t frame, const int slot);
 
+int nr_ue_get_mu(NR_UE_MAC_INST_t *mac);
+
 void nr_get_RA_window_2Step(NR_UE_MAC_INST_t *mac);
 
 void nr_get_RA_window_4Step(NR_UE_MAC_INST_t *mac);

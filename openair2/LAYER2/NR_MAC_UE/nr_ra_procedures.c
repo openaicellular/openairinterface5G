@@ -837,6 +837,20 @@ void nr_ue_get_rach(NR_UE_MAC_INST_t *mac, int CC_id, frame_t frame, uint8_t gNB
     nr_ue_contention_resolution(mac, CC_id, frame, nr_slot_tx, prach_resources);
   }
 }
+
+int nr_ue_get_mu(NR_UE_MAC_INST_t *mac)
+{
+  int mu;
+  if (mac->current_UL_BWP->msgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_SubcarrierSpacing_r16)
+    // Choose Subcarrier Spacing of configuration file of 2-Step
+    mu = (int)*mac->current_UL_BWP->msgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_SubcarrierSpacing_r16;
+  else
+    // Choose Subcarrier Spacing of configuration file of 4-Step
+    mu = mac->current_UL_BWP->scs;
+
+  return mu;
+}
+
 void nr_get_RA_window_2Step(NR_UE_MAC_INST_t *mac)
 {
   RA_config_t *ra = &mac->ra;

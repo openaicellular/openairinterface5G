@@ -2809,11 +2809,7 @@ static void nr_ue_prach_scheduler(NR_UE_MAC_INST_t *mac, frame_t frameP, sub_fra
       if (ra->ra_type == RA_4_STEP) {
         nr_Msg1_transmitted(mac);
       } else if (ra->ra_type == RA_2_STEP) {
-        int mu;
-        if (mac->current_UL_BWP->msgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_SubcarrierSpacing_r16)
-          mu = (int)*mac->current_UL_BWP->msgA_ConfigCommon_r16->rach_ConfigCommonTwoStepRA_r16.msgA_SubcarrierSpacing_r16;
-        else
-          mu = mac->current_UL_BWP->scs;
+        int mu = nr_ue_get_mu(mac);
 
         NR_MsgA_PUSCH_Resource_r16_t *msgA_PUSCH_Resource =
             mac->current_UL_BWP->msgA_ConfigCommon_r16->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16;
