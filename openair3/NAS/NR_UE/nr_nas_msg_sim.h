@@ -68,7 +68,9 @@
 #define FGS_PDU_SESSION_ESTABLISHMENT_ACC                  0b11000010 /* 194= 0xc2 */
 #define FGS_PDU_SESSION_ESTABLISHMENT_REJ                  0b11000011 /* 195= 0xc3 */
 
+/* 3GPP TS 24.501 Table 9.11.3.7.1: 5GS registration type IE */
 #define INITIAL_REGISTRATION                               0b001
+#define MOBILITY_REGISTRATION_UPDATING                     0b010
 
 #define PLAIN_5GS_NAS_MESSAGE_HEADER_LENGTH                3
 #define SECURITY_PROTECTED_5GS_NAS_MESSAGE_HEADER_LENGTH   7
