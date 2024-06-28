@@ -1238,14 +1238,14 @@ int main(int argc, char *argv[])
         }
         int offset = (slot & 3) * gNB->frame_parms.symbols_per_slot * gNB->frame_parms.ofdm_symbol_size;
         for (int aa = 0; aa < gNB->frame_parms.nb_antennas_rx; aa++)  {
-          apply_nr_rotation_RX(&gNB->frame_parms,
-                               gNB->common_vars.rxdataF[aa],
-                               gNB->frame_parms.symbol_rotation[1],
-                               slot,
-                               gNB->frame_parms.N_RB_UL,
-                               offset,
-                               0,
-                               gNB->frame_parms.Ncp == EXTENDED ? 12 : 14);
+          const unsigned int max_symb = (gNB->frame_parms.Ncp == EXTENDED) ? 12 : 14;
+          for (int sym = 0; sym < max_symb; sym++)
+            apply_nr_rotation_symbol_RX(&gNB->frame_parms,
+                                        gNB->common_vars.rxdataF[aa] + offset + sym * gNB->frame_parms.ofdm_symbol_size,
+                                        gNB->frame_parms.symbol_rotation[1],
+                                        gNB->frame_parms.N_RB_UL,
+                                        slot,
+                                        sym);
         }
 
         ul_proc_error = phy_procedures_gNB_uespec_RX(gNB, frame, slot);

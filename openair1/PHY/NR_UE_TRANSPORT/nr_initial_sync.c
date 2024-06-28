@@ -248,8 +248,8 @@ void nr_scan_ssb(void *arg)
                             i,
                             frame_id * fp->samples_per_frame + ssbInfo->ssbOffset,
                             (const c16_t **)rxdata,
-                            rxdataF,
-                            link_type_dl);
+                            link_type_dl,
+                            rxdataF);
 
     int freq_offset_sss = 0;
     int32_t metric_tdd_ncp = 0;
