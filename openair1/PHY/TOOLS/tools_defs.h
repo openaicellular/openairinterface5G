@@ -390,15 +390,33 @@ void multadd_complex_vector_real_scalar(int16_t *x,
   @param y        - output     in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
   @param N        - the size f the vectors (this function does N cpx mpy. WARNING: N>=4;
   @param output_shift  - shift to be applied to generate output
-  @param madd - if not zero result is added to output
 */
 
-int mult_cpx_conj_vector(int16_t *x1,
-                         int16_t *x2,
-                         int16_t *y,
-                         uint32_t N,
-                         int output_shift,
-                         int madd);
+void mult_cpx_conj_vector(int16_t *x1, int16_t *x2, int16_t *y, uint32_t N, int output_shift);
+
+/*!
+  Multiply elementwise and accumulation of the complex conjugate of x1 with x2.
+  @param x1       - input 1    in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
+              We assume x1 with a dinamic of 15 bit maximum
+  @param x2       - input 2    in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
+              We assume x2 with a dinamic of 14 bit maximum
+  @param y        - output     in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
+  @param N        - the size f the vectors (this function does N cpx mpy. WARNING: N>=4;
+  @param output_shift  - shift to be applied to generate output
+*/
+void multadd_cpx_conj_vector(int16_t *x1, int16_t *x2, int16_t *y, uint32_t N, int output_shift);
+
+/*!
+  Element-wise multiplication of two complex vectors x1 and x2.
+  @param x1       - input 1    in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
+              We assume x1 with a dinamic of 15 bit maximum
+  @param x2       - input 2    in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
+              We assume x2 with a dinamic of 14 bit maximum
+  @param y        - output     in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
+  @param N        - the size f the vectors (this function does N cpx mpy. WARNING: N>=4;
+  @param output_shift  - shift to be applied to generate output
+*/
+void mult_cpx_vector(const c16_t *x1, const c16_t *x2, c16_t *y, const uint32_t N, const int output_shift);
 
 /*!
   Element-wise multiplication and accumulation of two complex vectors x1 and x2.
@@ -407,23 +425,10 @@ int mult_cpx_conj_vector(int16_t *x1,
   @param x2       - input 2    in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
               We assume x2 with a dinamic of 14 bit maximum
   @param y        - output     in the format  |Re0 Im0 Re1 Im1|,......,|Re(N-2)  Im(N-2) Re(N-1) Im(N-1)|
-  @param zero_flag Set output (y) to zero prior to accumulation
   @param N        - the size f the vectors (this function does N cpx mpy. WARNING: N>=4;
   @param output_shift  - shift to be applied to generate output
 */
-
-int multadd_cpx_vector(int16_t *x1,
-                       int16_t *x2,
-                       int16_t *y,
-                       uint8_t zero_flag,
-                       uint32_t N,
-                       int output_shift);
-
-int mult_cpx_vector(int16_t *x1,
-                    int16_t  *x2,
-                    int16_t *y,
-                    uint32_t N,
-                    int output_shift);
+void multadd_cpx_vector(const c16_t *x1, const c16_t *x2, c16_t *y, const uint32_t N, const int output_shift);
 
 // lte_dfts.c
 void init_fft(uint16_t size,
