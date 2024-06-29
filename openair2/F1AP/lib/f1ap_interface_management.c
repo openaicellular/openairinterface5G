@@ -389,10 +389,8 @@ bool decode_f1ap_setup_request(const F1AP_F1AP_PDU_t *pdu, f1ap_setup_req_t *out
       AssertFatal(out->cell[i].sys_info != NULL, "out of memory\n");
       f1ap_gnb_du_system_info_t *sys_info = out->cell[i].sys_info;
       /* mib */
-      sys_info->mib = calloc(DUsi->mIB_message.size, sizeof(uint8_t));
       sys_info->mib = cp_octet_string(&DUsi->mIB_message, &sys_info->mib_length);
       /* sib1 */
-      sys_info->sib1 = calloc(DUsi->sIB1_message.size, sizeof(uint8_t));
       sys_info->sib1 = cp_octet_string(&DUsi->sIB1_message, &sys_info->sib1_length);
     }
   }
