@@ -299,8 +299,10 @@ bool decode_f1ap_setup_request(const F1AP_F1AP_PDU_t *pdu, f1ap_setup_req_t *out
   F1AP_LIB_FIND_IE(F1AP_F1SetupRequestIEs_t, ie, container, F1AP_ProtocolIE_ID_id_gNB_DU_Name, false);
   out->gNB_DU_name = NULL;
   if (ie != NULL) {
-    int len;
-    out->gNB_DU_name = (char *)cp_octet_string(&ie->value.choice.GNB_DU_Name, &len);
+    const F1AP_GNB_DU_Name_t *du_name = &ie->value.choice.GNB_DU_Name;
+    out->gNB_DU_name = calloc(du_name->size + 1, sizeof(char));
+    AssertFatal(out->gNB_DU_name != NULL, "out of memory\n");
+    strncpy(out->gNB_DU_name, (char *)du_name->buf, du_name->size);
   }
   /* GNB_DU_Served_Cells_List */
   F1AP_LIB_FIND_IE(F1AP_F1SetupRequestIEs_t, ie, container, F1AP_ProtocolIE_ID_id_gNB_DU_Served_Cells_List, true);
