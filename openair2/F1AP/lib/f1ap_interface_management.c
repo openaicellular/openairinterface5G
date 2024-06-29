@@ -657,12 +657,14 @@ bool decode_f1ap_setup_response(const F1AP_F1AP_PDU_t *pdu, f1ap_setup_resp_t *o
         out->transaction_id = ie->value.choice.TransactionID;
         break;
 
-      case F1AP_ProtocolIE_ID_id_gNB_CU_Name:
+      case F1AP_ProtocolIE_ID_id_gNB_CU_Name: {
         CHECK_IE_CONDITION(ie->criticality == F1AP_Criticality_ignore);
         CHECK_IE_CONDITION(ie->value.present == F1AP_F1SetupResponseIEs__value_PR_GNB_CU_Name);
-        int len;
-        out->gNB_CU_name = (char *)cp_octet_string(&ie->value.choice.GNB_CU_Name, &len);
-        break;
+        const F1AP_GNB_CU_Name_t *cu_name = &ie->value.choice.GNB_CU_Name;
+        out->gNB_CU_name = calloc(cu_name->size + 1, sizeof(char));
+        AssertFatal(out->gNB_CU_name != NULL, "out of memory\n");
+        strncpy(out->gNB_CU_name, (char *)cu_name->buf, cu_name->size);
+        } break;
 
       case F1AP_ProtocolIE_ID_id_GNB_CU_RRC_Version:
         CHECK_CRITICALITY_REJECT(ie->criticality);
