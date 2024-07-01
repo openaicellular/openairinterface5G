@@ -25,7 +25,7 @@
 #
 #---------------------------------------------------------------------
 
-FROM ran-base:latestnrppa as ran-base
+FROM ran-base:latest as ran-base
 
 ENV TZ=Europe
 ARG E2AP_VERSION=E2AP_V3
@@ -58,23 +58,9 @@ RUN /bin/sh oaienv && \
     scl enable gcc-toolset-12 "\
     ./build_oai \
       --gNB \
-      --build-lib 'telnetsrv enbscope uescope nrscope' \
-      -t oran_fhlib_5g --cmake-opt -Dxran_LOCATION=/opt/phy/fhi_lib/lib \
-      --build-e2 --cmake-opt -DXAPP_MULTILANGUAGE=OFF --cmake-opt -DKPM_VERSION=$KPM_VERSION --cmake-opt -DE2AP_VERSION=$E2AP_VERSION" &&\
+      -t oran_fhlib_5g --cmake-opt -Dxran_LOCATION=/opt/phy/fhi_lib/lib " && \
     # Mainly to see if the sanitize option was perfectly executed
     ldd ran_build/build/nr-softmodem && \
     ldd ran_build/build/liboran_fhlib_5g.so && \
     ldd /opt/phy/fhi_lib/lib/build/libxran.so
 
-## Build FlexRIC for SM Models
-RUN mkdir -p openair2/E2AP/flexric/build && \
-    cd openair2/E2AP/flexric/build && \
-    scl enable gcc-toolset-12 "\
-    cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_FLAGS_RELEASE="-O3" \
-          -DXAPP_MULTILANGUAGE=OFF \
-          -DKPM_VERSION=$KPM_VERSION \
-          -DE2AP_VERSION=$E2AP_VERSION \
-          -DCMAKE_CXX_FLAGS_RELEASE="-O3" .. &&\
-    ninja && \
-    ninja install"

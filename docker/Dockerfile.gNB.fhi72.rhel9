@@ -25,9 +25,9 @@
 #
 #---------------------------------------------------------------------
 
-FROM ran-base:latest AS gnb-base
+FROM ran-base:latestnrppa AS gnb-base
 
-FROM ran-build:latest AS gnb-build
+FROM ran-build:latestnrppa AS gnb-build
 
 #start from scratch for target executable
 FROM registry.access.redhat.com/ubi9/ubi:latest as oai-gnb

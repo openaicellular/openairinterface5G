@@ -42,7 +42,7 @@
 //#define SRS_DEBUG
 
 #define NO_INTERP 1
-#define  NR_SRS_IDFT_OVERSAMP_FACTOR 16
+#define  NR_SRS_IDFT_OVERSAMP_FACTOR 8
 #define dBc(x,y) (dB_fixed(((int32_t)(x))*(x) + ((int32_t)(y))*(y)))
 
 /* Generic function to find the peak of channel estimation buffer */

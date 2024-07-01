@@ -703,7 +703,7 @@ idft_size_idx_t get_idft(int ofdm_symbol_size)
     case 98304:
       return IDFT_98304;
     default:
-      printf("function get_idft : unsupported ofdm symbol size \n");
+      printf("function get_idft : unsupported ofdm symbol size %d\n",ofdm_symbol_size);
       assert(0);
       break;
   }
