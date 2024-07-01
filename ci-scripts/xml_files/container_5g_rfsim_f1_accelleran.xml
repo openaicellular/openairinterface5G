@@ -53,12 +53,14 @@
                 <class>Attach_UE</class>
                 <desc>Attach OAI UE (Wait for IP)</desc>
                 <id>rfsim5g_ue</id>
+                <nodes>localhost</nodes>
         </testCase>
 
         <testCase id="020021">
                 <class>Ping</class>
                 <desc>Test Connectivity (ping)</desc>
                 <id>rfsim5g_ue</id>
+                <nodes>localhost</nodes>
                 <ping_args>-c 20 12.1.1.1</ping_args>
                 <ping_packetloss_threshold>0</ping_packetloss_threshold>
         </testCase>

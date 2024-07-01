@@ -84,12 +84,14 @@
                 <class>Attach_UE</class>
                 <desc>Attach OAI UE</desc>
                 <id>l2sim5g_ue</id>
+                <nodes>localhost</nodes>
         </testCase>
 
         <testCase id="020001">
                 <class>Ping</class>
                 <desc>Ping ext-dn from NR-UE</desc>
                 <id>l2sim5g_ue</id>
+                <nodes>localhost</nodes>
                 <ping_args> -c 20 192.168.72.135</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
@@ -98,6 +100,7 @@
                 <class>Ping</class>
                 <desc>Ping NR-UE from ext-dn</desc>
                 <id>l2sim5g_ext_dn</id>
+                <nodes>localhost</nodes>
                 <ping_args>-c 20 12.1.1.2</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>

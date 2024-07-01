@@ -78,6 +78,7 @@
                 <class>Ping</class>
                 <desc>Ping Traffic-Gen from LTE-UE</desc>
                 <id>rfsim4g_ue</id>
+                <nodes>localhost</nodes>
                 <ping_args> -c 20 10.0.1.1</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
@@ -86,6 +87,7 @@
                 <class>Ping</class>
                 <desc>Ping LTE-UE from eNB</desc>
                 <id>rfsim4g_enb_nos1</id>
+                <nodes>localhost</nodes>
                 <ping_args> -c 20 10.0.1.2</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
@@ -94,7 +96,9 @@
                 <class>Iperf</class>
                 <desc>Iperf UDP DL</desc>
                 <id>rfsim4g_ue</id>
+                <nodes>localhost</nodes>
                 <svr_id>rfsim4g_enb_nos1</svr_id>
+                <svr_node>localhost</svr_node>
                 <iperf_args>-u -t 30 -b 2M -R</iperf_args>
                 <iperf_packetloss_threshold>25</iperf_packetloss_threshold>
                 <iperf_bitrate_threshold>80</iperf_bitrate_threshold>
@@ -104,7 +108,9 @@
                 <class>Iperf</class>
                 <desc>Iperf UDP UL</desc>
                 <id>rfsim4g_ue</id>
+                <nodes>localhost</nodes>
                 <svr_id>rfsim4g_enb_nos1</svr_id>
+                <svr_node>localhost</svr_node>
                 <iperf_args>-u -t 30 -b 1M</iperf_args>
                 <iperf_packetloss_threshold>25</iperf_packetloss_threshold>
                 <iperf_bitrate_threshold>80</iperf_bitrate_threshold>

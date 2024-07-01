@@ -71,12 +71,14 @@
                 <class>Attach_UE</class>
                 <desc>Attach OAI UE (Wait for IP)</desc>
                 <id>rfsim5g_ue rfsim5g_ue2 rfsim5g_ue3</id>
+                <nodes>localhost localhost localhost</nodes>
         </testCase>
 
         <testCase id="020021">
                 <class>Ping</class>
                 <desc>Ping ext-dn from all NR-UEs</desc>
                 <id>rfsim5g_ue rfsim5g_ue2 rfsim5g_ue3</id>
+                <nodes>localhost localhost localhost</nodes>
                 <ping_args> -c 20 12.1.1.1 -i0.25</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>

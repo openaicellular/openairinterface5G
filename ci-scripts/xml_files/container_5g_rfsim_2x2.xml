@@ -66,12 +66,14 @@
                 <class>Attach_UE</class>
                 <desc>Attach OAI UE (Wait for IP)</desc>
                 <id>rfsim5g_ue</id>
+                <nodes>localhost</nodes>
         </testCase>
 
         <testCase id="020001">
                 <class>Ping</class>
                 <desc>Ping ext-dn from NR-UE</desc>
                 <id>rfsim5g_ue</id>
+                <nodes>localhost</nodes>
                 <ping_args> -c 20 192.168.72.135</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
@@ -80,6 +82,7 @@
                 <class>Ping</class>
                 <desc>Ping NR-UE from ext-dn</desc>
                 <id>rfsim5g_ext_dn</id>
+                <nodes>localhost</nodes>
                 <ping_args>-c 20 12.1.1.2</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
@@ -89,7 +92,9 @@
                 <desc>Iperf (DL/3Mbps/UDP)(30 sec)</desc>
                 <iperf_args>-u -b 3M -t 30 -R</iperf_args>
                 <id>rfsim5g_ue</id>
+                <nodes>localhost</nodes>
                 <svr_id>rfsim5g_ext_dn</svr_id>
+                <svr_node>localhost</svr_node>
                 <iperf_packetloss_threshold>5</iperf_packetloss_threshold>
                 <iperf_bitrate_threshold>90</iperf_bitrate_threshold>
         </testCase>
@@ -99,7 +104,9 @@
                 <desc>Iperf (UL/1Mbps/UDP)(30 sec)</desc>
                 <iperf_args>-u -b 1M -t 30</iperf_args>
                 <id>rfsim5g_ue</id>
+                <nodes>localhost</nodes>
                 <svr_id>rfsim5g_ext_dn</svr_id>
+                <svr_node>localhost</svr_node>
                 <iperf_packetloss_threshold>5</iperf_packetloss_threshold>
                 <iperf_bitrate_threshold>90</iperf_bitrate_threshold>
         </testCase>
