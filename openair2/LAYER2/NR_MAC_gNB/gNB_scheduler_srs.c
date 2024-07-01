@@ -430,7 +430,7 @@ static void nr_configure_srs(nfapi_nr_srs_pdu_t *srs_pdu,
   srs_pdu->num_ant_ports = srs_resource->nrofSRS_Ports;
   srs_pdu->num_symbols = srs_resource->resourceMapping.nrofSymbols;
   srs_pdu->num_repetitions = srs_resource->resourceMapping.repetitionFactor;
-  srs_pdu->time_start_position = srs_resource->resourceMapping.startPosition;
+  srs_pdu->time_start_position = 14 - 1 - srs_resource->resourceMapping.startPosition;
   srs_pdu->config_index = srs_resource->freqHopping.c_SRS;
   srs_pdu->sequence_id = srs_resource->sequenceId;
   srs_pdu->bandwidth_index = srs_resource->freqHopping.b_SRS;
