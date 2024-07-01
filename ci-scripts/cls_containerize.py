@@ -891,7 +891,8 @@ class Containerize():
 		mySSH.run('cp docker-compose.y*ml ci-docker-compose.yml', 5)
 		for image in IMAGES:
 			imageTag = ImageTagToUse(image, self.ranCommitID, self.ranBranch, self.ranAllowMerge)
-			mySSH.run(f'sed -i -e "s#image: {image}:latest#image: oai-ci/{imageTag}#" ci-docker-compose.yml', 2)
+			mySSH.run(f'sed -i -e "s@oaisoftwarealliance/{image}:develop@oai-ci/{imageTag}@" ci-docker-compose.yml',silent=True)
+			mySSH.run(f'sed -i -e "s@{image}:latest@oai-ci/{imageTag}@" ci-docker-compose.yml',silent=True) # temporary solution for not using the new branch
 
 		# Currently support only one
 		svcName = self.services[self.eNB_instance]
