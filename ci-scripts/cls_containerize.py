@@ -83,7 +83,9 @@ def CreateWorkspace(sshSession, sourcePath, ranRepository, ranCommitID, ranTarge
 	sshSession.command(f'git checkout -f {ranCommitID}', '\$', 30)
 	if sshSession.getBefore().count(f'HEAD is now at {ranCommitID[:6]}') != 1:
 		sshSession.command('git log --oneline | head -n5', '\$', 5)
-		logging.warning(f'problems during checkout, is at: {sshSession.getBefore()}')
+		logging.error(f'problems during checkout, is at: {sshSession.getBefore()}')
+		self.exitStatus = 1
+		HTML.CreateHtmlTestRowQueue('N/A', 'KO', "could not checkout correctly")
 	else:
 		logging.debug('successful checkout')
 	# if the branch is not develop, then it is a merge request and we need to do
@@ -325,14 +327,8 @@ class Containerize():
 		if result is not None:
 			self.dockerfileprefix = '.ubuntu22.cross-arm64'
 		
-		# Workaround for some servers, we need to erase completely the workspace
-		if self.forcedWorkspaceCleanup:
-			cmd.run(f'sudo -S rm -Rf {lSourcePath}')
-	
 		self.testCase_id = HTML.testCase_id
-	
-		CreateWorkspace(cmd, lSourcePath, self.ranRepository, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
-
+		cmd.cd(lSourcePath)
 		# if asterix, copy the entitlement and subscription manager configurations
 		if self.host == 'Red Hat':
 			cmd.run('mkdir -p ./etc-pki-entitlement ./rhsm-conf ./rhsm-ca')
@@ -532,7 +528,7 @@ class Containerize():
 		self.ranRepository = 'https://github.com/EpiSci/oai-lte-5g-multi-ue-proxy.git'
 		self.ranAllowMerge = False
 		self.ranTargetBranch = 'master'
-		CreateWorkspace(mySSH, lSourcePath, self.ranRepository, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
+		mySSH.command('cd ' +lSourcePath, '\$', 3)
 		# to prevent accidentally overwriting data that might be used later
 		self.ranCommitID = oldRanCommidID
 		self.ranRepository = oldRanRepository
@@ -862,6 +858,31 @@ class Containerize():
 		HTML.CreateHtmlTestRow('N/A', 'OK', CONST.ALL_PROCESSES_OK)
 		return True
 
+	def Create_Workspace(self):
+		if self.eNB_serverId[self.eNB_instance] == '0':
+			lIpAddr = self.eNBIPAddress
+			lUserName = self.eNBUserName
+			lPassWord = self.eNBPassword
+			lSourcePath = self.eNBSourceCodePath
+		elif self.eNB_serverId[self.eNB_instance] == '1':
+			lIpAddr = self.eNB1IPAddress
+			lUserName = self.eNB1UserName
+			lPassWord = self.eNB1Password
+			lSourcePath = self.eNB1SourceCodePath
+		elif self.eNB_serverId[self.eNB_instance] == '2':
+			lIpAddr = self.eNB2IPAddress
+			lUserName = self.eNB2UserName
+			lPassWord = self.eNB2Password
+			lSourcePath = self.eNB2SourceCodePath
+		if lIpAddr == '' or lUserName == '' or lPassWord == '' or lSourcePath == '':
+			HELP.GenericHelp(CONST.Version)
+			sys.exit('Insufficient Parameter')
+		
+		logging.info(f"Running on server {lIpAddr}")
+		sshSession = cls_cmd.getConnection(lIpAddr)
+
+		CreateWorkspace(sshSession, lSourcePath, self.ranRepository, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
+
 	def DeployObject(self, HTML, EPC):
 		if self.eNB_serverId[self.eNB_instance] == '0':
 			lIpAddr = self.eNBIPAddress
@@ -885,7 +906,6 @@ class Containerize():
 		self.deployKind[self.eNB_instance] = True
 
 		mySSH = cls_cmd.getConnection(lIpAddr)
-		CreateWorkspace(mySSH, lSourcePath, self.ranRepository, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
 
 		mySSH.cd(lSourcePath + '/' + self.yamlPath[self.eNB_instance])
 		mySSH.run('cp docker-compose.y*ml ci-docker-compose.yml', 5)

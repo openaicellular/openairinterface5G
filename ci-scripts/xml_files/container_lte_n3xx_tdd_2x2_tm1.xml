@@ -31,6 +31,7 @@
 111111
 100000
 010010
+800833
 030101
 010001
 000001
@@ -64,7 +65,12 @@
     <node>obelix</node>
     <command>sudo cpupower idle-set -E</command>
   </testCase>
-
+  <testCase id="800833">
+      <class>Create_Workspace</class>
+      <desc>Creating new Workspace</desc>
+      <eNB_instance>0</eNB_instance>
+      <eNB_serverId>0</eNB_serverId>
+  </testCase>
   <testCase id="030101">
     <class>Deploy_Object</class>
     <desc>Deploy eNB (TDD/Band38/2.6Ghz/N3XX) in a container</desc>

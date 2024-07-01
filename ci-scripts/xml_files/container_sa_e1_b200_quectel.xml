@@ -29,6 +29,7 @@
     333333
     300000
     310000
+    800813
     330101
     330102
     330103
@@ -77,7 +78,12 @@
     <desc>Detach Quectel</desc>
     <id>idefix</id>
   </testCase>
-
+  <testCase id="800813">
+      <class>Create_Workspace</class>
+      <desc>Creating new Workspace</desc>
+      <eNB_instance>0</eNB_instance>
+      <eNB_serverId>0</eNB_serverId>
+  </testCase>
   <testCase id="330101">
     <class>Deploy_Object</class>
     <desc>Deploy gNB-CU-CP in a container</desc>

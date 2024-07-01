@@ -300,10 +300,7 @@ class Cluster:
 		self.testCase_id = HTML.testCase_id
 
 		# Workaround for some servers, we need to erase completely the workspace
-		if self.forcedWorkspaceCleanup:
-			self.cmd.run(f'rm -Rf {lSourcePath}')
-		cls_containerize.CreateWorkspace(self.cmd, lSourcePath, self.ranRepository, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
-
+		self.cmd.cd(lSourcePath)
 		# to reduce the amount of data send to OpenShift, we
 		# manually delete all generated files in the workspace
 		self.cmd.run(f'rm -rf {lSourcePath}/cmake_targets/ran_build');

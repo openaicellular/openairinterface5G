@@ -353,7 +353,7 @@ def GetParametersFromXML(action):
 			EPC.cfgUnDeploy = string_field	
 		EPC.cnID = test.findtext('cn_id')
 
-	elif action == 'Deploy_Object' or action == 'Undeploy_Object':
+	elif action == 'Deploy_Object' or action == 'Undeploy_Object' or action == "Create_Workspace":
 		eNB_instance=test.findtext('eNB_instance')
 		if (eNB_instance is None):
 			CONTAINERS.eNB_instance=0
@@ -860,6 +860,8 @@ elif re.match('^TesteNB$', mode, re.IGNORECASE) or re.match('^TestUE$', mode, re
 						success = CONTAINERS.Clean_Test_Server_Images(HTML)
 						if not success:
 							RAN.prematureExit = True
+					elif action == 'Create_Workspace':
+						CONTAINERS.Create_Workspace()
 					elif action == 'Deploy_Object':
 						CONTAINERS.DeployObject(HTML, EPC)
 						if CONTAINERS.exitStatus==1:
