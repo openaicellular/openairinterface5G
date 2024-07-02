@@ -32,15 +32,17 @@
         <TestCaseExclusionList></TestCaseExclusionList>
 
         <testCase id="100012">
-                <class>UndeployGenObject</class>
+                <class>Undeploy_Object</class>
                 <desc>Undeploy all OAI 5G stack</desc>
-                <yaml_path>yaml_files/5g_rfsimulator_fdd_phytest</yaml_path>
+                <yaml_path>ci-scripts/yaml_files/5g_rfsimulator_fdd_phytest</yaml_path>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
         </testCase>
 
         <testCase id="004000">
             <class>Custom_Command</class>
             <desc>Clean-Up any residual volume</desc>
-            <node>localhost</node>
+            <node>cacofonix</node>
             <command>docker volume rm 5g_rfsimulator_fdd_phytest_rrc.config</command>
         </testCase>
 

@@ -26,7 +26,7 @@
         <htmlTabIcon>wrench</htmlTabIcon>
         <TestCaseRequestedList>
  111111
- 100021
+ 800813
  000021
  000022
  000023
@@ -44,35 +44,42 @@
                 <test_svr_id>0</test_svr_id>
                 <images_to_pull>oai-gnb-asan oai-nr-cuup-asan oai-nr-ue-asan</images_to_pull>
         </testCase>
-
+        <testCase id="800813">
+                <class>Create_Workspace</class>
+                <desc>Creating new Workspace</desc>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
+        </testCase>
         <testCase id="000021">
-                <class>DeployGenObject</class>
+                <class>Deploy_Object</class>
                 <desc>Deploy OAI 5G CoreNetwork</desc>
-                <yaml_path>yaml_files/5g_f1_rfsimulator</yaml_path>
+                <yaml_path>ci-scripts/yaml_files/5g_f1_rfsimulator</yaml_path>
                 <services>mysql oai-amf oai-smf oai-upf oai-ext-dn</services>
-                <nb_healthy>5</nb_healthy>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
         </testCase>
 
         <testCase id="000022">
-                <class>DeployGenObject</class>
+                <class>Deploy_Object</class>
                 <desc>Deploy OAI 5G CU+DU+UE RF sim SA</desc>
-                <yaml_path>yaml_files/5g_f1_rfsimulator</yaml_path>
+                <yaml_path>ci-scripts/yaml_files/5g_f1_rfsimulator</yaml_path>
                 <services>oai-cu oai-du oai-nr-ue</services>
-                <nb_healthy>8</nb_healthy>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
         </testCase>
 
         <testCase id="000023">
                 <class>Attach_UE</class>
                 <desc>Attach OAI UE (Wait for IP)</desc>
                 <id>rfsim5g_ue</id>
-                <nodes>localhost</nodes>
+                <nodes>cacofonix</nodes>
         </testCase>
 
         <testCase id="020021">
                 <class>Ping</class>
                 <desc>Ping ext-dn from all NR-UEs</desc>
                 <id>rfsim5g_ue</id>
-                <nodes>localhost</nodes>
+                <nodes>cacofonix</nodes>
                 <ping_args> -c 20 192.168.72.135 -i0.25</ping_args>
                 <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
@@ -80,7 +87,7 @@
         <testCase id="030020">
                 <class>Custom_Command</class>
                 <desc>Simulate a DL radio channel with noise (3 dB)</desc>
-                <node>localhost</node>
+                <node>cacofonix</node>
                 <command>echo channelmod modify 0 noise_power_dB 3 | nc --send-only 192.168.71.181 8091</command>
                 <command_fail>yes</command_fail>
         </testCase>
@@ -90,9 +97,9 @@
                 <desc>Iperf (DL/5Mbps/UDP)(30 sec)</desc>
                 <iperf_args>-u -b 5M -t 30 -R</iperf_args>
                 <id>rfsim5g_ue</id>
-                <nodes>localhost</nodes>
+                <nodes>cacofonix</nodes>
                 <svr_id>rfsim5g_ext_dn</svr_id>
-                <svr_node>localhost</svr_node>
+                <svr_node>cacofonix</svr_node>
                 <iperf_packetloss_threshold>5</iperf_packetloss_threshold>
                 <iperf_bitrate_threshold>90</iperf_bitrate_threshold>
         </testCase>
@@ -102,9 +109,9 @@
                 <desc>Iperf (UL/3Mbps/UDP)(30 sec)</desc>
                 <iperf_args>-u -b 3M -t 30</iperf_args>
                 <id>rfsim5g_ue</id>
-                <nodes>localhost</nodes>
+                <nodes>cacofonix</nodes>
                 <svr_id>rfsim5g_ext_dn</svr_id>
-                <svr_node>localhost</svr_node>
+                <svr_node>cacofonix</svr_node>
                 <iperf_packetloss_threshold>5</iperf_packetloss_threshold>
                 <iperf_bitrate_threshold>90</iperf_bitrate_threshold>
         </testCase>
@@ -112,7 +119,7 @@
         <testCase id="040021">
                 <class>Custom_Command</class>
                 <desc>Simulate a disruption of DL radio channel (ploss 55)(5 sec)</desc>
-                <node>localhost</node>
+                <node>cacofonix</node>
                 <command>echo channelmod modify 0 ploss 55 | nc -N 192.168.71.181 8091 &amp;&amp; sleep 5</command>
                 <command_fail>yes</command_fail>
         </testCase>
@@ -120,7 +127,7 @@
         <testCase id="040022">
                 <class>Custom_Command</class>
                 <desc>Get UE sync state (UE ID 0)</desc>
-                <node>localhost</node>
+                <node>cacofonix</node>
                 <command>echo ciUE sync_state 0 | nc -N 192.168.71.181 8091 | grep -E UE_NOT_SYNC</command>
                 <command_fail>yes</command_fail>
         </testCase>
@@ -128,7 +135,7 @@
         <testCase id="040023">
                 <class>Custom_Command</class>
                 <desc>Restoration of the original DL channel conditions (ploss 0)(5 sec)</desc>
-                <node>localhost</node>
+                <node>cacofonix</node>
                 <command>echo channelmod modify 0 ploss 0 | nc -N 192.168.71.181 8091 &amp;&amp; sleep 5</command>
                 <command_fail>yes</command_fail>
         </testCase>
@@ -136,17 +143,19 @@
         <testCase id="040024">
                 <class>Custom_Command</class>
                 <desc>Get UE sync state (UE ID 0)</desc>
-                <node>localhost</node>
+                <node>cacofonix</node>
                 <command>echo ciUE sync_state 0 | nc -N 192.168.71.181 8091 | grep -E UE_CONNECTED &amp;&amp; sleep 10</command>
                 <command_fail>yes</command_fail>
         </testCase>
 
         <testCase id="100021">
-                <class>UndeployGenObject</class>
+                <class>Undeploy_Object</class>
                 <desc>Undeploy all OAI 5G stack</desc>
-                <yaml_path>yaml_files/5g_f1_rfsimulator</yaml_path>
+                <yaml_path>ci-scripts/yaml_files/5g_f1_rfsimulator</yaml_path>
                 <d_retx_th>30,30,100,100</d_retx_th>
                 <u_retx_th>30,30,100,100</u_retx_th>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
         </testCase>
 
 </testCaseList>

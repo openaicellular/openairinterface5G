@@ -557,7 +557,11 @@ elif re.match('^LogCollecteNB$', mode, re.IGNORECASE):
 	if RAN.eNBIPAddress == 'none':
 		cmd = 'zip -r enb.log.' + RAN.BuildId + '.zip cmake_targets/log'
 		logging.info(cmd)
-		zipStatus = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True, timeout=60)
+		try:
+			zipStatus = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True, timeout=60)
+		except subprocess.CalledProcessError as e:
+			logging.error("Command '{}' returned non-zero exit status {}.".format(e.cmd, e.returncode))
+			logging.error("Error output:\n{}".format(e.output))
 		sys.exit(0)
 	RAN.LogCollecteNB()
 elif re.match('^LogCollectHSS$', mode, re.IGNORECASE):

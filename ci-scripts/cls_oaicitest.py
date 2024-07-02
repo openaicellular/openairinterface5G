@@ -798,7 +798,9 @@ class OaiCiTest():
 		bidirIperf = re.search('--bidir', iperf_opt) is not None
 		client_filename = f'iperf_client_{self.testCase_id}_{ue.getName()}.log'
 		ymlPath = CONTAINERS.yamlPath[0].split('/')
-		logPath = f'../cmake_targets/log/{ymlPath[1]}'
+		logPath = f'../cmake_targets/log/{ymlPath[2]}'
+		# Creating destination log folder if needed on the python executor workspace
+		os.system(f'mkdir -p {logPath}')
 		if udpIperf:
 			target_bitrate, iperf_opt = Iperf_ComputeModifiedBW(idx, ue_num, self.iperf_profile, self.iperf_args)
 			# note: for UDP testing we don't want to use json report - reports 0 Mbps received bitrate
