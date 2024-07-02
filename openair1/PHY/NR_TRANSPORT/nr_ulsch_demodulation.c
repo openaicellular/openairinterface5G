@@ -1388,20 +1388,6 @@ static void inner_rx(PHY_VARS_gNB *gNB,
                           rel15_ul->qam_mod_order);
 }
 
-typedef struct puschSymbolProc_s {
-  PHY_VARS_gNB *gNB;
-  NR_DL_FRAME_PARMS *frame_parms;
-  nfapi_nr_pusch_pdu_t *rel15_ul;
-  int ulsch_id;
-  int slot;
-  int startSymbol;
-  int numSymbols;
-  int16_t *llr;
-  int16_t **llr_layers;
-  int16_t *scramblingSequence;
-  uint32_t nvar;
-} puschSymbolProc_t;
-
 static void nr_pusch_symbol_processing(void *arg)
 {
   puschSymbolProc_t *rdata=(puschSymbolProc_t*)arg;
