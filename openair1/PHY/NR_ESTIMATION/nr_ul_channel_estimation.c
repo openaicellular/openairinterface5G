@@ -86,6 +86,7 @@ static void inner_channel_estimation(void *arg) {
   unsigned short p = rdata->p;
   const int soffset = rdata->soffset;
   int *max_ch = rdata->max_ch;
+  int **max_chs = rdata->max_chs;
   c16_t *ul_ls_est = rdata->ul_ls_est;
   NR_gNB_PUSCH *pusch_vars = rdata->pusch_vars;
   delay_t *delay = rdata->delay;
@@ -403,6 +404,8 @@ static void inner_channel_estimation(void *arg) {
 
  // value update of rdata to be passed to the next inner call
  rdata->max_ch = max_ch;  // Placeholder for max channel value update
+ max_chs[aarx] = max_ch;
+ rdata->max_chs = max_chs;  // Placeholder for max channels value update
  rdata->noise_amp2 = noise_amp2;  // Placeholder for noise amplitude squared update
  noises_amp2[aarx] = noise_amp2;
  rdata->noises_amp2 = noises_amp2;  // Placeholder for noise amplitude squared update
@@ -507,9 +510,10 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
  uint64_t noises_amp2[nb_antennas_rx];
  memset(noises_amp2, 0, sizeof(noises_amp2));
- //
+
  // max_ch array size of rx antennas
- // noise_amp2 size of rx antennas
+ int *max_chs[nb_antennas_rx];
+ memset(max_chs, 0, sizeof(*max_chs));
 
 #ifdef DEBUG_PUSCH_THREAD
 
@@ -529,7 +533,8 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    rdata->nest_count = nest_count;
    rdata->noise_amp2 = noise_amp2; // noise_amp2[aarx]
    rdata->noises_amp2 = noises_amp2;   // Placeholder for noise amplitude squared update
-   rdata->max_ch = max_ch; // max_ch[aarx]
+   rdata->max_ch = max_ch;
+   rdata->max_chs = max_chs; // max_ch[aarx]
 
    rdata->ul_ls_est = ul_ls_est;
    rdata->delay = delay;
@@ -582,7 +587,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
  printf("\n Exit Pool - Starts with: %i\n",gNB->frame_parms.nb_antennas_rx);
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
-  printf("Array # = %i\t Estimated delay = %i\t Noise Amp2 = %" PRIu64 "\t", aarx, delay[aarx].est_delay, noises_amp2[aarx]);
+  printf("Array # = %i\t Estimated channel = %d\t delay = %i\t Noise Amp2 = %" PRIu64 "\n", aarx, *max_chs[aarx], delay[aarx].est_delay, noises_amp2[aarx]);
  }
  printf("\n Exit Pool - Ends \n");
 

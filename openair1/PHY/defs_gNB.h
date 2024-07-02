@@ -758,6 +758,7 @@ typedef struct {
   unsigned short p;
   int soffset;
   int *max_ch;
+  int **max_chs;
   c16_t *ul_ls_est;
   NR_gNB_PUSCH *pusch_vars;
   delay_t *delay;
