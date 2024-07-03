@@ -36,6 +36,7 @@
 #include "PHY/MODULATION/nr_modulation.h"
 #include "PHY/NR_REFSIG/dmrs_nr.h"
 #include "PHY/NR_REFSIG/ptrs_nr.h"
+#include "SCHED_NR/sched_nr.h"
 #include "common/utils/LOG/vcd_signal_dumper.h"
 #include "common/utils/nr/nr_common.h"
 #include "executables/softmodem-common.h"
@@ -46,6 +47,155 @@
 static void nr_pdsch_codeword_scrambling(uint8_t *in, uint32_t size, uint8_t q, uint32_t Nid, uint32_t n_RNTI, uint32_t *out)
 {
   nr_codeword_scrambling(in, size, q, Nid, n_RNTI, out);
+}
+
+static void handle_dlsch_beam(PHY_VARS_gNB *gNB,
+                              NR_DL_FRAME_PARMS *frame_parms,
+                              uint32_t start_sc,
+                              int nl,
+                              int ant,
+                              const uint32_t txdataF_offset,
+                              nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15,
+                              c16_t txdataF_precoding[rel15->nrOfLayers][NR_SYMBOLS_PER_SLOT][frame_parms->ofdm_symbol_size])
+{
+  c16_t **txdataF = gNB->common_vars.txdataF;
+  const int re_cnt = NR_NB_SC_PER_RB * rel15->rbSize;
+  for (int l_symbol = rel15->StartSymbolIndex; l_symbol < rel15->StartSymbolIndex + rel15->NrOfSymbols; l_symbol++) {
+    const size_t txdataF_offset_per_symbol = l_symbol * frame_parms->ofdm_symbol_size + txdataF_offset;
+    if (start_sc + re_cnt <= frame_parms->ofdm_symbol_size) { // does not cross DC
+      memcpy(&txdataF[ant][txdataF_offset_per_symbol + start_sc],
+             &txdataF_precoding[nl][l_symbol][start_sc],
+             re_cnt * sizeof(**txdataF));
+    } else { // RB does cross DC
+      const int neg_length = frame_parms->ofdm_symbol_size - start_sc;
+      const int pos_length = re_cnt - neg_length;
+      memcpy(&txdataF[ant][txdataF_offset_per_symbol + start_sc],
+             &txdataF_precoding[nl][l_symbol][start_sc],
+             neg_length * sizeof(**txdataF));
+      memcpy(&txdataF[ant][txdataF_offset_per_symbol],
+             &txdataF_precoding[nl][l_symbol],
+             pos_length * sizeof(**txdataF));
+    }
+  }
+}
+
+static void handle_dlsch_precoding(PHY_VARS_gNB *gNB,
+                                   NR_DL_FRAME_PARMS *frame_parms,
+                                   uint32_t start_sc,
+                                   const uint32_t txdataF_offset,
+                                   nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15,
+                                   c16_t txdataF_precoding[rel15->nrOfLayers][NR_SYMBOLS_PER_SLOT][frame_parms->ofdm_symbol_size])
+{
+  c16_t **txdataF = gNB->common_vars.txdataF;
+  nfapi_nr_tx_precoding_and_beamforming_t *p_and_b = &rel15->precodingAndBeamforming;
+  for (int ant = 0; ant < frame_parms->nb_antennas_tx; ant++) {
+    for (int l_symbol = rel15->StartSymbolIndex; l_symbol < rel15->StartSymbolIndex + rel15->NrOfSymbols; l_symbol++) {
+      uint32_t subCarrier = start_sc;
+      const size_t txdataF_offset_per_symbol = l_symbol * frame_parms->ofdm_symbol_size + txdataF_offset;
+      int rb = 0;
+      while(rb < rel15->rbSize) {
+        //get pmi info
+        const int pmi = (p_and_b->prg_size > 0) ? (p_and_b->prgs_list[(int)rb / p_and_b->prg_size].pm_idx) : 0;
+        const int pmi2 = (rb < (rel15->rbSize - 1) && p_and_b->prg_size > 0) ?
+                         (p_and_b->prgs_list[(int)(rb + 1) / p_and_b->prg_size].pm_idx) :
+                         -1;
+
+        // If pmi of next RB and pmi of current RB are the same, we do 2 RB in a row
+        // if pmi differs, or current rb is the end (rel15->rbSize - 1), than we do 1 RB in a row
+        const int rb_step = pmi == pmi2 ? 2 : 1;
+        const int re_cnt = NR_NB_SC_PER_RB * rb_step;
+        if (pmi == 0) { // unitary Precoding (or no precoding)
+          if (subCarrier + re_cnt <= frame_parms->ofdm_symbol_size) { // RB does not cross DC
+            if (ant < rel15->nrOfLayers)
+              memcpy(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
+                     &txdataF_precoding[ant][l_symbol][subCarrier],
+                     re_cnt * sizeof(**txdataF));
+            else
+              memset(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
+                     0,
+                     re_cnt * sizeof(**txdataF));
+          } else { // RB does cross DC
+            const int neg_length = frame_parms->ofdm_symbol_size - subCarrier;
+            const int pos_length = re_cnt - neg_length;
+            if (ant < rel15->nrOfLayers) {
+              memcpy(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
+                     &txdataF_precoding[ant][l_symbol][subCarrier],
+                     neg_length * sizeof(**txdataF));
+              memcpy(&txdataF[ant][txdataF_offset_per_symbol],
+                     &txdataF_precoding[ant][l_symbol],
+                     pos_length * sizeof(**txdataF));
+            } else {
+              memset(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
+                     0,
+                     neg_length * sizeof(**txdataF));
+              memset(&txdataF[ant][txdataF_offset_per_symbol],
+                     0,
+                     pos_length * sizeof(**txdataF));
+            }
+          }
+          subCarrier += re_cnt;
+          if (subCarrier >= frame_parms->ofdm_symbol_size) {
+            subCarrier -= frame_parms->ofdm_symbol_size;
+          }
+        }
+        else { // non-unitary Precoding
+          AssertFatal(frame_parms->nb_antennas_tx > 1, "No precoding can be done with a single antenna port\n");
+          // get the precoding matrix weights:
+          nfapi_nr_pm_pdu_t *pmi_pdu = &gNB->gNB_config.pmi_list.pmi_pdu[pmi - 1]; // pmi 0 is identity matrix
+          AssertFatal(pmi == pmi_pdu->pm_idx,
+                      "PMI %d doesn't match to the one in precoding matrix %d\n",
+                      pmi,
+                      pmi_pdu->pm_idx);
+          AssertFatal(ant < pmi_pdu->num_ant_ports,
+                      "Antenna port index %d exceeds precoding matrix AP size %d\n",
+                      ant,
+                      pmi_pdu->num_ant_ports);
+          AssertFatal(rel15->nrOfLayers == pmi_pdu->numLayers,
+                      "Number of layers %d doesn't match to the one in precoding matrix %d\n",
+                      rel15->nrOfLayers,
+                      pmi_pdu->numLayers);
+          if ((subCarrier + re_cnt) < frame_parms->ofdm_symbol_size) { // within ofdm_symbol_size, use SIMDe
+            nr_layer_precoder_simd(rel15->nrOfLayers,
+                                   NR_SYMBOLS_PER_SLOT,
+                                   frame_parms->ofdm_symbol_size,
+                                   txdataF_precoding,
+                                   ant,
+                                   pmi_pdu,
+                                   l_symbol,
+                                   subCarrier,
+                                   re_cnt,
+                                   &txdataF[ant][txdataF_offset_per_symbol]);
+            subCarrier += re_cnt;
+          }
+          else { // crossing ofdm_symbol_size, use simple arithmetic operations
+            for (int i = 0; i < re_cnt; i++) {
+              txdataF[ant][txdataF_offset_per_symbol + subCarrier] =
+              nr_layer_precoder_cm(rel15->nrOfLayers,
+                                   NR_SYMBOLS_PER_SLOT,
+                                   frame_parms->ofdm_symbol_size,
+                                   txdataF_precoding,
+                                   ant,
+                                   pmi_pdu,
+                                   l_symbol,
+                                   subCarrier);
+#ifdef DEBUG_DLSCH_MAPPING
+              printf("antenna %d\t l %d \t subCarrier %d \t txdataF: %d %d\n",
+                     ant,
+                     symbol,
+                     subCarrier,
+                     txdataF[ant][l_symbol * frame_parms->ofdm_symbol_size + subCarrier + txdataF_offset].r,
+                     txdataF[ant][l_symbol * frame_parms->ofdm_symbol_size + subCarrier + txdataF_offset].i);
+#endif
+              if (++subCarrier >= frame_parms->ofdm_symbol_size) {
+                subCarrier -= frame_parms->ofdm_symbol_size;
+              }
+            }
+          } // else{ // crossing ofdm_symbol_size, use simple arithmetic operations
+        } // else { // non-unitary Precoding
+        rb += rb_step;
+      } // RB loop: while(rb < rel15->rbSize)
+    } // symbol loop
+  } // port loop
 }
 
 void nr_generate_pdsch(processingData_L1tx_t *msgTx, int frame, int slot)
@@ -181,7 +331,7 @@ void nr_generate_pdsch(processingData_L1tx_t *msgTx, int frame, int slot)
     /// Resource mapping
     
     // Non interleaved VRB to PRB mapping
-    uint16_t start_sc = frame_parms->first_carrier_offset + (rel15->rbStart+rel15->BWPStart)*NR_NB_SC_PER_RB;
+    uint32_t start_sc = frame_parms->first_carrier_offset + (rel15->rbStart+rel15->BWPStart)*NR_NB_SC_PER_RB;
     if (start_sc >= frame_parms->ofdm_symbol_size)
       start_sc -= frame_parms->ofdm_symbol_size;
 
@@ -279,7 +429,7 @@ void nr_generate_pdsch(processingData_L1tx_t *msgTx, int frame, int slot)
             nr_modulation(pdsch_dmrs[l_symbol][rel15->SCID], n_ptrs * DMRS_MOD_ORDER, DMRS_MOD_ORDER, (int16_t *)mod_ptrs);
           }
         }
-        uint16_t k = start_sc;
+        uint32_t k = start_sc;
         if (ptrs_symbol || dmrs_symbol_map & (1 << l_symbol)) {
           // Loop Over SCs:
           for (int i=0; i<rel15->rbSize*NR_NB_SC_PER_RB; i++) {
@@ -456,137 +606,30 @@ void nr_generate_pdsch(processingData_L1tx_t *msgTx, int frame, int slot)
     } // layer loop
     stop_meas(&gNB->dlsch_resource_mapping_stats);
 
-    ///Layer Precoding and Antenna port mapping
-    // tx_layers 1-8 are mapped on antenna ports 1000-1007
-    // The precoding info is supported by nfapi such as num_prgs, prg_size, prgs_list and pm_idx
-    // The same precoding matrix is applied on prg_size RBs, Thus
-    //        pmi = prgs_list[rbidx/prg_size].pm_idx, rbidx =0,...,rbSize-1
-    // The Precoding matrix:
-    // The Codebook Type I
-    start_meas(&gNB->dlsch_precoding_stats);
-    c16_t **txdataF = gNB->common_vars.txdataF;
-
-    for (int ant = 0; ant < frame_parms->nb_antennas_tx; ant++) {
-      for (int l_symbol = rel15->StartSymbolIndex; l_symbol < rel15->StartSymbolIndex + rel15->NrOfSymbols; l_symbol++) {
-        uint16_t subCarrier = start_sc;
-        const size_t txdataF_offset_per_symbol = l_symbol * frame_parms->ofdm_symbol_size + txdataF_offset;
-        int rb = 0;
-        while(rb < rel15->rbSize) {
-          //get pmi info
-          const int pmi = (rel15->precodingAndBeamforming.prg_size > 0) ?
-            (rel15->precodingAndBeamforming.prgs_list[(int)rb/rel15->precodingAndBeamforming.prg_size].pm_idx) : 0;
-          const int pmi2 = (rb < (rel15->rbSize - 1) && rel15->precodingAndBeamforming.prg_size > 0) ?
-            (rel15->precodingAndBeamforming.prgs_list[(int)(rb+1)/rel15->precodingAndBeamforming.prg_size].pm_idx) : -1;
-
-          // If pmi of next RB and pmi of current RB are the same, we do 2 RB in a row
-          // if pmi differs, or current rb is the end (rel15->rbSize - 1), than we do 1 RB in a row
-          const int rb_step = pmi == pmi2 ? 2 : 1;
-          const int re_cnt  = NR_NB_SC_PER_RB * rb_step;
-
-          if (pmi == 0) {//unitary Precoding
-            if (subCarrier + re_cnt <= frame_parms->ofdm_symbol_size) { // RB does not cross DC
-              if (ant < rel15->nrOfLayers)
-                 memcpy(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
-                        &txdataF_precoding[ant][l_symbol][subCarrier],
-                        re_cnt * sizeof(**txdataF));
-              else
-                 memset(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
-                        0,
-                        re_cnt * sizeof(**txdataF));
-            } else { // RB does cross DC
-              const int neg_length = frame_parms->ofdm_symbol_size - subCarrier;
-              const int pos_length = re_cnt - neg_length;
-              if (ant < rel15->nrOfLayers) {
-                memcpy(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
-                       &txdataF_precoding[ant][l_symbol][subCarrier],
-                       neg_length * sizeof(**txdataF));
-                memcpy(&txdataF[ant][txdataF_offset_per_symbol],
-                       &txdataF_precoding[ant][l_symbol],
-                       pos_length * sizeof(**txdataF));
-              } else {
-                 memset(&txdataF[ant][txdataF_offset_per_symbol + subCarrier],
-                        0,
-                        neg_length * sizeof(**txdataF));
-                 memset(&txdataF[ant][txdataF_offset_per_symbol],
-                        0,
-                        pos_length * sizeof(**txdataF));
-              }
-            }
-            subCarrier += re_cnt;
-            if (subCarrier >= frame_parms->ofdm_symbol_size) {
-              subCarrier -= frame_parms->ofdm_symbol_size;
-            }
-          }
-          else { // non-unitary Precoding
-            AssertFatal(frame_parms->nb_antennas_tx > 1, "No precoding can be done with a single antenna port\n");
-            //get the precoding matrix weights:
-            nfapi_nr_pm_pdu_t *pmi_pdu = &gNB->gNB_config.pmi_list.pmi_pdu[pmi - 1]; // pmi 0 is identity matrix
-            AssertFatal(pmi == pmi_pdu->pm_idx, "PMI %d doesn't match to the one in precoding matrix %d\n",
-                        pmi, pmi_pdu->pm_idx);
-            AssertFatal(ant < pmi_pdu->num_ant_ports, "Antenna port index %d exceeds precoding matrix AP size %d\n",
-                        ant, pmi_pdu->num_ant_ports);
-            AssertFatal(rel15->nrOfLayers == pmi_pdu->numLayers, "Number of layers %d doesn't match to the one in precoding matrix %d\n",
-                        rel15->nrOfLayers, pmi_pdu->numLayers);
-            if((subCarrier + re_cnt) < frame_parms->ofdm_symbol_size){ // within ofdm_symbol_size, use SIMDe
-              nr_layer_precoder_simd(rel15->nrOfLayers,
-                                     NR_SYMBOLS_PER_SLOT,
-                                     frame_parms->ofdm_symbol_size,
-                                     txdataF_precoding,
-                                     ant,
-                                     pmi_pdu,
-                                     l_symbol,
-                                     subCarrier,
-                                     re_cnt,
-                                     &txdataF[ant][txdataF_offset_per_symbol]);
-              subCarrier += re_cnt;
-            }
-            else{ // crossing ofdm_symbol_size, use simple arithmetic operations
-              for (int i = 0; i < re_cnt; i++) {
-                txdataF[ant][txdataF_offset_per_symbol + subCarrier] =
-                    nr_layer_precoder_cm(rel15->nrOfLayers,
-                                         NR_SYMBOLS_PER_SLOT,
-                                         frame_parms->ofdm_symbol_size,
-                                         txdataF_precoding,
-                                         ant,
-                                         pmi_pdu,
-                                         l_symbol,
-                                         subCarrier);
-#ifdef DEBUG_DLSCH_MAPPING
-                printf("antenna %d\t l %d \t subCarrier %d \t txdataF: %d %d\n",
-                       ant,
-                       symbol,
-                       subCarrier,
-                       txdataF[ant][l_symbol * frame_parms->ofdm_symbol_size + subCarrier + txdataF_offset].r,
-                       txdataF[ant][l_symbol * frame_parms->ofdm_symbol_size + subCarrier + txdataF_offset].i);
-#endif
-                if (++subCarrier >= frame_parms->ofdm_symbol_size) {
-                  subCarrier -= frame_parms->ofdm_symbol_size;
-                }
-              }
-            } // else{ // crossing ofdm_symbol_size, use simple arithmetic operations
-          } // else { // non-unitary Precoding
-
-          rb += rb_step;
-        } // RB loop: while(rb < rel15->rbSize)
-      } // symbol loop
-    } // port loop
-
-    stop_meas(&gNB->dlsch_precoding_stats);
-
-    // TODO: handle precoding
-    // this maps the layers onto antenna ports
-    
-    // handle beamforming ID
-    // each antenna port is assigned a beam_index
-    // since PHY can only handle BF on slot basis we set the whole slot
-
-    // first check if this slot has not already been allocated to another beam
-    if (gNB->common_vars.beam_id[0][slot*frame_parms->symbols_per_slot]==255) {
-      for (int j=0;j<frame_parms->symbols_per_slot;j++) 
-	gNB->common_vars.beam_id[0][slot*frame_parms->symbols_per_slot+j] = rel15->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx;
+    // TODO Currently we don't handle the coexistence of beamforming and precoding (MIMO)
+    if (gNB->common_vars.beam_id) {
+      AssertFatal(rel15->nrOfLayers == 1, "No beamforming and MIMO coexistence for now\n");
+      int ant_idx = get_log_antenna_port_index(frame_parms->nb_antennas_tx,
+                                               rel15->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx,
+                                               gNB->common_vars.beam_id,
+                                               slot,
+                                               frame_parms->symbols_per_slot,
+                                               rel15->StartSymbolIndex,
+                                               rel15->NrOfSymbols);
+      handle_dlsch_beam(gNB, frame_parms, start_sc, 0, ant_idx, txdataF_offset, rel15, txdataF_precoding);
+      set_beamid_structure(gNB, ant_idx, rel15->StartSymbolIndex, rel15->NrOfSymbols, slot, &rel15->precodingAndBeamforming);
     }
     else {
-      LOG_D(PHY,"beam index for PDSCH allocation already taken\n");
+      ///Layer Precoding and Antenna port mapping
+      // tx_layers 1-8 are mapped on antenna ports 1000-1007
+      // The precoding info is supported by nfapi such as num_prgs, prg_size, prgs_list and pm_idx
+      // The same precoding matrix is applied on prg_size RBs, Thus
+      //        pmi = prgs_list[rbidx/prg_size].pm_idx, rbidx =0,...,rbSize-1
+      // The Precoding matrix:
+      // The Codebook Type I
+      start_meas(&gNB->dlsch_precoding_stats);
+      handle_dlsch_precoding(gNB, frame_parms, start_sc, txdataF_offset, rel15, txdataF_precoding);
+      stop_meas(&gNB->dlsch_precoding_stats);
     }
   }// dlsch loop
 }

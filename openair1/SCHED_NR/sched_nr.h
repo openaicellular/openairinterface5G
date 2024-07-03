@@ -32,6 +32,19 @@
 #include "PHY/NR_TRANSPORT/nr_dci.h"
 #include "phy_frame_config_nr.h"
 
+int get_log_antenna_port_index(int num_log_ant,
+                               int fapi_beam_index,
+                               int **beam_id,
+                               int slot,
+                               int symbols_per_slot,
+                               int start_symbol,
+                               int nb_symbols);
+void set_beamid_structure(PHY_VARS_gNB *gNB,
+                          int ant_idx,
+                          int start_symb,
+                          int n_symb,
+                          int slot,
+                          const nfapi_nr_tx_precoding_and_beamforming_t *pb);
 void nr_set_ssb_first_subcarrier(nfapi_nr_config_request_scf_t *cfg, NR_DL_FRAME_PARMS *fp);
 void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx, int frame_tx, int slot_tx, int do_meas);
 int  phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx);

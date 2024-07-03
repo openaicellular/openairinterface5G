@@ -48,9 +48,9 @@ int nr_phy_init_RU(RU_t *ru)
 
   AssertFatal(ru->nb_log_antennas > 0 && ru->nb_log_antennas < 13, "ru->nb_log_antennas %d ! \n",ru->nb_log_antennas);
 
-  ru->common.beam_id = (uint8_t**)malloc16_clear(ru->nb_log_antennas * sizeof(uint8_t*));
-  for(int i = 0; i < ru->nb_tx; ++i)
-    ru->common.beam_id[i] = (uint8_t*)malloc16_clear(fp->symbols_per_slot * fp->slots_per_frame * sizeof(uint8_t));
+  ru->common.beam_id = (int**)malloc16_clear(ru->nb_log_antennas * sizeof(int*));
+  for(int i = 0; i < ru->nb_log_antennas; ++i)
+    ru->common.beam_id[i] = (int*)malloc16_clear(fp->symbols_per_slot * fp->slots_per_frame * sizeof(int));
 
   if (ru->if_south <= REMOTE_IF5) { // this means REMOTE_IF5 or LOCAL_RF, so allocate memory for time-domain signals 
     // Time-domain signals

@@ -201,7 +201,7 @@ void nr_feptx_prec(RU_t *ru, int frame_tx, int tti_tx)
        for(int i = 0; i < ru->nb_log_antennas; ++i) {
          memcpy((void*) &ru->common.beam_id[i][slot_tx * fp->symbols_per_slot],
                 (void*) &gNB->common_vars.beam_id[i][slot_tx * fp->symbols_per_slot],
-                (fp->symbols_per_slot) * sizeof(uint8_t));
+                (fp->symbols_per_slot) * sizeof(int));
         }
     }
 
@@ -292,9 +292,9 @@ void nr_feptx(void *arg)
 
   if (ru->config.dbt_config.num_dig_beams != 0) {
      for(int i = 0; i < ru->nb_log_antennas; ++i) {
-       memcpy((void*) &ru->common.beam_id[i][slot*fp->symbols_per_slot],
-              (void*) &ru->gNB_list[0]->common_vars.beam_id[i][slot*fp->symbols_per_slot],
-              (fp->symbols_per_slot)*sizeof(uint8_t));
+       memcpy((void*) &ru->common.beam_id[i][slot * fp->symbols_per_slot],
+              (void*) &ru->gNB_list[0]->common_vars.beam_id[i][slot * fp->symbols_per_slot],
+              (fp->symbols_per_slot) * sizeof(int));
       }
   }
 
