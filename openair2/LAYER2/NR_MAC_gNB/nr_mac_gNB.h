@@ -545,6 +545,8 @@ typedef struct nr_lc_config {
   int priority;
   /// associated NSSAI for DRB
   nssai_t nssai;
+  uint64_t max_bitrate;
+  uint64_t guaranteed_bitrate;
   /// QoS config for DRB
   NR_QoS_config_t qos_config[NR_MAX_NUM_QFI];
 } nr_lc_config_t;

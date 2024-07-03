@@ -21,6 +21,7 @@
  *      contact@openairinterface.org
  */
 
+#define _GNU_SOURCE
 #include <time.h>
 #include <stdlib.h>
 #include "e1ap_common.h"
@@ -242,4 +243,63 @@ int e1ap_encode_send(E1_t type, sctp_assoc_t assoc_id, E1AP_E1AP_PDU_t *pdu, uin
   itti_send_msg_to_task(TASK_SCTP, 0 /*unused by callee*/, message);
 
   return encoded;
+}
+
+uint64_t get_5QI_id(uint64_t fiveqi)
+{
+  for (int id = 0; id < STANDARIZED_5QI_NUM; id++) {
+    if (params_5QI[id].five_QI == fiveqi)
+      return id;
+  }
+  AssertFatal(1 == 0, "Invalid 5QI value\n");
+}
+
+static int qos_cmp(const void *a, const void *b, void *qostype)
+{
+  fiveQI_type_t qos_type = *((fiveQI_type_t *)qostype);
+  long priority1 = 0, priority2 = 0;
+  if (qos_type == non_dynamic) { // non-dynamic
+    priority1 =
+        params_5QI[get_5QI_id(((qos_flow_to_setup_t *)a)->qos_params.qos_characteristics.non_dynamic.fiveqi)].priority_level;
+    priority2 =
+        params_5QI[get_5QI_id(((qos_flow_to_setup_t *)b)->qos_params.qos_characteristics.non_dynamic.fiveqi)].priority_level;
+  } else { // dynamic
+    priority1 = ((qos_flow_to_setup_t *)a)->qos_params.qos_characteristics.dynamic.qos_priority_level;
+    priority2 = ((qos_flow_to_setup_t *)b)->qos_params.qos_characteristics.dynamic.qos_priority_level;
+  }
+  return priority1 - priority2;
+}
+
+void get_drb_characteristics(qos_flow_to_setup_t *qos_flows_in,
+                             int num_qos_flows,
+                             fiveQI_type_t qos_type,
+                             qos_flow_level_qos_parameters_t *dRB_QoS)
+{
+  qos_characteristics_t *qos_char_drb = &dRB_QoS->qos_characteristics;
+  qos_flow_to_setup_t *qos_flow = qos_flows_in;
+
+  if (qos_type == non_dynamic) { // non-dynamic
+    qsort_r(qos_flow, num_qos_flows, sizeof(qos_flow_to_setup_t), qos_cmp, (void *)&qos_type);
+    qos_char_drb->qos_type = non_dynamic;
+    qos_char_drb->non_dynamic.fiveqi = qos_flow->qos_params.qos_characteristics.non_dynamic.fiveqi;
+  } else { // dynamic
+    qsort_r(qos_flow, num_qos_flows, sizeof(qos_flow_to_setup_t), qos_cmp, (void *)&qos_type);
+    qos_char_drb->qos_type = dynamic;
+    qos_char_drb->dynamic.qos_priority_level = qos_flow->qos_params.qos_characteristics.dynamic.qos_priority_level;
+    qos_char_drb->dynamic.packet_delay_budget = qos_flow->qos_params.qos_characteristics.dynamic.packet_delay_budget;
+    qos_char_drb->dynamic.packet_error_rate.per_exponent =
+        qos_flow->qos_params.qos_characteristics.dynamic.packet_error_rate.per_exponent;
+    qos_char_drb->dynamic.packet_error_rate.per_scalar =
+        qos_flow->qos_params.qos_characteristics.dynamic.packet_error_rate.per_scalar;
+  }
+
+  /* GBR Information for a DRB */
+  gbr_qos_flow_information_t *gbr_in = qos_flow->qos_params.gbr_qos_flow_info;
+  if (gbr_in) {
+    dRB_QoS->gbr_qos_flow_info = calloc(1, sizeof(gbr_qos_flow_information_t));
+    dRB_QoS->gbr_qos_flow_info->gbr_dl = gbr_in->gbr_dl;
+    dRB_QoS->gbr_qos_flow_info->gbr_ul = gbr_in->gbr_ul;
+    dRB_QoS->gbr_qos_flow_info->mbr_dl = gbr_in->mbr_dl;
+    dRB_QoS->gbr_qos_flow_info->mbr_ul = gbr_in->mbr_ul;
+  }
 }

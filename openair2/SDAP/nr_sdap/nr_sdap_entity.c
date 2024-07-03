@@ -24,10 +24,41 @@
 #include <openair2/LAYER2/nr_pdcp/nr_pdcp_oai_api.h>
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "openair2/LAYER2/nr_pdcp/nr_pdcp_ue_manager.h"
+#include "openair2/COMMON/qos_flow_messages_types.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+
+/* Standarized 5QI values and Default Priority levels as mentioned in 3GPP TS 23.501 Table 5.7.4-1 */
+const standard_5QI_characteristics_t params_5QI[] = {
+    {1, 20, gbr},
+    {2, 40, gbr},
+    {3, 30, gbr},
+    {4, 50, gbr},
+    {65, 7, gbr},
+    {66, 20, gbr},
+    {67, 15, gbr},
+    {71, 56, gbr},
+    {72, 56, gbr},
+    {73, 56, gbr},
+    {74, 56, gbr},
+    {76, 56, gbr},
+    {5, 10, gbr},
+    {6, 60, non_gbr},
+    {7, 70, non_gbr},
+    {8, 80, non_gbr},
+    {9, 90, non_gbr},
+    {69, 5, non_gbr},
+    {70, 55, non_gbr},
+    {79, 65, non_gbr},
+    {80, 68, non_gbr},
+    {82, 19, non_gbr},
+    {83, 22, delay_critical_gbr},
+    {84, 24, delay_critical_gbr},
+    {85, 21, delay_critical_gbr},
+    {86, 18, delay_critical_gbr},
+};
 
 typedef struct {
   nr_sdap_entity_t *sdap_entity_llist;

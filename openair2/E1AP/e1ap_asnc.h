@@ -67,5 +67,6 @@
 #include <E1AP_PDCP-Configuration.h>
 #include <E1AP_Slice-Support-List.h>
 #include <E1AP_Slice-Support-Item.h>
+#include <E1AP_ProtocolExtensionField.h>
 
 #endif

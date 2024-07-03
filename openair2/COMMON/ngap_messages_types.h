@@ -32,6 +32,7 @@
 #include "common/platform_constants.h"
 #include "common/platform_types.h"
 #include "common/ngran_types.h"
+#include "qos_flow_messages_types.h"
 #include "LTE_asn_constant.h"
 //-------------------------------------------------------------------------------------------//
 // Defines to access message fields.
@@ -207,6 +208,7 @@ typedef struct pdusession_level_qos_parameter_s {
   uint64_t qos_priority;
   fiveQI_type_t fiveQI_type;
   ngap_allocation_retention_priority_t allocation_retention_priority;
+  gbr_qos_flow_information_t gbr_qos_flow_level_qos_params;
 } pdusession_level_qos_parameter_t;
 
 typedef struct ngap_guami_s {

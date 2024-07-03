@@ -29,6 +29,7 @@
 #include "common/ngran_types.h"
 #include "f1ap_messages_types.h"
 #include "ngap_messages_types.h"
+#include "qos_flow_messages_types.h"
 
 #define E1AP_MAX_NUM_TRANSAC_IDS 4
 #define E1AP_MAX_NUM_PLMNS 4
@@ -147,36 +148,6 @@ typedef struct drb_to_setup_s {
   cell_group_t cellGroupList[E1AP_MAX_NUM_CELL_GROUPS];
 } drb_to_setup_t;
 
-typedef struct qos_characteristics_s {
-  union {
-    struct {
-      long fiveqi;
-      long qos_priority_level;
-    } non_dynamic;
-    struct {
-      long fiveqi; // -1 -> optional
-      long qos_priority_level;
-      long packet_delay_budget;
-      struct {
-        long per_scalar;
-        long per_exponent;
-      } packet_error_rate;
-    } dynamic;
-  };
-  fiveQI_type_t qos_type;
-} qos_characteristics_t;
-
-typedef struct ngran_allocation_retention_priority_s {
-  uint16_t priority_level;
-  long preemption_capability;
-  long preemption_vulnerability;
-} ngran_allocation_retention_priority_t;
-
-typedef struct qos_flow_level_qos_parameters_s {
-  qos_characteristics_t qos_characteristics;
-  ngran_allocation_retention_priority_t alloc_reten_priority; // additional members should be added!!
-} qos_flow_level_qos_parameters_t;
-
 typedef struct qos_flow_setup_e {
   long qfi; // qos flow identifier
   qos_flow_level_qos_parameters_t qos_params;
@@ -208,6 +179,7 @@ typedef struct DRB_nGRAN_to_setup_s {
   /* DRB QoS Flows Parameters (clause 9.3.1.26) */
   int numQosFlow2Setup;
   qos_flow_to_setup_t qosFlows[E1AP_MAX_NUM_QOS_FLOWS];
+  qos_flow_level_qos_parameters_t dRB_QoS;
 } DRB_nGRAN_to_setup_t, DRB_nGRAN_to_mod_t;
 
 /**
