@@ -160,16 +160,6 @@ void nr_sdap_ue_qfi2drb_config(nr_sdap_entity_t *existing_sdap_entity,
                                bool has_sdap_rx,
                                bool has_sdap_tx);
 
-/*
- * TS 37.324 4.4 5.1.1 SDAP entity establishment
- * Establish an SDAP entity.
- */
-nr_sdap_entity_t *new_nr_sdap_entity(int is_gnb,
-                                     bool has_sdap_rx,
-                                     bool has_sdap_tx,
-                                     ue_id_t ue_id,
-                                     int pdusession_id);
-
 /* Entity Handling Related Functions */
 nr_sdap_entity_t *nr_sdap_get_entity(ue_id_t ue_id, int pdusession_id);
 
@@ -212,5 +202,14 @@ bool is_sdap_tx(bool is_gnb, NR_SDAP_Config_t *sdap_config);
  * @param[in] ue_id     Unique identifier for the User Equipment. ID Range [0, 65536].
  */
 void nr_reconfigure_sdap_entity(NR_SDAP_Config_t *sdap_config, ue_id_t ue_id, int pdusession_id, int drb_id);
+
+/**
+ * @brief               Handling the mapping of an SDAP entity to a DRB
+ *                      with configuration and creation of a new entity if not
+ *                      already existing for the current PDU Session.
+ * @param[in] is_gnb    Flag whether it is gNB or UE.
+ * @param[in] s         Number of DRB to be addedd.
+ */
+sdap2drb_t add_sdap_entity(int is_gnb, ue_id_t UEid, struct NR_DRB_ToAddMod *s);
 
 #endif
