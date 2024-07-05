@@ -39,7 +39,7 @@
 #include <inttypes.h>
 //#define DEBUG_CH
 //#define DEBUG_PUSCH
-//#define DEBUG_PUSCH_THREAD
+#define DEBUG_PUSCH_THREAD
 //#define SRS_DEBUG
 
 #define NO_INTERP 1
@@ -500,7 +500,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  delay_t *delay = &gNB->ulsch[ul_id].delay;
  memset(delay, 0, sizeof(*delay));
 
-//  int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
+  int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
 //  delay_t *delays[nb_antennas_rx];
 //  memset(delays, 0, sizeof(*delays));
 
@@ -508,8 +508,8 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 //  memset(noises_amp2, 0, sizeof(noises_amp2));
 
  // max_ch array size of rx antennas
-//  int *max_chs[nb_antennas_rx];
-//  memset(max_chs, 0, sizeof(*max_chs));
+  int *max_chs[nb_antennas_rx];
+  memset(max_chs, 0, sizeof(*max_chs));
 
 #ifdef DEBUG_PUSCH_THREAD
 
@@ -553,8 +553,9 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    LOG_D(PHY,"Added Antenna (count %d) to process, in pipe\n",gNB->nbAarx);
 
   //  // value update of rdata to be passed to the next inner call
-  //  max_ch = rdata->max_ch;  // Placeholder for max channel value update
-  //  noise_amp2 = rdata->noise_amp2;  // Placeholder for noise amplitude squared update
+    max_chs[aarx] = rdata->max_ch;
+
+     //  noise_amp2 = rdata->noise_amp2;  // Placeholder for noise amplitude squared update
   //  delay->est_delay = rdata->delay->est_delay;  // Placeholder for estimated delay update
   //  nest_count = rdata->nest_count;  // Placeholder for nested count update
  } // Antenna Loop
@@ -577,7 +578,8 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
  printf("\n Exit Pool - Starts with: %i\n",gNB->frame_parms.nb_antennas_rx);
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
-  printf("Array # = %i\t Estimated channel = %d\t delay = %i\t Noise Amp2 = %" PRIu64 "\n", aarx, *max_chs[aarx], delay[aarx].est_delay, noises_amp2[aarx]);
+  printf("Array # = %i\t Estimated channel = %d\n", aarx, *max_chs[aarx]);
+//  printf("Array # = %i\t Estimated channel = %d\t delay = %i\t Noise Amp2 = %" PRIu64 "\n", aarx, *max_chs[aarx], delay[aarx].est_delay, noises_amp2[aarx]);
  }
  printf("\n Exit Pool - Ends \n");
 
