@@ -743,34 +743,6 @@ typedef struct puschSymbolProc_s {
   uint32_t nvar;
 } puschSymbolProc_t;
 
-typedef struct {
-  PHY_VARS_gNB *gNB;
-  int aarx;
-  int symbol_offset;
-  c16_t **ul_ch_estimates;
-  int nl;
-  int ch_offset;
-  int symbolSize;
-  nfapi_nr_pusch_pdu_t *pusch_pdu;
-  int chest_freq;
-  c16_t *pilot;
-  int k0;
-  int nb_rb_pusch;
-  unsigned short p;
-  int soffset;
-  int *max_ch;
-  int **max_chs;
-  c16_t *ul_ls_est;
-  NR_gNB_PUSCH *pusch_vars;
-  delay_t *delay;
-  delay_t **delays;
-  uint64_t noise_amp2;
-  uint64_t *noises_amp2;
-  uint64_t *nvar;
-  int nest_count;
-  int nushift;
-} puschAntennaProc_t;
-
 struct puschSymbolReqId {
   uint16_t ulsch_id;
   uint16_t frame;
@@ -780,6 +752,36 @@ struct puschSymbolReqId {
 
 union puschSymbolReqUnion {
   struct puschSymbolReqId s;
+  uint64_t p;
+};
+
+typedef struct puschAntennaProc_s {
+  PHY_VARS_gNB *gNB;
+  int ul_id;
+  unsigned char Ns;
+  int aarx;
+  int nl;
+  nfapi_nr_pusch_pdu_t *pusch_pdu;
+  int chest_freq;
+  c16_t *pilot;
+  unsigned short p;
+  c16_t *ul_ls_est;
+  delay_t *delay;
+  uint64_t noise_amp2;
+    int *max_ch;
+  uint64_t *nvar;
+  int nest_count;
+  unsigned short bwp_start_subcarrier;
+  unsigned char symbol;
+} puschAntennaProc_t;
+
+struct puschAntennaReqId {
+  uint16_t ul_id;
+  uint16_t spare;
+} __attribute__((packed));
+
+union puschAntennaReqUnion {
+  struct puschAntennaReqId s;
   uint64_t p;
 };
 

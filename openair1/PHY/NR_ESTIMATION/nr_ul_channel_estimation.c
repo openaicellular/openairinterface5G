@@ -68,33 +68,35 @@ __attribute__((always_inline)) inline c16_t c32x16cumulVectVectWithSteps(c16_t *
 }
 
 
-static void inner_channel_estimation(void *arg) {
+static void nr_pusch_antenna_processing(void *arg) {
   puschAntennaProc_t *rdata=(puschAntennaProc_t*)arg;
 
   PHY_VARS_gNB *gNB = rdata->gNB;
+  int ul_id = rdata->ul_id;
+  unsigned char Ns = rdata->Ns;
   int aarx = rdata->aarx;
-  const int symbol_offset = rdata->symbol_offset;
-  c16_t **ul_ch_estimates = rdata->ul_ch_estimates;
   int nl = rdata->nl;
-  int ch_offset = rdata->ch_offset;
-  const int symbolSize = rdata->symbolSize;
+  unsigned short bwp_start_subcarrier = rdata->bwp_start_subcarrier;
+  unsigned char symbol = rdata->symbol;
   nfapi_nr_pusch_pdu_t *pusch_pdu = rdata->pusch_pdu;
   const int chest_freq = rdata->chest_freq;
   c16_t *pilot = rdata->pilot;
-  const int k0 = rdata->k0;
-  const int nb_rb_pusch = rdata->nb_rb_pusch;
   unsigned short p = rdata->p;
-  const int soffset = rdata->soffset;
-  int *max_ch = rdata->max_ch;
-  int **max_chs = rdata->max_chs;
   c16_t *ul_ls_est = rdata->ul_ls_est;
-  NR_gNB_PUSCH *pusch_vars = rdata->pusch_vars;
+  int *max_ch = rdata->max_ch;
   delay_t *delay = rdata->delay;
-  delay_t **delays = rdata->delays;
   uint64_t noise_amp2 = rdata->noise_amp2;
-  uint64_t *noises_amp2 = rdata->noises_amp2;
   int nest_count = rdata->nest_count;
-  const int nushift = rdata->nushift;
+
+  NR_gNB_PUSCH *pusch_vars = &gNB->pusch_vars[ul_id];
+  c16_t **ul_ch_estimates = (c16_t **)pusch_vars->ul_ch_estimates;
+  const int symbolSize = gNB->frame_parms.ofdm_symbol_size;
+  const int soffset = (Ns & 3) * gNB->frame_parms.symbols_per_slot*symbolSize;
+  const int nushift = (p >> 1) & 1; // DMRS TYPE 2
+  int ch_offset = symbolSize*symbol;
+  const int symbol_offset = symbolSize*symbol;
+  const int k0 = bwp_start_subcarrier;
+  const int nb_rb_pusch = pusch_pdu->rb_size; // needed for both
 
  c16_t *rxdataF = (c16_t *)&gNB->common_vars.rxdataF[aarx][symbol_offset];
  c16_t *ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][ch_offset];
@@ -403,16 +405,16 @@ static void inner_channel_estimation(void *arg) {
 #endif
 
  // value update of rdata to be passed to the next inner call
- rdata->max_ch = max_ch;  // Placeholder for max channel value update
- max_chs[aarx] = max_ch;
- rdata->max_chs = max_chs;  // Placeholder for max channels value update
- rdata->noise_amp2 = noise_amp2;  // Placeholder for noise amplitude squared update
- noises_amp2[aarx] = noise_amp2;
- rdata->noises_amp2 = noises_amp2;  // Placeholder for noise amplitude squared update
- delays[aarx] = delay; // Placeholder for estimated delay update
- rdata->delays = delays;
- nest_count = rdata->nest_count;  // Placeholder for nested count update
- rdata->ul_ls_est = ul_ls_est; // Placeholder for uplink least square estimation
+//  rdata->max_ch = max_ch;  // Placeholder for max channel value update
+//  max_chs[aarx] = max_ch;
+//  rdata->max_chs = max_chs;  // Placeholder for max channels value update
+//  rdata->noise_amp2 = noise_amp2;  // Placeholder for noise amplitude squared update
+//  noises_amp2[aarx] = noise_amp2;
+//  rdata->noises_amp2 = noises_amp2;  // Placeholder for noise amplitude squared update
+//  delays[aarx] = delay; // Placeholder for estimated delay update
+//  rdata->delays = delays;
+//  nest_count = rdata->nest_count;  // Placeholder for nested count update
+//  rdata->ul_ls_est = ul_ls_est; // Placeholder for uplink least square estimation
  
 }
 
@@ -434,23 +436,17 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  FILE *debug_ch_est;
  debug_ch_est = fopen("debug_ch_est.txt","w");
 #endif
- NR_gNB_PUSCH *pusch_vars = &gNB->pusch_vars[ul_id];
- c16_t **ul_ch_estimates = (c16_t **)pusch_vars->ul_ch_estimates;
- const int symbolSize = gNB->frame_parms.ofdm_symbol_size;
- const int soffset = (Ns & 3) * gNB->frame_parms.symbols_per_slot*symbolSize;
- const int nushift = (p >> 1) & 1;
- int ch_offset = symbolSize*symbol;
- const int symbol_offset = symbolSize*symbol;
- const int k0 = bwp_start_subcarrier;
+
+ const int symbolSize = gNB->frame_parms.ofdm_symbol_size; //not sure yet
  const int nb_rb_pusch = pusch_pdu->rb_size;
 
- LOG_D(PHY, "ch_offset %d, soffset %d, symbol_offset %d, OFDM size %d, Ns = %d, k0 = %d, symbol %d\n",
-       ch_offset, soffset,
-       symbol_offset,
-       symbolSize,
-       Ns,
-       k0,
-       symbol);
+//  LOG_D(PHY, "ch_offset %d, soffset %d, symbol_offset %d, OFDM size %d, Ns = %d, k0 = %d, symbol %d\n",
+//        ch_offset, soffset,
+//        symbol_offset,
+//        symbolSize,
+//        Ns,
+//        k0,
+//        symbol);
 
  //------------------generate DMRS------------------//
 
@@ -504,16 +500,16 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  delay_t *delay = &gNB->ulsch[ul_id].delay;
  memset(delay, 0, sizeof(*delay));
 
- int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
- delay_t *delays[nb_antennas_rx];
- memset(delays, 0, sizeof(*delays));
+//  int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
+//  delay_t *delays[nb_antennas_rx];
+//  memset(delays, 0, sizeof(*delays));
 
- uint64_t noises_amp2[nb_antennas_rx];
- memset(noises_amp2, 0, sizeof(noises_amp2));
+//  uint64_t noises_amp2[nb_antennas_rx];
+//  memset(noises_amp2, 0, sizeof(noises_amp2));
 
  // max_ch array size of rx antennas
- int *max_chs[nb_antennas_rx];
- memset(max_chs, 0, sizeof(*max_chs));
+//  int *max_chs[nb_antennas_rx];
+//  memset(max_chs, 0, sizeof(*max_chs));
 
 #ifdef DEBUG_PUSCH_THREAD
 
@@ -525,48 +521,42 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
 
-   notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(puschAntennaProc_t), aarx, &gNB->respPuschAarx, &inner_channel_estimation); // create a job for Tpool
+   union puschAntennaReqUnion id = {.s={ul_id,0}};
+   id.p=1+aarx;
+   notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(puschAntennaProc_t), id.p, &gNB->respPuschAarx, &nr_pusch_antenna_processing); // create a job for Tpool
    puschAntennaProc_t *rdata = (puschAntennaProc_t*)NotifiedFifoData(req); // data for the job
 
-   // Local init in the current loop
-   rdata->aarx = aarx;
-   rdata->nest_count = nest_count;
-   rdata->noise_amp2 = noise_amp2; // noise_amp2[aarx]
-   rdata->noises_amp2 = noises_amp2;   // Placeholder for noise amplitude squared update
-   rdata->max_ch = max_ch;
-   rdata->max_chs = max_chs; // max_ch[aarx]
 
+   // Local init in the current loop
+   rdata->gNB = gNB;
+   rdata->aarx = aarx;
+   rdata->ul_id = ul_id;
+   rdata->Ns = Ns;
+   rdata->pilot = pilot;
+   rdata->bwp_start_subcarrier = bwp_start_subcarrier;
+   rdata->symbol = symbol;
    rdata->ul_ls_est = ul_ls_est;
    rdata->delay = delay;
-   rdata->delays = delays;
-   rdata->gNB = gNB;
-   rdata->symbol_offset = symbol_offset;
-   rdata->ul_ch_estimates = ul_ch_estimates;
    rdata->nl = nl;
-   rdata->ch_offset = ch_offset;
-   rdata->symbolSize = symbolSize;
    rdata->pusch_pdu = pusch_pdu;
    rdata->chest_freq = chest_freq;
-   rdata->pilot = pilot;
-   rdata->k0 = k0;
-   rdata->nb_rb_pusch = nb_rb_pusch;
    rdata->p = p;
-   rdata->soffset = soffset;
-   rdata->pusch_vars = pusch_vars;
-   rdata->nushift = nushift;
+   rdata->nest_count = nest_count;
+   rdata->noise_amp2 = noise_amp2;
+   rdata->max_ch = max_ch;
 
-   // Call the inner_channel_estimation function
-   //   inner_channel_estimation(rdata);
+   // Call the nr_pusch_antenna_processing function
+   //   nr_pusch_antenna_processing(rdata);
    pushTpool(&gNB->threadPool, req);
    gNB->nbAarx++;
 
    LOG_D(PHY,"Added Antenna (count %d) to process, in pipe\n",gNB->nbAarx);
 
-   // value update of rdata to be passed to the next inner call
-   max_ch = rdata->max_ch;  // Placeholder for max channel value update
-   noise_amp2 = rdata->noise_amp2;  // Placeholder for noise amplitude squared update
-   delay->est_delay = rdata->delay->est_delay;  // Placeholder for estimated delay update
-   nest_count = rdata->nest_count;  // Placeholder for nested count update
+  //  // value update of rdata to be passed to the next inner call
+  //  max_ch = rdata->max_ch;  // Placeholder for max channel value update
+  //  noise_amp2 = rdata->noise_amp2;  // Placeholder for noise amplitude squared update
+  //  delay->est_delay = rdata->delay->est_delay;  // Placeholder for estimated delay update
+  //  nest_count = rdata->nest_count;  // Placeholder for nested count update
  } // Antenna Loop
 
  while (gNB->nbAarx > 0) {
