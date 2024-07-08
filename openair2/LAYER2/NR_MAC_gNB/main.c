@@ -34,7 +34,7 @@
 #include "NR_MAC_COMMON/nr_mac_extern.h"
 #include "assertions.h"
 #include "nr_pdcp/nr_pdcp_oai_api.h"
-
+#include "openair2/SDAP/nr_sdap/nr_sdap_entity.h"
 #include "common/utils/LOG/log.h"
 #include "nr_rlc/nr_rlc_oai_api.h"
 #include "openair2/F1AP/f1ap_ids.h"
@@ -289,7 +289,7 @@ void mac_top_init_gNB(ngran_node_t node_type,
       NR_RadioBearerConfig_t *rbconfig = NULL;
       NR_RLC_BearerConfig_t *rlc_rbconfig = NULL;
       fill_nr_noS1_bearer_config(&rbconfig, &rlc_rbconfig);
-
+      int ue_id = 0x1234;
       /* Note! previously, in nr_DRB_preconfiguration(), we passed ENB_FLAG_NO
        * if ENB_NAS_USE_TUN was *not* set. It seems to me that we could not set
        * this flag anywhere in the code, hence we would always configure PDCP
@@ -297,10 +297,28 @@ void mac_top_init_gNB(ngran_node_t node_type,
        * noS1, because the result of passing ENB_FLAG_NO to PDCP is that PDCP
        * will output the packets at a local interface, which is in line with
        * the noS1 mode.  Hence, below, we simply hardcode ENB_FLAG_NO */
-      // setup PDCP, RLC
-      nr_pdcp_add_drbs(ENB_FLAG_NO, 0x1234, rbconfig->drb_ToAddModList, 0, NULL, NULL);
-      nr_rlc_add_drb(0x1234, rbconfig->drb_ToAddModList->list.array[0]->drb_Identity, rlc_rbconfig);
-
+      /* add SDAP, PDCP, RLC entities */
+      if (rbconfig->drb_ToAddModList != NULL) {
+        for (int i = 0; i < rbconfig->drb_ToAddModList->list.count; i++) {
+          int security_modeP = 0;
+          // add SDAP entities
+          sdap2drb_t sdap2drb = add_sdap_entity(ENB_FLAG_NO, ue_id, rbconfig->drb_ToAddModList->list.array[i]);
+          nr_sdap_entity_t *sdap_entity = nr_sdap_get_entity(ue_id, sdap2drb.pdusession_id);
+          // add PDCP entity
+          add_drb(ENB_FLAG_NO,
+                  ue_id,
+                  rbconfig->drb_ToAddModList->list.array[i],
+                  sdap_entity,
+                  security_modeP & 0x0f,
+                  (security_modeP >> 4) & 0x0f,
+                  NULL,
+                  NULL);
+        }
+      } else {
+        LOG_W(PDCP, "ue_context_p->ue_context.rb_config->drb_ToAddModList is void\n");
+      }
+      // add RLC entity
+      nr_rlc_add_drb(ue_id, rbconfig->drb_ToAddModList->list.array[0]->drb_Identity, rlc_rbconfig);
       // free memory
       free_nr_noS1_bearer_config(&rbconfig, &rlc_rbconfig);
     }

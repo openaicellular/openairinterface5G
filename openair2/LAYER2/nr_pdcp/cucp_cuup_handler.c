@@ -224,9 +224,14 @@ void e1_bearer_context_setup(const e1ap_bearer_setup_req_t *req)
       // create PDCP bearers. This will also create SDAP bearers
       NR_DRB_ToAddModList_t DRB_configList = {0};
       fill_DRB_configList_e1(&DRB_configList, req_pdu);
+      /* add a new SDAP entity for the PDU session, if necessary */
+      sdap2drb_t sdap2drb = add_sdap_entity(true, cu_up_ue_id, DRB_configList.list.array[d]);
+      nr_sdap_entity_t *sdap_entity = nr_sdap_get_entity(cu_up_ue_id, sdap2drb.pdusession_id);
+      /* add DRB (PDCP) */
       add_drb(true, // set this to notify PDCP that his not UE
               cu_up_ue_id,
               DRB_configList.list.array[d],
+              sdap_entity,
               ((req->integrityProtectionAlgorithm << 4) | req->cipheringAlgorithm) & 0x0f,
               (((req->integrityProtectionAlgorithm << 4) | req->cipheringAlgorithm) >> 4) & 0x0f,
               (uint8_t *)req->encryptionKey,

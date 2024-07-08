@@ -844,6 +844,7 @@ void add_srb(int is_gnb,
 void add_drb(int is_gnb,
              ue_id_t UEid,
              struct NR_DRB_ToAddMod *s,
+             nr_sdap_entity_t *sdap_entity,
              int ciphering_algorithm,
              int integrity_algorithm,
              unsigned char *ciphering_key,
@@ -883,9 +884,6 @@ void add_drb(int is_gnb,
     exit(-1);
   }
 
-  /* add a new SDAP entity for the PDU session, if necessary */
-  sdap2drb_t sdap2drb = add_sdap_entity(is_gnb, UEid, s);
-
   /* TODO(?): accept different UL and DL SN sizes? */
   if (sn_size_ul != sn_size_dl) {
     LOG_E(PDCP, "%s:%d:%s: fatal, bad SN sizes, must be same. ul=%d, dl=%d\n",
@@ -898,12 +896,13 @@ void add_drb(int is_gnb,
   if (nr_pdcp_get_rb(ue, drb_id, false) != NULL) {
     LOG_W(PDCP, "warning DRB %d already exist for UE ID %ld, do nothing\n", drb_id, UEid);
   } else {
+    int qfi = sdap_entity->drb2qfi_map(sdap_entity, drb_id);
     pdcp_drb = new_nr_pdcp_entity(NR_PDCP_DRB_AM,
                                   is_gnb,
                                   drb_id,
-                                  sdap2drb.pdusession_id,
-                                  sdap2drb.has_sdap_rx,
-                                  sdap2drb.has_sdap_tx,
+                                  sdap_entity->pdusession_id,
+                                  sdap_entity->qfi2drb_table[qfi].has_sdap_rx,
+                                  sdap_entity->qfi2drb_table[qfi].has_sdap_tx,
                                   deliver_sdu_drb,
                                   ue,
                                   is_gnb ? deliver_pdu_drb_gnb : deliver_pdu_drb_ue,
@@ -934,27 +933,6 @@ void nr_pdcp_add_srbs(eNB_flag_t enb_flag,
     }
   } else
     LOG_W(PDCP, "nr_pdcp_add_srbs() with void list\n");
-}
-
-void nr_pdcp_add_drbs(eNB_flag_t enb_flag,
-                      ue_id_t UEid,
-                      NR_DRB_ToAddModList_t *const drb2add_list,
-                      const uint8_t security_modeP,
-                      uint8_t *const kUPenc,
-                      uint8_t *const kUPint)
-{
-  if (drb2add_list != NULL) {
-    for (int i = 0; i < drb2add_list->list.count; i++) {
-      add_drb(enb_flag,
-              UEid,
-              drb2add_list->list.array[i],
-              security_modeP & 0x0f,
-              (security_modeP >> 4) & 0x0f,
-              kUPenc,
-              kUPint);
-    }
-  } else
-    LOG_W(PDCP, "nr_pdcp_add_drbs() with void list\n");
 }
 
 /* Dummy function due to dependency from LTE libraries */

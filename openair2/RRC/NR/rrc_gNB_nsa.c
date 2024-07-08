@@ -48,7 +48,7 @@
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "openair3/SECU/secu_defs.h"
 #include "openair3/SECU/key_nas_deriver.h"
-
+#include "openair2/SDAP/nr_sdap/nr_sdap_entity.h"
 #include <openair2/RRC/NR/nr_rrc_proto.h>
 #include "nr_pdcp/nr_pdcp_oai_api.h"
 #include "MESSAGES/asn1_msg.h"
@@ -384,13 +384,26 @@ void rrc_add_nsa_user(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *ue_context_p, x2a
         ctxt.frame,
         ctxt.subframe,
         ctxt.eNB_index);
-
-  nr_pdcp_add_drbs(ctxt.enb_flag,
-                   rrc_ue_id,
-                   ue_context_p->ue_context.rb_config->drb_ToAddModList,
-                   (ue_context_p->ue_context.integrity_algorithm << 4) | ue_context_p->ue_context.ciphering_algorithm,
-                   kUPenc,
-                   kUPint);
+  /* add SDAP and PDCP entities */
+  if (ue_context_p->ue_context.rb_config->drb_ToAddModList != NULL) {
+    for (int i = 0; i < ue_context_p->ue_context.rb_config->drb_ToAddModList->list.count; i++) {
+      int security_modeP = (ue_context_p->ue_context.integrity_algorithm << 4) | ue_context_p->ue_context.ciphering_algorithm;
+      // add SDAP entities
+      sdap2drb_t sdap2drb = add_sdap_entity(ctxt.enb_flag, rrc_ue_id, ue_context_p->ue_context.rb_config->drb_ToAddModList->list.array[i]);
+      nr_sdap_entity_t *sdap_entity = nr_sdap_get_entity(rrc_ue_id, sdap2drb.pdusession_id);
+      // add PDCP entity
+      add_drb(ctxt.enb_flag,
+              rrc_ue_id,
+              ue_context_p->ue_context.rb_config->drb_ToAddModList->list.array[i],
+              sdap_entity,
+              security_modeP & 0x0f,
+              (security_modeP >> 4) & 0x0f,
+              kUPenc,
+              kUPint);
+    }
+  } else {
+    LOG_W(PDCP, "ue_context_p->ue_context.rb_config->drb_ToAddModList is void\n");
+  }
 
   ctxt.rntiMaybeUEid = du_ue_id;
   // assume only a single bearer
