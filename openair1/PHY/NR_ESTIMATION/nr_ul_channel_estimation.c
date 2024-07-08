@@ -39,7 +39,7 @@
 #include <inttypes.h>
 //#define DEBUG_CH
 //#define DEBUG_PUSCH
-#define DEBUG_PUSCH_THREAD
+//#define DEBUG_PUSCH_THREAD
 //#define SRS_DEBUG
 
 #define NO_INTERP 1
@@ -403,24 +403,13 @@ static void nr_pusch_antenna_processing(void *arg) {
    printf("%d\n", idxP);
  }
 #endif
- 
+
 #ifdef DEBUG_PUSCH_THREAD
  printf("\n INNER THREAD - Starts with: \n");
  printf("Array # = %i\t Estimated channel = %d\t delay = %i\t Noise Amp2 = %" PRIu64 "\n", aarx, *max_ch, delay->est_delay, noise_amp2);
  printf("\n INNER THREAD - Ends \n");
 #endif
- // value update of rdata to be passed to the next inner call
-//  rdata->max_ch = max_ch;  // Placeholder for max channel value update
-//  max_chs[aarx] = max_ch;
-//  rdata->max_chs = max_chs;  // Placeholder for max channels value update
-//  rdata->noise_amp2 = noise_amp2;  // Placeholder for noise amplitude squared update
-//  noises_amp2[aarx] = noise_amp2;
-//  rdata->noises_amp2 = noises_amp2;  // Placeholder for noise amplitude squared update
-//  delays[aarx] = delay; // Placeholder for estimated delay update
-//  rdata->delays = delays;
-//  nest_count = rdata->nest_count;  // Placeholder for nested count update
-//  rdata->ul_ls_est = ul_ls_est; // Placeholder for uplink least square estimation
- 
+
 }
 
 int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
@@ -550,7 +539,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
    LOG_D(PHY,"Added Antenna (count %d) to process, in pipe\n",gNB->nbAarx);
 
-  //  // value update of rdata to be passed to the next inner call
+    // value update of rdata to be passed to the next inner call
     max_chs[aarx] = rdata->max_ch;
     noises_amp2[aarx] = rdata->noise_amp2;
     delays[aarx] = rdata->delay;
