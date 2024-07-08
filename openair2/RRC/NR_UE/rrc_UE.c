@@ -1504,9 +1504,13 @@ static void nr_rrc_ue_process_RadioBearerConfig(NR_UE_RRC_INST_t *ue_rrc,
           nr_reconfigure_sdap_entity(sdap_Config, ue_rrc->ue_id, sdap_Config->pdu_Session, DRB_id);
       } else {
         set_DRB_status(ue_rrc ,DRB_id, RB_ESTABLISHED);
+        /* add a new SDAP entity for the PDU session, if necessary */
+        sdap2drb_t sdap2drb = add_sdap_entity(false, ue_rrc->ue_id, radioBearerConfig->drb_ToAddModList->list.array[cnt]);
+        nr_sdap_entity_t *sdap_entity = nr_sdap_get_entity(ue_rrc->ue_id, sdap2drb.pdusession_id);
         add_drb(false,
                 ue_rrc->ue_id,
                 radioBearerConfig->drb_ToAddModList->list.array[cnt],
+                sdap_entity,
                 ue_rrc->cipheringAlgorithm,
                 ue_rrc->integrityProtAlgorithm,
                 kUPenc,

@@ -1291,13 +1291,6 @@ void *nas_nrue(void *args_p)
       }
 
       case NAS_CONN_ESTABLI_CNF: {
-        LOG_I(NAS,
-              "[UE %ld] Received %s: errCode %u, length %u\n",
-              instance,
-              ITTI_MSG_NAME(msg_p),
-              NAS_CONN_ESTABLI_CNF(msg_p).errCode,
-              NAS_CONN_ESTABLI_CNF(msg_p).nasMsg.length);
-
         uint8_t *pdu_buffer = NAS_CONN_ESTABLI_CNF(msg_p).nasMsg.data;
         int pdu_length = NAS_CONN_ESTABLI_CNF(msg_p).nasMsg.length;
 
@@ -1311,6 +1304,13 @@ void *nas_nrue(void *args_p)
         }
 
         int msg_type = get_msg_type(pdu_buffer, pdu_length);
+        LOG_D(NAS,
+              "[UE %ld] Received %s: %s (errCode %u, length %u)\n",
+              instance,
+              ITTI_MSG_NAME(msg_p),
+              msg_type == REGISTRATION_ACCEPT ? "REGISTRATION_ACCEPT" : "FGS_PDU_SESSION_ESTABLISHMENT_ACC",
+              NAS_CONN_ESTABLI_CNF(msg_p).errCode,
+              NAS_CONN_ESTABLI_CNF(msg_p).nasMsg.length);
 
         if (msg_type == REGISTRATION_ACCEPT) {
           handle_registration_accept(instance, nas, pdu_buffer, pdu_length);

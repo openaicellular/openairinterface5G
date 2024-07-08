@@ -24,6 +24,7 @@
 
 #include "pdcp.h"
 #include "nr_pdcp_ue_manager.h"
+#include "openair2/SDAP/nr_sdap/nr_sdap_entity.h"
 
 void nr_pdcp_layer_init(bool uses_e1);
 uint64_t nr_pdcp_module_init(uint64_t _pdcp_optmask, int id);
@@ -46,16 +47,17 @@ bool pdcp_data_ind(const protocol_ctxt_t *const ctxt_pP,
                    const uint32_t *const srcID,
                    const uint32_t *const dstID);
 
-void nr_pdcp_add_drbs(eNB_flag_t enb_flag,
+void nr_pdcp_add_srbs(eNB_flag_t enb_flag,
                       ue_id_t UEid,
-                      NR_DRB_ToAddModList_t *const drb2add_list,
+                      NR_SRB_ToAddModList_t *const srb2add_list,
                       const uint8_t security_modeP,
-                      uint8_t *const kUPenc,
-                      uint8_t *const kUPint);
+                      uint8_t *const kRRCenc,
+                      uint8_t *const kRRCint);
 
 void add_drb(int is_gnb,
              ue_id_t UEid,
              struct NR_DRB_ToAddMod *s,
+             nr_sdap_entity_t *sdap_entity,
              int ciphering_algorithm,
              int integrity_algorithm,
              unsigned char *ciphering_key,
