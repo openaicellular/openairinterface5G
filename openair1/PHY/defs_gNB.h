@@ -767,8 +767,8 @@ typedef struct puschAntennaProc_s {
   unsigned short p;
   c16_t *ul_ls_est;
   delay_t *delay;
-  uint64_t noise_amp2;
-    int *max_ch;
+  uint64_t *noise_amp2;
+  int *max_ch;
   uint64_t *nvar;
   int nest_count;
   unsigned short bwp_start_subcarrier;
