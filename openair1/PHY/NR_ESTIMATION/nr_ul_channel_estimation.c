@@ -39,7 +39,7 @@
 #include <inttypes.h>
 //#define DEBUG_CH
 //#define DEBUG_PUSCH
-//#define DEBUG_PUSCH_THREAD
+#define DEBUG_PUSCH_THREAD
 //#define SRS_DEBUG
 
 #define NO_INTERP 1
@@ -188,8 +188,8 @@ static void nr_pusch_antenna_processing(void *arg) {
        int k = pilot_cnt << 1;
        ul_ch[k] = c16mulShift(ul_ch[k], ul_inv_delay_table[k], 8);
        ul_ch[k + 1] = c16mulShift(ul_ch[k + 1], ul_inv_delay_table[k + 1], 8);
-       *noise_amp2 += c16amp2(c16sub(ul_ls_est[k], ul_ch[k]));
-       *noise_amp2 += c16amp2(c16sub(ul_ls_est[k + 1], ul_ch[k + 1]));
+       *(noise_amp2) += c16amp2(c16sub(ul_ls_est[k], ul_ch[k]));
+       *(noise_amp2) += c16amp2(c16sub(ul_ls_est[k + 1], ul_ch[k + 1]));
 
 #ifdef DEBUG_PUSCH
        re_offset = (k0 + (n << 2) + (k_line << 1)) % symbolSize;
@@ -215,7 +215,7 @@ static void nr_pusch_antenna_processing(void *arg) {
      multadd_real_four_symbols_vector_complex_scalar(filt8_rep4, &ch, &ul_ls_est[n]);
      ul_ls_est[n + 4] = ch;
      ul_ls_est[n + 5] = ch;
-     *noise_amp2 += c16amp2(c16sub(ch0, ch));
+     *(noise_amp2) += c16amp2(c16sub(ch0, ch));
      nest_count++;
    }
 
@@ -403,10 +403,11 @@ static void nr_pusch_antenna_processing(void *arg) {
    printf("%d\n", idxP);
  }
 #endif
-
+// retreive the value of noise_amp2  inside the array
+*(rdata->noise_amp2) = *(noise_amp2);
 #ifdef DEBUG_PUSCH_THREAD
- printf("\n INNER THREAD - Starts \n");
- printf("Array # = %i\t Estimated channel = %d\t delay = %i\t Noise Amp2 = %" PRIu64 "\n", aarx, *max_ch, delay->est_delay, *noise_amp2);
+ printf("\n INNER THREAD - Starts with: \n");
+ printf("Array # = %i\t max_ch = %d\t noise = %lu\t delay = %i\t \n", aarx, *max_ch, *(noise_amp2), delay->est_delay >> 1);
  printf("\n INNER THREAD - Ends \n");
 #endif
 
@@ -488,31 +489,32 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  gNB->nbAarx = 0;
 
  int nest_count = 0;
- // Dynamic memory allocation for a single uint64_t element
- uint64_t *noise_amp2 = (uint64_t *)malloc(sizeof(uint64_t));
- if (noise_amp2 == NULL) {
-    // Handle memory allocation failure
-    fprintf(stderr, "Memory allocation failed\n");
-    return 1;
- }
- *noise_amp2 = 0;
-
+ uint64_t noise_amp2 = 0;
  c16_t ul_ls_est[symbolSize] __attribute__((aligned(32)));
  memset(ul_ls_est, 0, sizeof(c16_t) * symbolSize);
  delay_t *delay = &gNB->ulsch[ul_id].delay;
  memset(delay, 0, sizeof(*delay));
-
  // pointers of arrays with size of rx antennas
  // used to collect individual data from the thread pool
  int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
- delay_t *delays[nb_antennas_rx];
- memset(delays, 0, sizeof(*delays));
 
- uint64_t *noises_amp2[nb_antennas_rx];
- memset(noises_amp2, 0, sizeof(*noises_amp2));
 
- int *max_chs[nb_antennas_rx];
- memset(max_chs, 0, sizeof(*max_chs));
+ delay_t **delay_arr = (delay_t **)malloc(nb_antennas_rx * sizeof(delay_t *));
+ uint64_t *noise_amp2_arr[nb_antennas_rx];
+ int *max_ch_arr[nb_antennas_rx];
+
+// initializing an array of pointers
+// add error handeling
+ for (int i = 0; i < nb_antennas_rx; ++i) {
+    max_ch_arr[i] = (int *)malloc(sizeof(int));
+    *(max_ch_arr[i]) = *max_ch;
+
+    noise_amp2_arr[i] = (uint64_t *)malloc(sizeof(uint64_t));
+    *(noise_amp2_arr[i]) = noise_amp2;
+
+    delay_arr[i] = malloc(sizeof(*delay));
+    *(delay_arr[i]) = *delay;
+  }
 
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
 
@@ -531,14 +533,14 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    rdata->bwp_start_subcarrier = bwp_start_subcarrier;
    rdata->symbol = symbol;
    rdata->ul_ls_est = ul_ls_est;
-   rdata->delay = delay;
+   rdata->delay = delay_arr[rdata->aarx];
    rdata->nl = nl;
    rdata->pusch_pdu = pusch_pdu;
    rdata->chest_freq = chest_freq;
    rdata->p = p;
    rdata->nest_count = nest_count;
-   rdata->noise_amp2 = noise_amp2;
-   rdata->max_ch = max_ch;
+   rdata->noise_amp2 = noise_amp2_arr[rdata->aarx];
+   rdata->max_ch = max_ch_arr[rdata->aarx];
 
    // Call the nr_pusch_antenna_processing function
    //   nr_pusch_antenna_processing(rdata);
@@ -548,9 +550,9 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    LOG_D(PHY,"Added Antenna (count %d) to process, in pipe\n",gNB->nbAarx);
 
     // value update of rdata to be passed to the next inner call
-    max_chs[aarx] = rdata->max_ch;
-    noises_amp2[aarx] = rdata->noise_amp2;
-    delays[aarx] = rdata->delay;
+    // max_ch_arr[aarx] = rdata->max_ch;
+    // noise_amp2_arr[aarx] = rdata->noise_amp2;
+    // delay_arr[aarx] = rdata->delay;
  } // Antenna Loop
 
  while (gNB->nbAarx > 0) {
@@ -562,24 +564,29 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 #ifdef DEBUG_CH
  fclose(debug_ch_est);
 #endif
-
+#ifdef DEBUG_PUSCH_THREAD
+  printf("Initial nvar= %u\n", *nvar);
+#endif
  if (nvar && nest_count > 0) {
-   *nvar = (uint32_t)(*noise_amp2 / nest_count);
+    *nvar = (uint32_t)(*(noise_amp2_arr[nb_antennas_rx - 1]) / nest_count); // dereference to get value from pointer
+   //*nvar = (uint32_t)(noise_amp2 / nest_count);
  }
 
  #ifdef DEBUG_PUSCH_THREAD
 
  printf("\n Exit Pool - Starts with: %i\n",gNB->frame_parms.nb_antennas_rx);
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
-     printf("Array # = %i\t Estimated channel = %d\t delay = %i\t Noise Amp2 = %" PRIu64 "\n", aarx, *max_chs[aarx], delays[aarx]->est_delay, *noises_amp2[aarx]);
+    printf("Array # = %i\t max_ch = %d\t max_ch_arr = %d\t noise_arr = %lu\t  delay = %i\t  nvar= %u\t \n", aarx, *max_ch ,*max_ch_arr[aarx], *noise_amp2_arr[aarx], (delay_arr[aarx]->est_delay )>> 1, *nvar);
  }
  printf("\n Exit Pool - Ends \n");
 
  #endif
 
- // Free the allocated memory
- free(noise_amp2);
-
+//free each element of the arrays
+for (int i = 0; i < nb_antennas_rx; ++i) {
+  free(max_ch_arr[i]);
+  free(noise_amp2_arr[i]);
+}
  return 0;
 }
 
