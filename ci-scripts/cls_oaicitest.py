@@ -670,7 +670,7 @@ class OaiCiTest():
 			messages = [f.result() for f in futures]
 		HTML.CreateHtmlTestRowQueue('NA', 'OK', messages)
 
-	def Ping_common(self, EPC, ue, RAN, printLock):
+	def Ping_common(self, EPC, ue, RAN, CONTAINERS, printLock):
 		# Launch ping on the EPC side (true for ltebox and old open-air-cn)
 		ping_status = 0
 		ueIP = ue.getIP()
@@ -678,7 +678,11 @@ class OaiCiTest():
 			return (False, f"UE {ue.getName()} has no IP address")
 		ping_log_file = f'ping_{self.testCase_id}_{ue.getName()}.log'
 		ping_time = re.findall("-c *(\d+)",str(self.ping_args))
-		local_ping_log_file = f'{os.getcwd()}/{ping_log_file}'
+		# Creating destination log folder if needed on the python executor workspace
+		ymlPath = CONTAINERS.yamlPath[0].split('/')
+		logPath = f'../cmake_targets/log/{ymlPath[2]}'
+		os.system(f'mkdir -p {logPath}')
+		local_ping_log_file = f'{logPath}/{ping_log_file}'
 		# if has pattern %cn_ip%, replace with core IP address, else we assume the IP is present
 		if re.search('%cn_ip%', self.ping_args):
 			#target address is different depending on EPC type
@@ -772,7 +776,7 @@ class OaiCiTest():
 		logging.debug(ues)
 		pingLock = Lock()
 		with concurrent.futures.ThreadPoolExecutor() as executor:
-			futures = [executor.submit(self.Ping_common, EPC, ue, RAN, pingLock) for ue in ues]
+			futures = [executor.submit(self.Ping_common, EPC, ue, RAN, CONTAINERS, pingLock) for ue in ues]
 			results = [f.result() for f in futures]
 			# each result in results is a tuple, first member goes to successes, second to messages
 			successes, messages = map(list, zip(*results))
@@ -915,9 +919,9 @@ class OaiCiTest():
 			self.AutoTerminateUEandeNB(HTML,RAN,EPC,CONTAINERS)
 
 	def AnalyzeLogFile_UE(self, UElogFile,HTML,RAN):
-		if (not os.path.isfile(f'./{UElogFile}')):
+		if (not os.path.isfile(f'{UElogFile}')):
 			return -1
-		ue_log_file = open(f'./{UElogFile}', 'r')
+		ue_log_file = open(f'{UElogFile}', 'r')
 		exitSignalReceived = False
 		foundAssertion = False
 		msgAssertion = ''

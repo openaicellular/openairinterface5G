@@ -554,7 +554,7 @@ elif re.match('^LogCollecteNB$', mode, re.IGNORECASE):
 	if RAN.eNBIPAddress == '' or RAN.eNBUserName == '' or RAN.eNBPassword == '' or RAN.eNBSourceCodePath == '':
 		HELP.GenericHelp(CONST.Version)
 		sys.exit('Insufficient Parameter')
-	if RAN.eNBIPAddress == 'none':
+	if os.path.isdir('cmake_targets/log'):
 		cmd = 'zip -r enb.log.' + RAN.BuildId + '.zip cmake_targets/log'
 		logging.info(cmd)
 		try:

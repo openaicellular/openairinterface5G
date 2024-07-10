@@ -944,11 +944,10 @@ class Containerize():
 		if services_list == []: services_list=allServices #handing empty services
 		for svcName in services_list:
 			logging.debug('current service in the service list: \033[4m%s\033[0m', svcName)
-			mySSH.run(f'docker compose --file ci-docker-compose.yml config {svcName}')
-			result = re.search('container_name: (?P<container_name>[a-zA-Z0-9\-\_]+)', mySSH.getBefore())
+			mySSH.run(f"docker compose -f docker-compose.yaml config --format json {svcName}  | jq -r '.services.\"{svcName}\".container_name'")
+			result = mySSH.getBefore()
 			unhealthyNb = 0
 			healthyNb = 0
-			startingNb = 0
 			containerName = ''
 			usedImage = ''
 			imageInfo = ''
@@ -961,7 +960,6 @@ class Containerize():
 						mySSH.run('docker inspect --format="{{.State.Health.Status}}" ' + containerName, 5)
 						unhealthyNb = mySSH.getBefore().count('unhealthy')
 						healthyNb = mySSH.getBefore().count('healthy') - unhealthyNb
-						startingNb = mySSH.getBefore().count('starting')
 						if healthyNb == 1:
 							cnt = 10
 						else:
@@ -971,7 +969,6 @@ class Containerize():
 						# faking health of db_init
 						unhealthyNb = 0
 						healthyNb = 1
-						startingNb = 0
 						break
 				mySSH.run('docker inspect --format="ImageUsed: {{.Config.Image}}" ' + containerName)
 				for stdoutLine in mySSH.getBefore().split('\n'):
@@ -979,17 +976,9 @@ class Containerize():
 						usedImage = stdoutLine.replace('ImageUsed: oai-ci', 'oai-ci').strip()
 						logging.debug('Used image is ' + usedImage)
 				if usedImage != '':
-					mySSH.run('docker image inspect --format "* Size     = {{.Size}} bytes\n* Creation = {{.Created}}\n* Id       = {{.Id}}" ' + usedImage, 5, silent=True)
-					for stdoutLine in mySSH.getBefore().split('\n'):
-						if re.search('Size     = [0-9]', stdoutLine) is not None:
-							imageInfo += stdoutLine.strip() + '\n'
-						if re.search('Creation = [0-9]', stdoutLine) is not None:
-							imageInfo += stdoutLine.strip() + '\n'
-						if re.search('Id       = sha256', stdoutLine) is not None:
-							imageInfo += stdoutLine.strip() + '\n'
-			logging.debug(' -- ' + str(healthyNb) + ' healthy container(s) for service' + svcName)
-			logging.debug(' -- ' + str(unhealthyNb) + ' unhealthy container(s) for service' + svcName)
-			logging.debug(' -- ' + str(startingNb) + ' still starting container(s) for service' + svcName)
+					ret = mySSH.run('docker image inspect --format "* Size     = {{.Size}} bytes\n* Creation = {{.Created}}\n* Id       = {{.Id}}" ' + usedImage)
+							imageInfo = ret.stdout
+			logging.debug(f' -- for service {svcName} containers: {str(healthyNb)} healthy, {str(healthyNb)} unhealthy')
 
 			self.testCase_id = HTML.testCase_id
 			self.eNB_logFile[self.eNB_instance] = f'{svcName}-{self.testCase_id}.log'
@@ -1004,7 +993,7 @@ class Containerize():
 				logfilename = f'{lSourcePath}/cmake_targets/log/{self.eNB_logFile[self.eNB_instance]}'
 				mySSH.run(f'docker logs {containerName} > {logfilename}', 30)
 				cwd = os.getcwd()
-				logging.debug(f'Deployment Failed, trying to copy the log from {logfilename} at {cwd}')
+				logging.warning(f'Deployment Failed, trying to copy the log from {logfilename} at {cwd}')
 				mySSH.copyin(logfilename,cwd,True)
 
 		mySSH.close()
@@ -1074,11 +1063,15 @@ class Containerize():
 		mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml stop -t3')
 		cwd = os.getcwd()
 		copyin_res = True
+		ymlPath = self.yamlPath[0].split('/')
+		logPath = f'{cwd}/../cmake_targets/log/{ymlPath[2]}'
+		# Creating destination log folder if needed on the python executor workspace
+		os.system(f'mkdir -p {logPath}')
 		for service_name, container_id in services:
 			# head -n -1 suppresses the final "X exited with status code Y"
 			filename = f'{service_name}-{HTML.testCase_id}.log'
 			mySSH.run(f'docker logs {container_id} > {lSourcePath}/cmake_targets/log/{filename} 2>&1')
-			copyin_res = mySSH.copyin(f'{lSourcePath}/cmake_targets/log/{filename}', os.path.join(cwd, filename)) and copyin_res
+			copyin_res = mySSH.copyin(f'{lSourcePath}/cmake_targets/log/{filename}', os.path.join(logPath, filename)) and copyin_res
 
 		mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml down -v')
 
@@ -1087,20 +1080,19 @@ class Containerize():
 			HTML.htmleNBFailureMsg='Could not copy logfile(s) to analyze it!'
 			HTML.CreateHtmlTestRow('N/A', 'KO', CONST.ENB_PROCESS_NOLOGFILE_TO_ANALYZE)
 			self.exitStatus = 1
-		# use function for UE log analysis, when oai-nr-ue container is used
 		else:
 			for service_name, _ in services:
 				self.exitStatus == 0
-				filename = f'{service_name}-{HTML.testCase_id}.log'
+				filename = f'{logPath}/{service_name}-{HTML.testCase_id}.log'
 				if (any(sub in service_name for sub in ['oai_ue','oai-nr-ue','lte_ue'])):
-					logging.debug(f'Analyzing UE logfile {filename}')
+					logging.debug(f'\u001B[1m Analyzing UE logfile {filename} \u001B[0m')
 					logStatus = cls_oaicitest.OaiCiTest().AnalyzeLogFile_UE(filename, HTML, RAN)
 					if (logStatus < 0):
 						HTML.CreateHtmlTestRow('UE log Analysis', 'KO', logStatus)
 						self.exitStatus = 1
 					else:
 						HTML.CreateHtmlTestRow('UE log Analysis', 'OK', CONST.ALL_PROCESSES_OK)
-				elif (any(sub in service_name for sub in ['oai_enb','oai-cu','oai-du','oai-gnb'])):
+				elif (any(sub in service_name for sub in ['enb','rru','rcc','cu','du','gnb'])):
 					logging.debug(f'\u001B[1m Analyzing XnB logfile {filename}\u001B[0m')
 					logStatus = RAN.AnalyzeLogFile_eNB(filename, HTML, self.ran_checkers)
 					if (logStatus < 0):
@@ -1112,10 +1104,7 @@ class Containerize():
 					msg = 'Undeploy PNF/Nvidia CUBB'
 					HTML.CreateHtmlTestRow(msg, 'OK', CONST.ALL_PROCESSES_OK)
 				else:
-					logging.info(f'Skipping to analysize log for service name {service_name}')
-			# all the xNB run logs shall be on the server 0 for logCollecting
-			if self.eNB_serverId[self.eNB_instance] != '0':
-				mySSH.copyout(f"{cwd}/*.log", f'{lSourcePath}/cmake_targets/', recursive=True)
+					logging.info(f'Skipping to analyze log for service name {service_name}')
 		if self.exitStatus == 0:
 			logging.info('\u001B[1m Undeploying OAI Object Pass\u001B[0m')
 		else:
@@ -1356,7 +1345,7 @@ class Containerize():
 				filenames = str(lsStatus.stdout).strip()
 
 				for filename in filenames.split('\n'):
-					logging.debug('\u001B[1m Analyzing UE logfile ' + filename + ' \u001B[0m')
+					logging.debug(f'\u001B[1m Analyzing UE logfile {filename} \u001B[0m')
 					logStatus = UE.AnalyzeLogFile_UE(f'{logPath}/{filename}', HTML, RAN)
 					if (logStatus < 0):
 						fullStatus = False
