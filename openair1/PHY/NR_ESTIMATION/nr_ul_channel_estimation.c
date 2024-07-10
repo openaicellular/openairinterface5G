@@ -39,7 +39,7 @@
 #include <inttypes.h>
 //#define DEBUG_CH
 //#define DEBUG_PUSCH
-#define DEBUG_PUSCH_THREAD
+//#define DEBUG_PUSCH_THREAD
 //#define SRS_DEBUG
 
 #define NO_INTERP 1
