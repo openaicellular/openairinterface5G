@@ -27,6 +27,7 @@
 
 #include "openair3/SECU/secu_defs.h"
 #include "openair3/SECU/key_nas_deriver.h"
+#include "nr_pdcp_entity.h"
 
 stream_security_context_t *nr_pdcp_integrity_nia1_init(unsigned char *integrity_key)
 {
@@ -34,7 +35,7 @@ stream_security_context_t *nr_pdcp_integrity_nia1_init(unsigned char *integrity_
 
   ret = calloc(1, sizeof(*ret)); if (ret == NULL) abort();
   ret->context = malloc(16); if (ret->context == NULL) abort();
-  memcpy(ret->context, integrity_key, 16);
+  memcpy(ret->context, integrity_key, NR_K_KEY_SIZE);
 
   return (stream_security_context_t *)ret;
 }

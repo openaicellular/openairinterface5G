@@ -29,6 +29,7 @@
 #include "common/utils/assertions.h"
 #include "openair3/SECU/aes_128.h"
 #include "openair3/SECU/aes_128_cbc_cmac.h"
+#include "nr_pdcp_entity.h"
 
 stream_security_context_t *nr_pdcp_integrity_nia2_init(uint8_t integrity_key[16])
 {
@@ -57,12 +58,12 @@ void nr_pdcp_integrity_nia2_integrity(stream_security_context_t *integrity_conte
   k_iv.iv8.d.direction = direction;
   k_iv.iv8.d.count = htonl(count);
 
-  uint8_t result[16] = {0};
+  uint8_t result[NR_K_KEY_SIZE] = {0};
   byte_array_t msg = {.buf = buffer, .len = length};
   
   cipher_aes_128_cbc_cmac(ctx, &k_iv, msg, sizeof(result), result);
 
-  memcpy(out, result, 4);
+  memcpy(out, result, PDCP_INTEGRITY_SIZE);
 }
 
 void nr_pdcp_integrity_nia2_free_integrity(stream_security_context_t *integrity_context)
