@@ -72,7 +72,12 @@
 // /usr/lib/gcc/x86_64-redhat-linux/8/include/gfniintrin.h:57:1: error: inlining failed in call to always_inline ‘_mm_gf2p8affine_epi64_epi8’: target specific option mismatch
 #include <simde/x86/clmul.h>
 
-#include <simde/arm/neon.h>
+// note this fails on some ARM machines, with an error like:
+// /usr/include/simde/arm/neon/get_lane.h:279:5: error: incompatible type for argument 1 of ‘vget_lane_f16’
+//  279 |     SIMDE_CONSTIFY_8_(vget_lane_f16, r, (HEDLEY_UNREACHABLE(), SIMDE_FLOAT16_VALUE(0.0)), lane, v);
+//  removed the inclusion of neon.h
+
+//#include <simde/arm/neon.h>
 #endif // x86_64 || i386
 #include <stdbool.h>
 #include "assertions.h"
