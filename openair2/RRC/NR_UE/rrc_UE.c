@@ -945,6 +945,9 @@ static void nr_rrc_process_rrcsetup(NR_UE_RRC_INST_t *rrc,
   nr_rrc_ue_process_RadioBearerConfig(rrc,
                                       &rrcSetup->criticalExtensions.choice.rrcSetup->radioBearerConfig);
 
+  if (LOG_DEBUGFLAG(DEBUG_ASN1))
+    xer_fprint(stdout, &asn_DEF_NR_RadioBearerConfig, (const void *)&rrcSetup->criticalExtensions.choice.rrcSetup->radioBearerConfig);
+
   // TODO (not handled) if stored, discard the cell reselection priority information provided by
   // the cellReselectionPriorities or inherited from another RAT
 
