@@ -5,10 +5,12 @@ set(default_ldpc "")
 set(slot_demo "--loader.ldpc.shlibversion" "_slot_demo")
 set(t2_offload_nr_ulsim "-o" "-O" "${CMAKE_CURRENT_SOURCE_DIR}/t2_offload.conf")
 set(slot_t2 "-O" "${CMAKE_CURRENT_SOURCE_DIR}/slot_t2.conf")
+set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/slot_xdma.conf")
 
 set(NR_ULSIM_OPTION_TO_TEST_LIST
   default_ldpc
   slot_demo
+  slot_xdma
 )
 
 if (ENABLE_LDPC_T2)
@@ -302,10 +304,12 @@ set(default_ldpc "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x
 set(slot_demo "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.conf" "--loader.ldpc.shlibversion" "_slot_demo")
 set(t2_offload "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.t2_offload.conf" "--ldpc-offload-enable")
 set(slot_t2 "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.slot_t2.conf")
+set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.slot_xdma.conf")
 
 set(NR_SOFTMODEM_OPTION_TO_TEST_LIST
   default_ldpc
   slot_demo
+  slot_xdma
 )
 
 if (ENABLE_LDPC_T2)
