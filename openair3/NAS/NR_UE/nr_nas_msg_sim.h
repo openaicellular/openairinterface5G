@@ -85,6 +85,10 @@ typedef struct {
   int hplmn_sd;
 } nr_nas_msg_snssai_t;
 
+/*
+ * 5GS mobility management (5GMM) states
+ * 5.1.3.2.1.1 of TS 24.501
+ */
 typedef enum fgs_mm_state_e {
   FGS_DEREGISTERED = 0,
   FGS_DEREGISTERED_INITIATED,
@@ -108,7 +112,7 @@ typedef struct {
 } ue_sa_security_key_t;
 
 typedef struct {
-  /* 5GS Mobility Management States (5.1.3.2.1 of 3GPP TS 24.501) */
+  /* 5GS Mobility Management state (5.1.3.2.1 of 3GPP TS 24.501) */
   fgs_mm_state_t fiveGMM_state;
   uicc_t *uicc;
   ue_sa_security_key_t security;
@@ -127,14 +131,14 @@ typedef enum fgs_protocol_discriminator_e {
   FGS_SESSION_MANAGEMENT_MESSAGE =    0x2E,
 } fgs_protocol_discriminator_t;
 
-
+/* Plain 5GS NAS message header (9.1.1. of 3GPP TS 24.501) */
 typedef struct {
   uint8_t ex_protocol_discriminator;
   uint8_t security_header_type;
   uint8_t message_type;
 } mm_msg_header_t;
 
-/* Structure of security protected header */
+/* Security protected header (9.1.1. of 3GPP TS 24.501) */
 typedef struct {
   uint32_t message_authentication_code;
   uint8_t protocol_discriminator;

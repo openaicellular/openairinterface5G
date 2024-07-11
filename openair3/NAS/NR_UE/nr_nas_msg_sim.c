@@ -812,14 +812,26 @@ static void decodeRegistrationAccept(const uint8_t *buf, int len, nr_ue_nas_t *n
      nas->guti = malloc(sizeof(*nas->guti));
      AssertFatal(nas->guti, "out of memory\n");
      *nas->guti = reg_acc.guti->guti;
+     LOG_D(NAS, "5G-GUTI in registration accept: MCC: %u%u%u, MNC: %u%u%u, AMF Region ID: %u, AMF Set ID: %u, AMF Pointer: %u, 5G-TMSI: %u\n",
+           reg_acc.guti->guti.mccdigit1, reg_acc.guti->guti.mccdigit2, reg_acc.guti->guti.mccdigit3,
+           reg_acc.guti->guti.mncdigit1, reg_acc.guti->guti.mncdigit2, reg_acc.guti->guti.mncdigit3,
+           reg_acc.guti->guti.amfregionid,
+           reg_acc.guti->guti.amfsetid,
+           reg_acc.guti->guti.amfpointer,
+           reg_acc.guti->guti.tmsi);
      free(reg_acc.guti); /* no proper memory management for NAS decoded messages */
   } else {
     LOG_W(NAS, "no GUTI in registration accept\n");
   }
 }
 
+/**
+ * @brief NAS Registration complete message (8.2.8 of TS 24.501)
+ *        Direction: UE to network (AMF)
+ */
 static void generateRegistrationComplete(nr_ue_nas_t *nas, as_nas_info_t *initialNasMsg, SORTransparentContainer *sortransparentcontainer)
 {
+  LOG_D(NAS, "Initial Registration successful: generate NAS Registration Complete\n");
   int length = 0;
   int size = 0;
   fgs_nas_message_t nas_msg;
@@ -923,6 +935,7 @@ void decodeDownlinkNASTransport(as_nas_info_t *initialNasMsg, uint8_t * pdu_buff
 
 static void generateDeregistrationRequest(nr_ue_nas_t *nas, as_nas_info_t *initialNasMsg, const nas_deregistration_req_t *req)
 {
+  LOG_D(NAS, "Generate NAS Deregistration Request\n");
   fgs_nas_message_t nas_msg = {0};
   fgs_nas_message_security_protected_t *sp_msg;
   sp_msg = &nas_msg.security_protected;
