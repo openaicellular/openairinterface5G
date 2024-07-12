@@ -41,17 +41,6 @@
 
 #include "GNB_APP/gnb_paramdef.h"
 
-int to_NRNRB(int nrb) {
-  for (int i=0; i<sizeofArray(nrb_lut); i++)
-    if (nrb_lut[i] == nrb)
-      return i;
-
-  if(!RC.nrrrc)
-    return 0;
-
-  AssertFatal(1==0,"nrb %d is not in the list of possible NRNRB\n",nrb);
-}
-
 int DU_handle_RESET(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, F1AP_F1AP_PDU_t *pdu)
 {
   LOG_D(F1AP, "DU_handle_RESET\n");\
