@@ -228,6 +228,7 @@ void xnap_gNB_handle_handover_prep(instance_t instance,
   }
   xnap_handover_req->s_ng_node_ue_xnap_id = xn_id;
   xnap_set_ids(id_manager, xnap_handover_req->s_ng_node_ue_xnap_id, xnap_handover_req->ue_id, xnap_handover_req->s_ng_node_ue_xnap_id, 0);
+  //memcpy(&xnap_handover_req->ue_context.tnl_ip_source.buffer, &xnap_handover_req->ue_context.tnl_ip_source, sizeof(uint8_t) * 4);
   /* id_source is ue_id, id_target is unknown yet */
   //xnap_set_ids(id_manager, ue_id, xnap_handover_req->rnti, ue_id, -1); //use?ho req structure wont have rnti- take from where it belongs to.
   //xnap_id_set_state(id_manager, ue_id, XNID_STATE_SOURCE_PREPARE);// use?

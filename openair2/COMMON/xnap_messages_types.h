@@ -219,7 +219,8 @@ typedef struct xnap_qos_tobe_setup_list_s {
 typedef struct xnap_pdusession_tobe_setup_item_s {
   long pdusession_id;
   xnap_snssai_t snssai;
-  xnap_net_ip_address_t up_ngu_tnl_ip_upf;
+  //xnap_net_ip_address_t up_ngu_tnl_ip_upf;
+  in_addr_t up_ngu_tnl_ip_upf;
   teid_t up_ngu_tnl_teid_upf;
   pdu_session_type_t pdu_session_type;
   xnap_qos_tobe_setup_list_t qos_list;
@@ -253,7 +254,8 @@ typedef struct xnap_uehistory_info_s {
 
 typedef struct xnap_ue_context_info_s {
   uint64_t ngc_ue_sig_ref;// 0-2^40-1
-  xnap_net_ip_address_t tnl_ip_source;
+  //xnap_net_ip_address_t tnl_ip_source;
+  in_addr_t tnl_ip_source;
   uint32_t tnl_port_source;
   xnap_security_capabilities_t security_capabilities;
   //uint8_t kRRCenc[16];
