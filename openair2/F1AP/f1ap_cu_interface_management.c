@@ -48,23 +48,6 @@ int CU_send_RESET_ACKNOWLEDGE(sctp_assoc_t assoc_id, const f1ap_reset_ack_t *ack
   AssertFatal(1 == 0, "Not implemented yet\n");
 }
 
-void dump_setup_req(f1ap_setup_req_t *msg)
-{
-  LOG_D(F1AP, "out->transaction_id %lu \n", msg->transaction_id);
-  LOG_D(F1AP, "out->gNB_DU_id %lu \n", msg->gNB_DU_id);
-  LOG_D(F1AP, "out->gNB_DU_name %s \n", msg->gNB_DU_name);
-  LOG_D(F1AP, "out->num_cells_available %d \n", msg->num_cells_available);
-  for (int i = 0; i < msg->num_cells_available; i++) {
-    LOG_D(F1AP, "out->tac[%d] %d \n", i, *msg->cell[i].info.tac);
-    LOG_D(F1AP,
-          "Received nRCGI: MCC %d, MNC %d, CELL_ID %llu\n",
-          msg->cell[i].info.plmn.mcc,
-          msg->cell[i].info.plmn.mnc,
-          (long long unsigned int)msg->cell[i].info.nr_cellid);
-    LOG_D(F1AP, "out->nr_pci[%d] %d \n", i, msg->cell[i].info.nr_pci);
-  }
-}
-
 /**
  * @brief F1AP Setup Request decoding (9.2.1.4 of 3GPP TS 38.473) and transfer to RRC
  */
@@ -84,7 +67,6 @@ int CU_handle_F1_SETUP_REQUEST(instance_t instance, sctp_assoc_t assoc_id, uint3
     free_f1ap_setup_request(&msg);
     return -1;
   }
-  dump_f1ap_setup_req(&msg);
   /* Send to RRC (ITTI) */
   MessageDef *message_p = itti_alloc_new_message(TASK_CU_F1, 0, F1AP_SETUP_REQ);
   message_p->ittiMsgHeader.originInstance = assoc_id;
@@ -136,42 +118,6 @@ int CU_send_F1_SETUP_FAILURE(sctp_assoc_t assoc_id, const f1ap_setup_failure_t *
   return 0;
 }
 
-static void dump_f1ap_du_configuration_update(f1ap_gnb_du_configuration_update_t *out)
-{
-  LOG_D(F1AP, "F1 gNB-DU Configuration Update: out->transaction_id %lu \n", out->transaction_id);
-  /* to add */
-  LOG_D(F1AP, "F1 gNB-DU Configuration Update: out->num_cells_to_add %d \n", out->num_cells_to_add);
-  for (int i = 0; i < out->num_cells_to_add; i++) {
-    LOG_D(F1AP, "out->tac[%d] %d \n", i, *out->cell_to_add[i].info.tac);
-    LOG_D(F1AP,
-          "F1 gNB-DU Configuration Update: nRCGI to add = MCC %d, MNC %d, CELL_ID %llu\n",
-          out->cell_to_add[i].info.plmn.mcc,
-          out->cell_to_add[i].info.plmn.mnc,
-          (long long unsigned int)out->cell_to_add[i].info.nr_cellid);
-    LOG_D(F1AP, "F1 gNB-DU Configuration Update: out->nr_pci[%d] %d \n", i, out->cell_to_add[i].info.nr_pci);
-  }
-  /* to modify */
-  LOG_D(F1AP, "F1 gNB-DU Configuration Update: out->num_cells_to_modify %d \n", out->num_cells_to_modify);
-  for (int i = 0; i < out->num_cells_to_modify; i++) {
-    LOG_D(F1AP, "out->tac[%d] %d \n", i, *out->cell_to_modify[i].info.tac);
-    LOG_D(F1AP,
-          "F1 gNB-DU Configuration Update: nRCGI to modify = MCC %d, MNC %d, CELL_ID %llu\n",
-          out->cell_to_modify[i].info.plmn.mcc,
-          out->cell_to_modify[i].info.plmn.mnc,
-          (long long unsigned int)out->cell_to_modify[i].info.nr_cellid);
-    LOG_D(F1AP, "out->nr_pci[%d] %d \n", i, out->cell_to_modify[i].info.nr_pci);
-  }
-  /* to delete */
-  LOG_D(F1AP, "F1 gNB-DU Configuration Update: out->num_cells_to_delete %d \n", out->num_cells_to_delete);
-  for (int i = 0; i < out->num_cells_to_delete; i++) {
-    LOG_D(F1AP,
-          "F1 gNB-DU Configuration Update: nRCGI to delete = MCC %d, MNC %d, CELL_ID %llu\n",
-          out->cell_to_delete[i].plmn.mcc,
-          out->cell_to_delete[i].plmn.mnc,
-          (long long unsigned int)out->cell_to_delete[i].nr_cellid);
-  }
-}
-
 /**
  * @brief Decode and send F1 gNB-DU Configuration Update message to RRC
  */
@@ -190,7 +136,6 @@ int CU_handle_gNB_DU_CONFIGURATION_UPDATE(instance_t instance, sctp_assoc_t asso
     free_f1ap_du_configuration_update(&msg);
     return -1;
   }
-  dump_f1ap_du_configuration_update(&msg);
   /* Send to RRC */
   MessageDef *message_p = itti_alloc_new_message(TASK_CU_F1, 0, F1AP_GNB_DU_CONFIGURATION_UPDATE);
   message_p->ittiMsgHeader.originInstance = assoc_id;

@@ -158,7 +158,6 @@ int DU_send_F1_SETUP_REQUEST(sctp_assoc_t assoc_id, const f1ap_setup_req_t *setu
 {
   LOG_D(F1AP, "DU_send_F1_SETUP_REQUEST\n");
   F1AP_F1AP_PDU_t *pdu = encode_f1ap_setup_request(setup_req);
-  dump_f1ap_setup_req(setup_req);
   uint8_t  *buffer;
   uint32_t  len;
   /* encode */
@@ -175,22 +174,6 @@ int DU_send_F1_SETUP_REQUEST(sctp_assoc_t assoc_id, const f1ap_setup_req_t *setu
   return 0;
 }
 
-void dump_f1ap_setup_response(f1ap_setup_resp_t *resp)
-{
-  LOG_D(F1AP, "F1AP Setup Response: num_cells_to_activate = %d \n", resp->num_cells_to_activate);
-  LOG_D(F1AP, "F1AP Setup Response: TransactionId %ld\n", resp->transaction_id);
-  LOG_D(F1AP, "F1AP Setup Response: gNB_CU_name %s\n", resp->gNB_CU_name);
-  if (resp->num_cells_to_activate) {
-    for (int i = 0; i < resp->num_cells_to_activate; i++) {
-      LOG_D(F1AP, "F1AP Setup Response: nr_cellid %ld\n", resp->cells_to_activate[i].nr_cellid);
-      LOG_D(F1AP, "F1AP Setup Response: nrpci %d\n", resp->cells_to_activate[i].nrpci);
-      LOG_D(F1AP, "F1AP Setup Response: plmn.mcc %d\n", resp->cells_to_activate[i].plmn.mcc);
-      LOG_D(F1AP, "F1AP Setup Response: plmn.mnc %d\n", resp->cells_to_activate[i].plmn.mnc);
-      LOG_D(F1AP, "F1AP Setup Response: num_SI %d\n", resp->cells_to_activate[i].num_SI);
-    }
-  }
-}
-
 int DU_handle_F1_SETUP_RESPONSE(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, F1AP_F1AP_PDU_t *pdu)
 {
   LOG_D(F1AP, "DU_handle_F1_SETUP_RESPONSE\n");
@@ -201,7 +184,6 @@ int DU_handle_F1_SETUP_RESPONSE(instance_t instance, sctp_assoc_t assoc_id, uint
     free_f1ap_setup_response(&resp);
     return -1;
   }
-  dump_f1ap_setup_response(&resp);
   LOG_D(F1AP, "Sending F1AP_SETUP_RESP ITTI message\n");
   f1_setup_response(&resp);
   free_f1ap_setup_response(&resp);
@@ -243,26 +225,6 @@ int DU_send_gNB_DU_CONFIGURATION_UPDATE(sctp_assoc_t assoc_id, f1ap_gnb_du_confi
   return 0;
 }
 
-void dump_f1ap_gnb_cu_configuration_update(f1ap_gnb_cu_configuration_update_t *msg)
-{
-  LOG_D(F1AP, "F1 gNB-CU Configuration Update: TxId %ld, Activating %d cells", msg->transaction_id, msg->num_cells_to_activate);
-  for (int i = 0; i < msg->num_cells_to_activate; i++) {
-    LOG_D(F1AP,
-          "F1 gNB-CU Configuration Update: Cell %d - MCC %d, MNC %d, NRCell 0x%lx, SI %d",
-          i,
-          msg->cells_to_activate[i].plmn.mcc,
-          msg->cells_to_activate[i].plmn.mnc,
-          msg->cells_to_activate[i].nr_cellid,
-          msg->cells_to_activate[i].num_SI);
-    for (int s = 0; s < msg->cells_to_activate[i].num_SI; s++) {
-      LOG_D(F1AP,
-            "F1 gNB-CU Configuration Update: SI[%d][%d] %d bytes",
-            s,
-            msg->cells_to_activate[i].SI_msg[s].SI_type,
-            msg->cells_to_activate[i].SI_msg[s].SI_container_length);
-    }
-  }
-}
 /**
  * @brief F1 gNB-CU Configuration Update decoding and message transfer
  */
@@ -275,7 +237,6 @@ int DU_handle_gNB_CU_CONFIGURATION_UPDATE(instance_t instance, sctp_assoc_t asso
     free_f1ap_cu_configuration_update(&in);
     return -1;
   }
-  dump_f1ap_gnb_cu_configuration_update(&in);
   MessageDef *msg_p = itti_alloc_new_message (TASK_DU_F1, 0, F1AP_GNB_CU_CONFIGURATION_UPDATE);
   f1ap_gnb_cu_configuration_update_t *msg = &F1AP_GNB_CU_CONFIGURATION_UPDATE(msg_p); // RRC thread will free it
   *msg = in; // copy F1 message to ITTI
