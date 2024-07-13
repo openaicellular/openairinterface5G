@@ -53,10 +53,10 @@ typedef enum {
 typedef struct {
   uint32_t rsrp;
   int rsrp_dBm;
-  uint8_t rank_indicator;
-  uint8_t i1;
-  uint8_t i2;
-  uint8_t cqi;
+  uint16_t rank_indicator;
+  uint16_t i1;
+  uint16_t i2;
+  uint16_t cqi;
   rlm_t radiolink_monitoring;
 } fapi_nr_csirs_measurements_t;
 
