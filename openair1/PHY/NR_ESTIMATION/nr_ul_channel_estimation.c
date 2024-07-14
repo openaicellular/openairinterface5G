@@ -516,6 +516,8 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
     *(delay_arr[i]) = *delay;
   }
 
+  start_meas(&gNB->pusch_channel_estimation_antenna_processing_stats);
+
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
 
    union puschAntennaReqUnion id = {.s={ul_id,0}};
@@ -561,6 +563,8 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    delNotifiedFIFO_elt(req);
  }
 
+ stop_meas(&gNB->pusch_channel_estimation_antenna_processing_stats);
+
 #ifdef DEBUG_CH
  fclose(debug_ch_est);
 #endif
@@ -587,6 +591,7 @@ for (int i = 0; i < nb_antennas_rx; ++i) {
   free(max_ch_arr[i]);
   free(noise_amp2_arr[i]);
 }
+
  return 0;
 }
 

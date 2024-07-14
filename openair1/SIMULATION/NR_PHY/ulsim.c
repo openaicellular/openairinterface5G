@@ -558,6 +558,7 @@ int main(int argc, char *argv[])
   gNB = RC.gNB[0];
   gNB->ofdm_offset_divisor = UINT_MAX;
   gNB->num_pusch_symbols_per_thread = 1;
+  gNB->dmrs_num_antennas_per_thread = 1;
   gNB->RU_list[0] = calloc(1, sizeof(**gNB->RU_list));
   gNB->RU_list[0]->rfdevice.openair0_cfg = openair0_cfg;
 
@@ -565,6 +566,7 @@ int main(int argc, char *argv[])
   initNotifiedFIFO(&gNB->respDecode);
 
   initNotifiedFIFO(&gNB->respPuschSymb);
+  initNotifiedFIFO(&gNB->respPuschAarx);
   initNotifiedFIFO(&gNB->L1_tx_free);
   initNotifiedFIFO(&gNB->L1_tx_filled);
   initNotifiedFIFO(&gNB->L1_tx_out);
@@ -946,6 +948,7 @@ int main(int argc, char *argv[])
     reset_meas(&gNB->rx_pusch_symbol_processing_stats);
     reset_meas(&gNB->ulsch_decoding_stats);
     reset_meas(&gNB->ulsch_channel_estimation_stats);
+    reset_meas(&gNB->pusch_channel_estimation_antenna_processing_stats);
     reset_meas(&UE->ulsch_ldpc_encoding_stats);
     reset_meas(&UE->ulsch_rate_matching_stats);
     reset_meas(&UE->ulsch_interleaving_stats);
@@ -1567,6 +1570,7 @@ int main(int argc, char *argv[])
       printDistribution(&gNB->phy_proc_rx,table_rx, "Total PHY proc rx");
       printStatIndent(&gNB->rx_pusch_stats, "RX PUSCH time");
       printStatIndent2(&gNB->ulsch_channel_estimation_stats, "ULSCH channel estimation time");
+      printStatIndent2(&gNB->pusch_channel_estimation_antenna_processing_stats, "ULSCH channel estimation antenna processing time");
       printStatIndent2(&gNB->rx_pusch_init_stats, "RX PUSCH Initialization time");
       printStatIndent2(&gNB->rx_pusch_symbol_processing_stats, "RX PUSCH Symbol Processing time");
       printStatIndent(&gNB->ulsch_decoding_stats,"ULSCH total decoding time");
