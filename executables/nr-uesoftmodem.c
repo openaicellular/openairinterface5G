@@ -553,6 +553,7 @@ int main(int argc, char **argv)
     if(IS_SOFTMODEM_DOSCOPE) {
       load_softscope("nr",PHY_vars_UE_g[0][0]);
     }
+    load_softscope("im", PHY_vars_UE_g[0][0]);
 
     for (int inst = 0; inst < NB_UE_INST; inst++) {
       LOG_I(PHY,"Intializing UE Threads for instance %d ...\n", inst);
