@@ -12,7 +12,6 @@
  * \warning
  */
 
-
 // [from gNB coding]
 #include "PHY/defs_gNB.h"
 #include "PHY/CODING/coding_extern.h"
@@ -48,6 +47,7 @@
 #include "nfapi/open-nFAPI/nfapi/public_inc/nfapi_nr_interface.h"
 
 #include <stdint.h>
+#include "PHY/CODING/nrLDPC_coding_interface.h"
 #include "PHY/sse_intrin.h"
 #include "nrLDPCdecoder_defs.h"
 #include "nrLDPC_types.h"
@@ -159,11 +159,11 @@ struct thread_params {
   uint8_t dev_id;
   uint16_t queue_id;
   uint32_t lcore_id;
+  nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters;
   struct nrLDPCoffload_params *p_offloadParams;
   unsigned int size_offloadParams;
   uint8_t iter_count;
   uint8_t *p_out;
-  uint8_t *ulsch_id;
   rte_atomic16_t nb_dequeued;
   rte_atomic16_t processing_status;
   rte_atomic16_t burst_sz;
@@ -396,21 +396,20 @@ static int add_dev(uint8_t dev_id, struct rte_bbdev_info *info)
 // based on DPDK BBDEV init_op_data_objs
 static int init_op_data_objs_dec(struct rte_bbdev_op_data *bufs,
                                  uint8_t *input,
-                                 t_nrLDPCoffload_params *offloadParams,
+                                 nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters,
                                  struct rte_mempool *mbuf_pool,
-                                 const uint16_t n,
                                  enum op_data_type op_type,
                                  uint16_t min_alignment)
 {
   bool large_input = false;
   uint16_t i = 0;
-  for (uint16_t h = 0; h < n; ++h) {
-    for (uint16_t j = 0; j < offloadParams[h].C; ++j) {
-      uint32_t data_len = offloadParams[h].perCB[j].E_cb;
+  for (uint16_t h = 0; h < nrLDPC_slot_decoding_parameters->nb_TBs; ++h) {
+    for (uint16_t j = 0; j < nrLDPC_slot_decoding_parameters->TBs[h].C; ++j) {
+      uint32_t data_len = nrLDPC_slot_decoding_parameters->TBs[h].segments[j].E;
       char *data;
       struct rte_mbuf *m_head = rte_pktmbuf_alloc(mbuf_pool);
       AssertFatal(m_head != NULL, "Not enough mbufs in %d data type mbuf pool (needed %u, available %u)",
-                           op_type, offloadParams[h].C, mbuf_pool->size);
+                           op_type, nrLDPC_slot_decoding_parameters->TBs[h].C, mbuf_pool->size);
   
       if (data_len > RTE_BBDEV_LDPC_E_MAX_MBUF) {
         printf("Warning: Larger input size than DPDK mbuf %u\n", data_len);
@@ -553,37 +552,35 @@ static void
 set_ldpc_dec_op(struct rte_bbdev_dec_op **ops,
 		unsigned int start_idx,
 		struct data_buffers *bufs,
-		uint8_t *ulsch_id,
-		t_nrLDPCoffload_params *p_offloadParams,
-		unsigned int size_offloadParams)
+    nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters)
 {
   unsigned int h;
   unsigned int i;
   unsigned int j = 0;
-  for (h = 0; h < size_offloadParams; ++h){
-    for (i = 0; i < p_offloadParams[h].C; ++i) {
-      ops[j]->ldpc_dec.cb_params.e = p_offloadParams[h].perCB[i].E_cb;
-      ops[j]->ldpc_dec.basegraph = p_offloadParams[h].BG;
-      ops[j]->ldpc_dec.z_c = p_offloadParams[h].Z;
-      ops[j]->ldpc_dec.q_m = p_offloadParams[h].Qm;
-      ops[j]->ldpc_dec.n_filler = p_offloadParams[h].F;
-      ops[j]->ldpc_dec.n_cb = p_offloadParams[h].n_cb;
-      ops[j]->ldpc_dec.iter_max = p_offloadParams[h].numMaxIter;
-      ops[j]->ldpc_dec.rv_index = p_offloadParams[h].rv;
+  for (h = 0; h < nrLDPC_slot_decoding_parameters->nb_TBs; ++h){
+    for (i = 0; i < nrLDPC_slot_decoding_parameters->TBs[h].C; ++i) {
+      ops[j]->ldpc_dec.cb_params.e = nrLDPC_slot_decoding_parameters->TBs[h].segments[i].E;
+      ops[j]->ldpc_dec.basegraph = nrLDPC_slot_decoding_parameters->TBs[h].BG;
+      ops[j]->ldpc_dec.z_c = nrLDPC_slot_decoding_parameters->TBs[h].Z;
+      ops[j]->ldpc_dec.q_m = nrLDPC_slot_decoding_parameters->TBs[h].Qm;
+      ops[j]->ldpc_dec.n_filler = nrLDPC_slot_decoding_parameters->TBs[h].F;
+      ops[j]->ldpc_dec.n_cb = (nrLDPC_slot_decoding_parameters->TBs[h].BG == 1) ? (66 * nrLDPC_slot_decoding_parameters->TBs[h].Z) : (50 * nrLDPC_slot_decoding_parameters->TBs[h].Z);
+      ops[j]->ldpc_dec.iter_max = nrLDPC_slot_decoding_parameters->TBs[h].max_ldpc_iterations;
+      ops[j]->ldpc_dec.rv_index = nrLDPC_slot_decoding_parameters->TBs[h].rv_index;
       ops[j]->ldpc_dec.op_flags = RTE_BBDEV_LDPC_ITERATION_STOP_ENABLE |
                                   RTE_BBDEV_LDPC_INTERNAL_HARQ_MEMORY_IN_ENABLE |
                                   RTE_BBDEV_LDPC_INTERNAL_HARQ_MEMORY_OUT_ENABLE |
                                   RTE_BBDEV_LDPC_HQ_COMBINE_OUT_ENABLE;
-      if (p_offloadParams[h].setCombIn) {
+      if (!nrLDPC_slot_decoding_parameters->TBs[h].segments[i].d_to_be_cleared) {
         ops[j]->ldpc_dec.op_flags |= RTE_BBDEV_LDPC_HQ_COMBINE_IN_ENABLE;
       }
-      if (p_offloadParams[h].C > 1) {
+      if (nrLDPC_slot_decoding_parameters->TBs[h].C > 1) {
         ops[j]->ldpc_dec.op_flags |= RTE_BBDEV_LDPC_CRC_TYPE_24B_DROP;
         ops[j]->ldpc_dec.op_flags |= RTE_BBDEV_LDPC_CRC_TYPE_24B_CHECK;
       }
       ops[j]->ldpc_dec.code_block_mode = 1;
-      ops[j]->ldpc_dec.harq_combined_input.offset = ulsch_id[h] * NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE + i * LDPC_MAX_CB_SIZE;
-      ops[j]->ldpc_dec.harq_combined_output.offset = ulsch_id[h] * NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE + i * LDPC_MAX_CB_SIZE;
+      ops[j]->ldpc_dec.harq_combined_input.offset = h * NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE + i * LDPC_MAX_CB_SIZE;
+      ops[j]->ldpc_dec.harq_combined_output.offset = h * NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE + i * LDPC_MAX_CB_SIZE;
       if (bufs->hard_outputs != NULL)
         ops[j]->ldpc_dec.hard_output = bufs->hard_outputs[start_idx + j];
       if (bufs->inputs != NULL)
@@ -629,25 +626,27 @@ static void set_ldpc_enc_op(struct rte_bbdev_enc_op **ops,
 }
 
 static int retrieve_ldpc_dec_op(struct rte_bbdev_dec_op **ops,
-                                const uint16_t n,
                                 const int vector_mask,
-                                uint8_t *p_out)
+                                nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters)
 {
   struct rte_bbdev_op_data *hard_output;
   uint16_t data_len = 0;
   struct rte_mbuf *m;
-  unsigned int i;
   char *data;
-  int offset = 0;
-  for (i = 0; i < n; ++i) {
-    hard_output = &ops[i]->ldpc_dec.hard_output;
-    m = hard_output->data;
-    data_len = rte_pktmbuf_data_len(m) - hard_output->offset;
-    data = m->buf_addr;
-    memcpy(&p_out[offset], data + m->data_off, data_len);
-    offset += data_len;
-    rte_pktmbuf_free(ops[i]->ldpc_dec.hard_output.data);
-    rte_pktmbuf_free(ops[i]->ldpc_dec.input.data);
+  unsigned int h;
+  unsigned int j;
+  unsigned int i = 0;
+  for (h = 0; h < nrLDPC_slot_decoding_parameters->nb_TBs; ++h){
+    for (j = 0; j < nrLDPC_slot_decoding_parameters->TBs[h].C; ++j) {
+      hard_output = &ops[i]->ldpc_dec.hard_output;
+      m = hard_output->data;
+      data_len = rte_pktmbuf_data_len(m) - hard_output->offset;
+      data = m->buf_addr;
+      memcpy(nrLDPC_slot_decoding_parameters->TBs[h].segments[j].c, data + m->data_off, data_len);
+      rte_pktmbuf_free(ops[i]->ldpc_dec.hard_output.data);
+      rte_pktmbuf_free(ops[i]->ldpc_dec.input.data);
+      ++i;
+    }
   }
   return 0;
 }
@@ -709,28 +708,25 @@ static int
 pmd_lcore_ldpc_dec(void *arg)
 {
   struct thread_params *tp = arg;
+  nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters = tp->nrLDPC_slot_decoding_parameters;
   uint16_t enq, deq;
   int time_out = 0;
   const uint16_t queue_id = tp->queue_id;
   uint16_t num_segments_tmp = 0;
-  for (unsigned int h = 0; h < tp->size_offloadParams; ++h)
+  for (unsigned int h = 0; h < nrLDPC_slot_decoding_parameters->nb_TBs; ++h)
   {
-    num_segments_tmp+=tp->p_offloadParams[h].C;
+    num_segments_tmp+=nrLDPC_slot_decoding_parameters->TBs[h].C;
   }
   const uint16_t num_segments = num_segments_tmp;
   struct rte_bbdev_dec_op **ops_enq;
   struct rte_bbdev_dec_op **ops_deq;
   ops_enq = (struct rte_bbdev_dec_op **)rte_calloc("struct rte_bbdev_dec_op **ops_enq", num_segments, sizeof(struct rte_bbdev_dec_op *), RTE_CACHE_LINE_SIZE);
   ops_deq = (struct rte_bbdev_dec_op **)rte_calloc("struct rte_bbdev_dec_op **ops_dec", num_segments, sizeof(struct rte_bbdev_dec_op *), RTE_CACHE_LINE_SIZE);
-  uint8_t *ulsch_id = tp->ulsch_id;
   struct data_buffers *bufs = NULL;
   uint16_t h, i;
   int ret;
   struct rte_bbdev_info info;
   uint16_t num_to_enq;
-  uint8_t *p_out = tp->p_out;
-  t_nrLDPCoffload_params *p_offloadParams = tp->p_offloadParams;
-  uint32_t size_offloadParams = tp->size_offloadParams;
 
   AssertFatal((num_segments < MAX_BURST), "BURST_SIZE should be <= %u", MAX_BURST);
   rte_bbdev_info_get(tp->dev_id, &info);
@@ -741,7 +737,7 @@ pmd_lcore_ldpc_dec(void *arg)
 
   ret = rte_bbdev_dec_op_alloc_bulk(tp->op_params->mp_dec, ops_enq, num_segments);
   AssertFatal(ret == 0, "Allocation failed for %d ops", num_segments);
-  set_ldpc_dec_op(ops_enq, 0, bufs, ulsch_id, p_offloadParams, size_offloadParams);
+  set_ldpc_dec_op(ops_enq, 0, bufs, nrLDPC_slot_decoding_parameters);
 
   for (enq = 0, deq = 0; enq < num_segments;) {
     num_to_enq = num_segments;
@@ -761,14 +757,14 @@ pmd_lcore_ldpc_dec(void *arg)
   if (deq == enq) {
     tp->iter_count = 0;
     /* get the max of iter_count for all dequeued ops */
-    for (h = 0; h < size_offloadParams; ++h){
-      for (i = 0; i < p_offloadParams[h].C; ++i) {
-        uint8_t *status = p_offloadParams[h].perCB[i].p_status_cb;
+    for (h = 0; h < nrLDPC_slot_decoding_parameters->nb_TBs; ++h){
+      for (i = 0; i < nrLDPC_slot_decoding_parameters->TBs[h].C; ++i) {
+        bool *status = &nrLDPC_slot_decoding_parameters->TBs[h].segments[i].decodeSuccess;
         tp->iter_count = RTE_MAX(ops_enq[i]->ldpc_dec.iter_count, tp->iter_count);
-        *status = ops_enq[i]->status;
+        *status = (ops_enq[i]->status == 0);
       }
     }
-    ret = retrieve_ldpc_dec_op(ops_deq, num_segments, tp->op_params->vector_mask, p_out);
+    ret = retrieve_ldpc_dec_op(ops_deq, tp->op_params->vector_mask, nrLDPC_slot_decoding_parameters);
     AssertFatal(ret == 0, "LDPC offload decoder failed!");
   }
 
@@ -848,10 +844,7 @@ static int pmd_lcore_ldpc_enc(void *arg)
 // based on DPDK BBDEV throughput_pmd_lcore_dec
 int start_pmd_dec(struct active_device *ad,
                   struct test_op_params *op_params,
-                  t_nrLDPCoffload_params *p_offloadParams,
-                  unsigned int size_offloadParams,
-                  uint8_t *ulsch_id,
-                  uint8_t *p_out)
+                  nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters)
 {
   int ret;
   unsigned int lcore_id, used_cores = 0;
@@ -870,10 +863,7 @@ int start_pmd_dec(struct active_device *ad,
   t_params[0].op_params = op_params;
   t_params[0].queue_id = ad->dec_queue;
   t_params[0].iter_count = 0;
-  t_params[0].p_out = p_out;
-  t_params[0].p_offloadParams = p_offloadParams;
-  t_params[0].size_offloadParams = size_offloadParams;
-  t_params[0].ulsch_id = ulsch_id;
+  t_params[0].nrLDPC_slot_decoding_parameters = nrLDPC_slot_decoding_parameters;
   used_cores++;
   // For now, we never enter here, we don't use the DPDK thread pool
   RTE_LCORE_FOREACH_WORKER(lcore_id) {
@@ -884,10 +874,7 @@ int start_pmd_dec(struct active_device *ad,
     t_params[used_cores].op_params = op_params;
     t_params[used_cores].queue_id = ad->queue_ids[used_cores];
     t_params[used_cores].iter_count = 0;
-    t_params[used_cores].p_out = p_out;
-    t_params[used_cores].p_offloadParams = p_offloadParams;
-    t_params[used_cores].size_offloadParams = size_offloadParams;
-    t_params[used_cores].ulsch_id = ulsch_id;
+    t_params[used_cores].nrLDPC_slot_decoding_parameters = nrLDPC_slot_decoding_parameters;
     rte_eal_remote_launch(pmd_lcore_ldpc_dec, &t_params[used_cores++], lcore_id);
   }
   rte_atomic16_set(&op_params->sync, SYNC_START);
@@ -942,37 +929,13 @@ struct test_op_params *op_params = NULL;
 
 struct rte_mbuf *m_head[DATA_NUM_TYPES];
 
-static int32_t LDPCdecoder_t2(struct nrLDPC_dec_params *p_decParams,
-                    uint8_t *harq_pid,
-                    uint8_t *ulsch_id,
-                    uint8_t *C,
-                    uint16_t n,
-                    int8_t *p_llr,
-                    int8_t *p_out,
-                    t_nrLDPC_time_stats *p_profiler,
-                    decode_abort_t *ab)
-{
+int32_t nrLDPC_coding_decoder(nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters){
   pthread_mutex_lock(&decode_mutex);
   // hardcoded we use first device
   LOG_D(PHY,"Offload\n");
+  int16_t z_ol[NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE] __attribute__((aligned(16)));
+  int8_t l_ol[NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE] __attribute__((aligned(16)));
   struct active_device *ad = active_devs;
-  t_nrLDPCoffload_params *p_offloadParams;
-  p_offloadParams = (t_nrLDPCoffload_params *)rte_calloc("t_nrLDPCoffload_params *p_offloadParams", n, sizeof(t_nrLDPCoffload_params), RTE_CACHE_LINE_SIZE);
-  for(uint16_t h = 0; h < n; ++h){
-    p_offloadParams[h].n_cb = (p_decParams[h].BG == 1) ? (66 * p_decParams[h].Z) : (50 * p_decParams[h].Z);
-    p_offloadParams[h].BG = p_decParams[h].BG;
-    p_offloadParams[h].Z = p_decParams[h].Z;
-    p_offloadParams[h].rv = p_decParams[h].rv;
-    p_offloadParams[h].F = p_decParams[h].F;
-    p_offloadParams[h].Qm = p_decParams[h].Qm;
-    p_offloadParams[h].numMaxIter = p_decParams[h].numMaxIter;
-    p_offloadParams[h].C = C[h];
-    p_offloadParams[h].setCombIn = p_decParams[h].setCombIn;
-    for (int r = 0; r < C[h]; r++) {
-      p_offloadParams[h].perCB[r].E_cb = p_decParams[h].perCB[r].E_cb;
-      p_offloadParams[h].perCB[r].p_status_cb = &(p_decParams[h].perCB[r].status_cb);
-    }
-  }
   struct rte_bbdev_info info;
   int ret;
   rte_bbdev_info_get(ad->dev_id, &info);
@@ -990,31 +953,40 @@ static int32_t LDPCdecoder_t2(struct nrLDPC_dec_params *p_decParams,
                                                           &op_params->q_bufs[socket_id][queue_id].hard_outputs,
                                                           &op_params->q_bufs[socket_id][queue_id].harq_inputs,
                                                           &op_params->q_bufs[socket_id][queue_id].harq_outputs};
+
   uint16_t num_blocks = 0;
-  for(uint16_t h = 0; h < n; ++h){
-    num_blocks += C[h];
+  int offset = 0;
+  for(uint16_t h = 0; h < nrLDPC_slot_decoding_parameters->nb_TBs; ++h){
+    for (int r = 0; r < nrLDPC_slot_decoding_parameters->TBs[h].C; r++) {
+      memcpy(&z_ol[offset], nrLDPC_slot_decoding_parameters->TBs[h].segments[r].llr, nrLDPC_slot_decoding_parameters->TBs[h].segments[r].E * sizeof(* z_ol));
+      simde__m128i *pv_ol128 = (simde__m128i *)&z_ol[offset];
+      simde__m128i *pl_ol128 = (simde__m128i *)&l_ol[offset];
+      int kc = nrLDPC_slot_decoding_parameters->TBs[h].BG == 2 ? 52 : 68;
+      for (int i = 0, j = 0; j < ((kc * nrLDPC_slot_decoding_parameters->TBs[h].Z) >> 4) + 1; i += 2, j++) {
+        pl_ol128[j] = simde_mm_packs_epi16(pv_ol128[i], pv_ol128[i + 1]);
+      }
+      offset += LDPC_MAX_CB_SIZE;
+    }
+    num_blocks += nrLDPC_slot_decoding_parameters->TBs[h].C;
   }
+
   for (enum op_data_type type = DATA_INPUT; type < 3; type += 2) {
     ret = allocate_buffers_on_socket(queue_ops[type], num_blocks * sizeof(struct rte_bbdev_op_data), socket_id);
     AssertFatal(ret == 0, "Couldn't allocate memory for rte_bbdev_op_data structs");
     ret = init_op_data_objs_dec(*queue_ops[type],
-                                (uint8_t *)p_llr,
-                                p_offloadParams,
+                                (uint8_t *)l_ol,
+                                nrLDPC_slot_decoding_parameters,
                                 mbuf_pools[type],
-                                n,
                                 type,
                                 info.drv.min_alignment);
     AssertFatal(ret == 0, "Couldn't init rte_bbdev_op_data structs");
   }
-  ret = start_pmd_dec(ad, op_params, p_offloadParams, n, ulsch_id, (uint8_t *)p_out);
+  ret = start_pmd_dec(ad, op_params, nrLDPC_slot_decoding_parameters);
   if (ret < 0) {
-    printf("Couldn't start pmd dec\n");
-    pthread_mutex_unlock(&decode_mutex);
-    return (p_decParams->numMaxIter);
+    LOG_E(PHY, "Couldn't start pmd dec\n");
   }
-  rte_free(p_offloadParams);
   pthread_mutex_unlock(&decode_mutex);
-  return ret;
+  return 0;
 }
 
 static int32_t LDPCencoder_t2(unsigned char ***input, unsigned char **output, encoder_implemparams_t *impp, uint16_t n)
@@ -1079,250 +1051,6 @@ static int32_t LDPCencoder_t2(unsigned char ***input, unsigned char **output, en
   ret = start_pmd_enc(ad, op_params, p_offloadParams, n, *output);
   rte_free(p_offloadParams);
   pthread_mutex_unlock(&encode_mutex);
-  return ret;
-}
-
-static int decode_offload_t2(PHY_VARS_gNB *phy_vars_gNB,
-                   uint8_t *ULSCH_id,
-                   uint16_t nb_ULSCH_id,
-                   short **ulsch_llr,
-                   nfapi_nr_pusch_pdu_t **pusch_pdu,
-                   t_nrLDPC_dec_params *decParams,
-                   uint8_t *harq_pid,
-                   uint32_t *G)
-{
-  NR_gNB_ULSCH_t *ulsch;
-  NR_UL_gNB_HARQ_t *harq_process;
-  int16_t z_ol[NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE] __attribute__((aligned(16)));
-  int8_t l_ol[NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE] __attribute__((aligned(16)));
-  uint32_t A;
-  int Kr;
-  int Kr_bytes;
-  int8_t decodeIterations = 0;
-  int r_offset = 0;
-  int offset = 0;
-
-  uint8_t *C;
-  C = (uint8_t *)calloc(nb_ULSCH_id, sizeof(uint8_t));
-  unsigned int size_outDec_tmp = 0;
-
-  for (uint16_t h = 0; h < nb_ULSCH_id; h++) {
-    r_offset = 0;
-    ulsch = &phy_vars_gNB->ulsch[ULSCH_id[h]];
-    harq_process = ulsch->harq_process;
-    A = (harq_process->TBS) << 3;
-    Kr = harq_process->K;
-    Kr_bytes = Kr >> 3;
-    // new data received, set processedSegments to 0
-    if (!decParams[h].setCombIn)
-      harq_process->processedSegments = 0;
-
-    for (int r = 0; r < harq_process->C; r++) {
-      decParams[h].perCB[r].E_cb = nr_get_E(G[ULSCH_id[h]], harq_process->C, decParams[h].Qm, pusch_pdu[h]->nrOfLayers, r);
-      memcpy(&z_ol[offset], ulsch_llr[h] + r_offset, decParams[h].perCB[r].E_cb * sizeof(* z_ol));
-      simde__m128i *pv_ol128 = (simde__m128i *)&z_ol[offset];
-      simde__m128i *pl_ol128 = (simde__m128i *)&l_ol[offset];
-      int kc = decParams[h].BG == 2 ? 52 : 68;
-      for (int i = 0, j = 0; j < ((kc * harq_process->Z) >> 4) + 1; i += 2, j++) {
-        pl_ol128[j] = simde_mm_packs_epi16(pv_ol128[i], pv_ol128[i + 1]);
-      }
-      decParams[h].F = harq_process->F;
-      r_offset += decParams[h].perCB[r].E_cb;
-      offset += LDPC_MAX_CB_SIZE;
-    }
-    size_outDec_tmp += harq_process->C * Kr_bytes;
-    C[h] = harq_process->C;
-  }
-
-  const unsigned int size_outDec = size_outDec_tmp;
-
-  int8_t *p_outDec = calloc(size_outDec, sizeof(int8_t));
-  decodeIterations = LDPCdecoder_t2(decParams, harq_pid, ULSCH_id, C, nb_ULSCH_id, (int8_t *)l_ol, p_outDec, NULL, NULL);
-
-  if (decodeIterations < 0) {
-    LOG_E(PHY, "ulsch_decoding.c: Problem in LDPC decoder offload\n");
-    return -1;
-  }
-
-  int offset_p_out = 0;
-  for (uint16_t h = 0; h < nb_ULSCH_id; h++) {
-    ulsch = &phy_vars_gNB->ulsch[ULSCH_id[h]];
-    harq_process = ulsch->harq_process;
-    A = (harq_process->TBS) << 3;
-    Kr = harq_process->K;
-    Kr_bytes = Kr >> 3;
-    int offset_b = 0;
-    for (int r = 0; r < harq_process->C; r++) {
-      if (decParams[h].perCB[r].status_cb == 0 || harq_process->C == 1) {
-        memcpy(harq_process->b + offset_b, &p_outDec[offset_p_out], Kr_bytes - (harq_process->F >> 3) - ((harq_process->C > 1) ? 3 : 0));
-        if (decodeIterations <= decParams->numMaxIter)
-          memcpy(harq_process->c[r], &p_outDec[offset_p_out], Kr_bytes - (harq_process->F >> 3) - ((harq_process->C > 1) ? 3 : 0));
-        harq_process->processedSegments++;
-      }
-      offset_p_out += (Kr_bytes - (harq_process->F >> 3) - ((harq_process->C > 1) ? 3 : 0));
-      offset_b += (Kr_bytes - (harq_process->F >> 3) - ((harq_process->C > 1) ? 3 : 0));
-    }
-  
-    bool crc_valid = false;
-    //CRC check made by the T2, no need to perform CRC check for a single code block twice
-    if (harq_process->processedSegments == harq_process->C) {
-      crc_valid = check_crc(harq_process->b, lenWithCrc(1, A), crcType(1, A));
-      if (harq_process->C == 1 && !crc_valid) {
-        harq_process->processedSegments--;
-      }
-    }
-  
-    if (crc_valid) {
-      LOG_D(PHY, "ULSCH: Setting ACK for slot %d TBS %d\n", ulsch->slot, harq_process->TBS);
-      ulsch->active = false;
-      harq_process->round = 0;
-      LOG_D(PHY, "ULSCH received ok \n");
-      nr_fill_indication(phy_vars_gNB, ulsch->frame, ulsch->slot, ULSCH_id[h], harq_pid[h], 0, 0);
-    } else {
-      LOG_D(PHY,
-          "[gNB %d] ULSCH: Setting NAK for SFN/SF %d/%d (pid %d, status %d, round %d, TBS %d)\n",
-          phy_vars_gNB->Mod_id,
-          ulsch->frame,
-          ulsch->slot,
-          harq_pid[h],
-          ulsch->active,
-          harq_process->round,
-          harq_process->TBS);
-      ulsch->handled = 1;
-      decodeIterations = ulsch->max_ldpc_iterations + 1;
-      LOG_D(PHY, "ULSCH %d in error\n", ULSCH_id[h]);
-      nr_fill_indication(phy_vars_gNB, ulsch->frame, ulsch->slot, ULSCH_id[h], harq_pid[h], 1, 0);
-    }
-  
-    ulsch->last_iteration_cnt = decodeIterations;
-  }
-  free(p_outDec);
-  free(C);
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_gNB_ULSCH_DECODING,0);
-  return 0;
-}
-
-static int nr_ulsch_decoding_t2(PHY_VARS_gNB *phy_vars_gNB,
-                      uint8_t *ULSCH_id,
-                      uint16_t nb_ULSCH_id,
-                      short **ulsch_llr,
-                      NR_DL_FRAME_PARMS *frame_parms,
-                      nfapi_nr_pusch_pdu_t **pusch_pdu,
-                      uint32_t frame,
-                      uint8_t nr_tti_rx,
-                      uint8_t *harq_pid,
-                      uint32_t *G)
-{
-  if (!ulsch_llr) {
-    LOG_E(PHY, "ulsch_decoding.c: NULL ulsch_llr pointer\n");
-    return -1;
-  }
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_gNB_ULSCH_DECODING, 1);
-
-  t_nrLDPC_dec_params *decParams = calloc(nb_ULSCH_id, sizeof(t_nrLDPC_dec_params));
-
-  for(uint16_t h = 0; h < nb_ULSCH_id; h++){
-
-    NR_gNB_ULSCH_t *ulsch = &phy_vars_gNB->ulsch[ULSCH_id[h]];
-    NR_gNB_PUSCH *pusch = &phy_vars_gNB->pusch_vars[ULSCH_id[h]];
-    NR_UL_gNB_HARQ_t *harq_process = ulsch->harq_process;
-
-    if (!harq_process) {
-      LOG_E(PHY, "ulsch_decoding.c: NULL harq_process pointer\n");
-      return -1;
-    }
-
-    // ------------------------------------------------------------------
-    const uint16_t nb_rb = pusch_pdu[h]->rb_size;
-    const uint8_t Qm = pusch_pdu[h]->qam_mod_order;
-    const uint8_t mcs = pusch_pdu[h]->mcs_index;
-    const uint8_t n_layers = pusch_pdu[h]->nrOfLayers;
-    // ------------------------------------------------------------------
-
-    harq_process->TBS = pusch_pdu[h]->pusch_data.tb_size;
-
-    decParams[h].check_crc = check_crc;
-    decParams[h].BG = pusch_pdu[h]->maintenance_parms_v3.ldpcBaseGraph;
-    const uint32_t A = (harq_process->TBS) << 3;
-    NR_gNB_PHY_STATS_t *stats = get_phy_stats(phy_vars_gNB, ulsch->rnti);
-    if (stats) {
-      stats->frame = frame;
-      stats->ulsch_stats.round_trials[harq_process->round]++;
-      for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-        stats->ulsch_stats.power[aarx] = dB_fixed_x10(pusch->ulsch_power[aarx]);
-        stats->ulsch_stats.noise_power[aarx] = dB_fixed_x10(pusch->ulsch_noise_power[aarx]);
-      }
-      if (!harq_process->harq_to_be_cleared) {
-        stats->ulsch_stats.current_Qm = Qm;
-        stats->ulsch_stats.current_RI = n_layers;
-        stats->ulsch_stats.total_bytes_tx += harq_process->TBS;
-      }
-    }
-
-    LOG_D(PHY,
-          "ULSCH Decoding, harq_pid %d rnti %x TBS %d G %d mcs %d Nl %d nb_rb %d, Qm %d, Coderate %f RV %d round %d new RX %d\n",
-          harq_pid[h],
-          ulsch->rnti,
-          A,
-          G[ULSCH_id[h]],
-          mcs,
-          n_layers,
-          nb_rb,
-          Qm,
-          pusch_pdu[h]->target_code_rate / 10240.0f,
-          pusch_pdu[h]->pusch_data.rv_index,
-          harq_process->round,
-          harq_process->harq_to_be_cleared);
-
-    // [hna] Perform nr_segmenation with input and output set to NULL to calculate only (C, K, Z, F)
-    nr_segmentation(NULL,
-                    NULL,
-                    lenWithCrc(1, A), // size in case of 1 segment
-                    &harq_process->C,
-                    &harq_process->K,
-                    &harq_process->Z, // [hna] Z is Zc
-                    &harq_process->F,
-                    decParams[h].BG);
-
-    uint16_t a_segments = MAX_NUM_NR_ULSCH_SEGMENTS_PER_LAYER * n_layers; // number of segments to be allocated
-    if (harq_process->C > a_segments) {
-      LOG_E(PHY, "nr_segmentation.c: too many segments %d, A %d\n", harq_process->C, A);
-      return(-1);
-    }
-    if (nb_rb != 273) {
-      a_segments = a_segments*nb_rb;
-      a_segments = a_segments/273 +1;
-    }
-    if (harq_process->C > a_segments) {
-      LOG_E(PHY,"Illegal harq_process->C %d > %d\n",harq_process->C,a_segments);
-      return -1;
-    }
-
-#ifdef DEBUG_ULSCH_DECODING
-    printf("ulsch decoding nr segmentation Z %d\n", harq_process->Z);
-    if (!frame % 100)
-      printf("K %d C %d Z %d \n", harq_process->K, harq_process->C, harq_process->Z);
-    printf("Segmentation: C %d, K %d\n",harq_process->C,harq_process->K);
-#endif
-
-    decParams[h].Z = harq_process->Z;
-    decParams[h].numMaxIter = ulsch->max_ldpc_iterations;
-    decParams[h].Qm = Qm;
-    decParams[h].rv = pusch_pdu[h]->pusch_data.rv_index;
-    decParams[h].outMode = 0;
-    decParams[h].setCombIn = !harq_process->harq_to_be_cleared;
-    if (harq_process->harq_to_be_cleared) {
-      for (int r = 0; r < harq_process->C; r++)
-        harq_process->d_to_be_cleared[r] = true;
-      harq_process->harq_to_be_cleared = false;
-    }
-  }
-
-  int ret = decode_offload_t2(phy_vars_gNB, ULSCH_id, nb_ULSCH_id, ulsch_llr, pusch_pdu, decParams, harq_pid, G);
-  
-  free(decParams);
-
   return ret;
 }
 
@@ -1417,7 +1145,7 @@ static int nr_dlsch_encoding_t2(PHY_VARS_gNB *gNB,
     for (int r=0; r<impp.n_segments; r++) {
       //d_tmp[r] = &harq->d[r][0];
       //channel_input[r] = &harq->d[r][0];
-  #ifdef DEBUG_DLSCH_CODING
+#ifdef DEBUG_DLSCH_CODING
       LOG_D(PHY,"Encoder: B %d F %d \n",harq->B, impp.F);
       LOG_D(PHY,"start ldpc encoder segment %d/%d\n",r,impp.n_segments);
       LOG_D(PHY,"input %d %d %d %d %d \n", harq->c[r][0], harq->c[r][1], harq->c[r][2],harq->c[r][3], harq->c[r][4]);
@@ -1427,7 +1155,7 @@ static int nr_dlsch_encoding_t2(PHY_VARS_gNB *gNB,
       }
   
       LOG_D(PHY,"\n");
-  #endif
+#endif
       //ldpc_encoder_orig((unsigned char*)harq->c[r],harq->d[r],*Zc,Kb,Kr,BG,0);
       //ldpc_encoder_optim((unsigned char*)harq->c[r],(unsigned char*)&harq->d[r][0],*Zc,Kb,Kr,BG,NULL,NULL,NULL,NULL);
     }
@@ -1483,7 +1211,7 @@ static int nr_dlsch_encoding_t2(PHY_VARS_gNB *gNB,
 }
 
 // OAI CODE
-int32_t nr_ulsch_decoding_init()
+int32_t nrLDPC_coding_init()
 {
   pthread_mutex_init(&encode_mutex, NULL);
   pthread_mutex_init(&decode_mutex, NULL);
@@ -1497,9 +1225,9 @@ int32_t nr_ulsch_decoding_init()
     {"dpdk_dev",    NULL, 0, .strptr = &dpdk_dev,    .defstrval = NULL, TYPE_STRING, 0, NULL},
     {"dpdk_core_list", NULL, 0, .strptr = &dpdk_core_list, .defstrval = NULL,   TYPE_STRING, 0, NULL}
   };
-  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nr_ulsch_decoding");
-  AssertFatal(dpdk_dev!=NULL, "nr_ulsch_decoding.dpdk_dev was not provided");
-  AssertFatal(dpdk_core_list!=NULL, "nr_ulsch_decoding.dpdk_core_list was not provided");
+  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_slot_t2");
+  AssertFatal(dpdk_dev!=NULL, "nrLDPC_slot_t2.dpdk_dev was not provided");
+  AssertFatal(dpdk_core_list!=NULL, "nrLDPC_slot_t2.dpdk_core_list was not provided");
   char *argv_re[] = {"bbdev", "-a", dpdk_dev, "-l", dpdk_core_list, "--file-prefix=b6", "--"};
   // EAL initialization, if already initialized (init in xran lib) try to probe DPDK device
   ret = rte_eal_init(7, argv_re);
@@ -1542,7 +1270,7 @@ int32_t nr_ulsch_decoding_init()
   return 0;
 }
 
-int32_t nr_ulsch_decoding_shutdown()
+int32_t nrLDPC_coding_shutdown()
 {
   struct active_device *ad = active_devs;
   int dev_id = 0;
@@ -1557,47 +1285,7 @@ int32_t nr_ulsch_decoding_shutdown()
   return 0;
 }
 
-int32_t nr_ulsch_decoding_decoder(PHY_VARS_gNB *gNB, NR_DL_FRAME_PARMS *frame_parms, int frame_rx, int slot_rx, uint32_t *G){
-
-  uint16_t nb_ulsch = 0;
-  for (unsigned int ulsch_index = 0; ulsch_index < gNB->max_nb_pusch; ulsch_index++) {
-    NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ulsch_index];
-    if ((ulsch->active == true) && (ulsch->frame == frame_rx) && (ulsch->slot == slot_rx) && (ulsch->handled == 0)) {
-      nb_ulsch++;
-    }
-  }
-
-  if(nb_ulsch==0)
-    return 0;
-
-  uint8_t *ULSCH_id = calloc(nb_ulsch, sizeof(int));
-  uint8_t *harq_pid = calloc(nb_ulsch, sizeof(harq_pid));
-  nfapi_nr_pusch_pdu_t **pusch_pdu = calloc(nb_ulsch, sizeof(nfapi_nr_pusch_pdu_t *));
-  short **llr = calloc(nb_ulsch, sizeof(short *));
-
-  uint16_t h = 0;
-  for (unsigned int ulsch_index = 0; ulsch_index < gNB->max_nb_pusch; ulsch_index++) {
-    NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ulsch_index];
-    if ((ulsch->active == true) && (ulsch->frame == frame_rx) && (ulsch->slot == slot_rx) && (ulsch->handled == 0)) {
-      ULSCH_id[h] = ulsch_index;
-      harq_pid[h] = ulsch->harq_pid; 
-      pusch_pdu[h] = &gNB->ulsch[h].harq_process->ulsch_pdu;
-      llr[h] = gNB->pusch_vars[h].llr;
-      h++;
-    }
-  }
-
-  int nbDecode = nr_ulsch_decoding_t2(gNB, ULSCH_id, nb_ulsch, llr, frame_parms, pusch_pdu, frame_rx, slot_rx, harq_pid, G);
-
-  free(ULSCH_id);
-  free(harq_pid);
-  free(pusch_pdu);
-
-  return nbDecode;
-
-}
-
-int nr_ulsch_decoding_encoder(PHY_VARS_gNB *gNB,
+int nrLDPC_coding_encoder(PHY_VARS_gNB *gNB,
                               processingData_L1tx_t *msgTx,
                               int frame,
                               uint8_t slot,

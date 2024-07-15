@@ -499,7 +499,7 @@ if (ENABLE_LDPC_T2)
   set_target_properties(ldpc_t2 PROPERTIES COMPILE_FLAGS "-DALLOW_EXPERIMENTAL_API")
   target_link_libraries(ldpc_t2 ${LIBDPDK_T2_LDFLAGS} ${PMD_T2})
   set(PHY_LDPC_SLOT_T2_SRC
-    ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nr_ulsch_decoding_t2.c
+    ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nrLDPC_coding_t2.c
     ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nrLDPC_decoder.c
     ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_encoder/ldpc_encoder_optim8segmulti.c
   )
