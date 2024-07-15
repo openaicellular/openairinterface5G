@@ -30,6 +30,7 @@ Replaces xml_files/enb_usrp210_band40_test_20mhz_tm1.xml
 100000
 111110
 040101
+800813
 030124
 040301 040521 040622 040621 040623 040662 040401 040201
 030224
@@ -54,6 +55,12 @@ Replaces xml_files/enb_usrp210_band40_test_20mhz_tm1.xml
             <desc>Enable Sleep States</desc>
             <node>starsky</node>
             <command>sudo cpupower idle-set -E</command>
+    </testCase>
+    <testCase id="800813">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace for server 0</desc>
+        <eNB_instance>0</eNB_instance>
+        <eNB_serverId>0</eNB_serverId>
     </testCase>
     <testCase id="030124">
         <class>Deploy_Object</class>

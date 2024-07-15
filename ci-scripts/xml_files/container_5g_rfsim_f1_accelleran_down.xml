@@ -31,9 +31,11 @@
         <TestCaseExclusionList></TestCaseExclusionList>
 
         <testCase id="100022">
-                <class>UndeployGenObject</class>
+                <class>Undeploy_Object</class>
                 <desc>Undeploy all OAI 5G stack</desc>
-                <yaml_path>yaml_files/5g_rfsimulator_accelleran</yaml_path>
+                <yaml_path>ci-scripts/yaml_files/5g_rfsimulator_accelleran</yaml_path>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
         </testCase>
 
         <testCase id="222222">

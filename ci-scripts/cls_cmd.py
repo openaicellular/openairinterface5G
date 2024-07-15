@@ -38,6 +38,7 @@ SSHTIMEOUT=7
 
 # helper that returns either LocalCmd or RemoteCmd based on passed host name
 def getConnection(host, d=None):
+	logging.debug(f'Getting ssh connection with host {host}')
 	if host is None or host.lower() in ["", "none", "localhost"]:
 		return LocalCmd(d=d)
 	else:
@@ -128,7 +129,7 @@ class LocalCmd(Cmd):
 
 	def copyin(self, src, tgt, recursive=False):
 		if src[0] != '/' or tgt[0] != '/':
-			raise Exception('support only absolute file paths!')
+			raise Exception(f'support only absolute file paths! Provided src = {src} and tgt = {tgt}')
 		opt = '-r' if recursive else ''
 		return self.run(f'cp {opt} {src} {tgt}').returncode == 0
 

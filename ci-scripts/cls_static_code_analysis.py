@@ -105,8 +105,8 @@ class StaticCodeAnalysis():
 		else:
 			full_ran_repo_name = self.ranRepository + '.git'
 
-		CreateWorkspace(cmd, lSourcePath, full_ran_repo_name, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
-
+		#CreateWorkspace was here
+		cmd.cd(lSourcePath)
 		logDir = f'{lSourcePath}/cmake_targets/build_log_{self.testCase_id}'
 		cmd.run(f'mkdir -p {logDir}')
 		cmd.run('docker image rm oai-cppcheck:bionic oai-cppcheck:focal')
@@ -239,7 +239,8 @@ class StaticCodeAnalysis():
 		else:
 			full_ran_repo_name = self.ranRepository + '.git'
 
-		CreateWorkspace(cmd, lSourcePath, full_ran_repo_name, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
+		#CreateWorkspace was here
+		cmd.cd(lSourcePath)
 		check_options = ''
 		if self.ranAllowMerge:
 			check_options = f'--build-arg MERGE_REQUEST=true --build-arg SRC_BRANCH={self.ranBranch}'

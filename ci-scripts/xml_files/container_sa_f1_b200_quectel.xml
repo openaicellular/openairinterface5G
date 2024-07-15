@@ -28,7 +28,9 @@
   <TestCaseRequestedList>
     100000
     110002
+    800813
     130101
+    800814
     130102
     100001
     110000
@@ -79,7 +81,12 @@
     <desc>Detach Quectel</desc>
     <id>idefix</id>
   </testCase>
-
+  <testCase id="800813">
+      <class>Create_Workspace</class>
+      <desc>Creating new Workspace</desc>
+      <eNB_instance>0</eNB_instance>
+      <eNB_serverId>0</eNB_serverId>
+  </testCase>
   <testCase id="130101">
     <class>Deploy_Object</class>
     <desc>Deploy gNB-CU in a container</desc>
@@ -88,7 +95,12 @@
     <eNB_serverId>0</eNB_serverId>
     <services>gnb_cu</services>
   </testCase>
-
+  <testCase id="800814">
+      <class>Create_Workspace</class>
+      <desc>Creating new Workspace</desc>
+      <eNB_instance>0</eNB_instance>
+      <eNB_serverId>0</eNB_serverId>
+  </testCase>
   <testCase id="130102">
     <class>Deploy_Object</class>
     <desc>Deploy gNB-DU (FDD/Band1/10MHz/B200) in a container</desc>

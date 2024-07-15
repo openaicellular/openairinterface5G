@@ -25,10 +25,14 @@
 	<htmlTabName>License and Formatting Checks</htmlTabName>
 	<htmlTabIcon>wrench</htmlTabIcon>
 	<TestCaseRequestedList>
+ 000001
  000002
 	</TestCaseRequestedList>
 	<TestCaseExclusionList></TestCaseExclusionList>
-
+    <testCase id="000001">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace</desc>
+    </testCase>
 	<testCase id="000002">
 		<class>LicenceAndFormattingCheck</class>
 		<desc>License and Formatting Checks</desc>
