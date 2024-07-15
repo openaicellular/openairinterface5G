@@ -48,4 +48,5 @@ int get_dl_band(const struct f1ap_served_cell_info_t *cell_info);
 int get_ssb_scs(const struct f1ap_served_cell_info_t *cell_info);
 int get_ssb_arfcn(const struct nr_rrc_du_container_t *du);
 
+struct nr_rrc_du_container_t *find_target_du(struct gNB_RRC_INST_s *rrc, sctp_assoc_t source_assoc_id);
 #endif /* RRC_GNB_DU_H_ */
