@@ -893,19 +893,20 @@ static void positioning_measurement_response(const f1ap_measurement_resp_t *resp
   f1ap_resp->nrppa_msg_info.routing_id_buffer = resp->nrppa_msg_info.routing_id_buffer;
   f1ap_resp->nrppa_msg_info.routing_id_length = resp->nrppa_msg_info.routing_id_length;
 
+
+  gNB_MAC_INST *mac = RC.nrmac[resp->nrppa_msg_info.instance];
   f1ap_pos_measurement_result_list_t *measList=&f1ap_resp->pos_measurement_result_list;
-  int noOfTRPs= NB_ANTENNAS_RX;
+  int noOfTRPs= mac->meas_pos_info.NumberofTRPs; //NB_ANTENNAS_RX;
   measList->pos_measurement_result_list_length = noOfTRPs;
   measList->pos_measurement_result_list_item = malloc(noOfTRPs*sizeof(f1ap_pos_measurement_result_list_item_t));
   DevAssert(measList->pos_measurement_result_list_item);
   f1ap_pos_measurement_result_list_item_t *meas_res_list_item= measList->pos_measurement_result_list_item;
   LOG_D(MAC, "Preparing pos_measurement_result_list for NRPPA noOfTRPs= %d", noOfTRPs);
+
   uint32_t Tc_inv = 4096 * 480000;
   uint16_t k = 1;
   uint64_t T_inv = Tc_inv / (1 << k);
   uint64_t T_ns_inv = 1000000000;
-  gNB_MAC_INST *mac = RC.nrmac[resp->nrppa_msg_info.instance];
-  
   for (int trp_i=0; trp_i < noOfTRPs; trp_i++){
     meas_res_list_item->tRPID =trp_i; // TODO: needs to be added to config file
     f1ap_pos_measurement_result_t *posMeasRes= &meas_res_list_item->posMeasurementResult;
@@ -928,10 +929,10 @@ static void positioning_measurement_response(const f1ap_measurement_resp_t *resp
               MeasResVal->choice.uL_RTOA.uL_RTOA_MeasurementItem.choice.k1);
     }
     // IE timeStamp.measurementTime
-    posMeasRes->pos_measurement_result_item->timeStamp.systemFrameNumber = mac->frame;
+    posMeasRes->pos_measurement_result_item->timeStamp.systemFrameNumber = mac->meas_pos_info.frame;// mac->frame;
     // IE timeStamp.slotIndex
     posMeasRes->pos_measurement_result_item->timeStamp.slotIndex.present = f1ap_time_stamp_slot_index_pr_sCS_30;
-    posMeasRes->pos_measurement_result_item->timeStamp.slotIndex.choice.sCS_30 = mac->slot;
+    posMeasRes->pos_measurement_result_item->timeStamp.slotIndex.choice.sCS_30 = mac->meas_pos_info.slot; //mac->slot;
     if (trp_i < noOfTRPs - 1) {
       meas_res_list_item++;
     }

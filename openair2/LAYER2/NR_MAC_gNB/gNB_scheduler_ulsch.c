@@ -1302,6 +1302,9 @@ void handle_nr_srs_measurements(const module_id_t module_id,
   if (srs_ind->rnti == NON_UE_ASSOCIATED_SRS_DUMMY_RNTI) {
     LOG_I(NR_MAC, "Received Non-UE associated SRS with ToA %d (ns)\n",srs_ind->timing_advance_offset_nsec);
     nrmac->meas_pos_info.toa_ns[0] = srs_ind->timing_advance_offset_nsec;
+    nrmac->meas_pos_info.frame= frame;
+    nrmac->meas_pos_info.slot= slot;
+
 
     if (srs_ind->srs_usage != NFAPI_NR_SRS_LOCALIZATION) {
       LOG_W(NR_MAC,"received SRS indication with NON_UE_ASSOCIATED but SRS usage not for localization");
@@ -1312,9 +1315,11 @@ void handle_nr_srs_measurements(const module_id_t module_id,
       uint16_t bytesRead = 0;
 
       memset(nrmac->meas_pos_info.toa_ns, 0, sizeof(nrmac->meas_pos_info.toa_ns));
+      nrmac->meas_pos_info.NumberofTRPs= srs_ind->report_tlv.length/2;
+      LOG_I(NR_MAC, "Number of TRPs for ToA %d \n",nrmac->meas_pos_info.NumberofTRPs);
 
       for (int p_index = 0; p_index < srs_ind->report_tlv.length/2; p_index++) {
-	bytesRead += pull16(&pReadPackedMessage, &nrmac->meas_pos_info.toa_ns[p_index], endReadPackedMessage);
+        bytesRead += pull16(&pReadPackedMessage, &nrmac->meas_pos_info.toa_ns[p_index], endReadPackedMessage);
       }
     }
       
