@@ -171,6 +171,86 @@ def AnalyzeBuildLogs(buildRoot, images, globalStatus):
 		collectInfo[image] = files
 	return collectInfo
 
+def GetCredentials(instance):
+    server_id = instance.eNB_serverId[instance.eNB_instance]
+    if server_id == '0':
+        return (instance.eNBIPAddress, instance.eNBUserName, instance.eNBPassword, instance.eNBSourceCodePath)
+    elif server_id == '1':
+        return (instance.eNB1IPAddress, instance.eNB1UserName, instance.eNB1Password, instance.eNB1SourceCodePath)
+    elif server_id == '2':
+        return (instance.eNB2IPAddress, instance.eNB2UserName, instance.eNB2Password, instance.eNB2SourceCodePath)
+    else:
+        raise Exception ("Only supports maximum of 3 servers")
+
+def GetContainerName(mySSH, svcName):
+	ret = mySSH.run(f"docker compose -f docker-compose.y*ml config --format json {svcName}  | jq -r '.services.\"{svcName}\".container_name'")
+	containerName = ret.stdout
+	return containerName
+
+def GetImageInfo(mySSH, containerName):
+	usedImage = ''
+	ret = mySSH.run('docker inspect --format="ImageUsed: {{.Config.Image}}" ' + containerName)
+	if ret.stdout.count('ImageUsed: oai-ci'):
+		usedImage = ret.stdout.replace('ImageUsed: oai-ci', 'oai-ci').strip()
+		logging.debug('Used image is ' + usedImage)
+	if usedImage != '':
+		ret = mySSH.run('docker image inspect --format "* Size     = {{.Size}} bytes\n* Creation = {{.Created}}\n* Id       = {{.Id}}" ' + usedImage)
+		imageInfo = f"Used image is {usedImage}\n{ret.stdout}"
+		return imageInfo
+	else:
+		return "Could not retrieve used image info!\n"
+
+def GetContainerHealth(mySSH, containerName):
+    if containerName is None:
+        return 0, 0
+    unhealthyNb = 0
+    healthyNb = 0
+    time.sleep(5)
+    for _ in range(3):
+        if containerName != 'db_init':
+            result = mySSH.run(f'docker inspect --format="{{{{.State.Health.Status}}}}" {containerName}')
+            unhealthyNb = result.stdout.count('unhealthy')
+            healthyNb = result.stdout.count('healthy') - unhealthyNb
+            if healthyNb == 1:
+                break
+            else:
+                time.sleep(10)
+        else:
+            unhealthyNb = 0
+            healthyNb = 1
+            break
+    return healthyNb, unhealthyNb
+
+def ReTagImages(mySSH,IMAGES,ranCommitID,ranBranch,ranAllowMerge,displayedNewTags):
+	mySSH.run('cp docker-compose.y*ml ci-docker-compose.yml', 5)
+	for image in IMAGES:
+		imageTag = ImageTagToUse(image, ranCommitID, ranBranch, ranAllowMerge)
+		if image == 'oai-gnb' or image == 'oai-nr-ue' or image == 'oai-nr-cuup':
+				ret = mySSH.run(f'docker image inspect oai-ci/{imageTag}', reportNonZero=False, silent=False)
+				if ret.returncode != 0:
+						imageTag = imageTag.replace('oai-gnb', 'oai-gnb-asan')
+						imageTag = imageTag.replace('oai-nr-ue', 'oai-nr-ue-asan')
+						imageTag = imageTag.replace('oai-nr-cuup', 'oai-nr-cuup-asan')
+						if not displayedNewTags:
+								logging.debug(f'\u001B[1m Using sanitized version of {image} with {imageTag}\u001B[0m')
+		mySSH.run(f'sed -i -e "s@oaisoftwarealliance/{image}:develop@oai-ci/{imageTag}@" ci-docker-compose.yml',silent=True)
+		mySSH.run(f'sed -i -e "s@{image}:latest@oai-ci/{imageTag}@" ci-docker-compose.yml',silent=True) # temporary solution for not using the new branch
+
+def DeployServices(mySSH,svcName):
+	allServices = []
+	if svcName == '':
+		logging.warning('No service name given: starting all services in ci-docker-compose.yml!')
+		ret = mySSH.run(f'docker compose -f ci-docker-compose.yml config --services')
+		allServices = ret.stdout.splitlines()
+	deployStatus = mySSH.run(f'docker compose --file ci-docker-compose.yml up -d -- {svcName}', 50)
+	return deployStatus.returncode,allServices
+
+def CopyFailedDeployLog(mySSH,lSourcePath,ymlPath,containerName,filename):
+	logging.warning(f'Deployment Failed, trying to copy the log from {filename}')
+	logPath = f'{os.getcwd()}/../cmake_targets/log/{ymlPath[2]}'
+	os.system(f'mkdir -p {logPath}')
+	mySSH.run(f'docker logs {containerName} > {lSourcePath}/cmake_targets/log/{filename} 2>&1')
+	mySSH.copyin(f'{lSourcePath}/cmake_targets/log/{filename}', os.path.join(logPath, filename))
 # pyshark livecapture launches 2 processes:
 # * One using dumpcap -i lIfs -w - (ie redirecting the packets to STDOUT)
 # * One using tshark -i - -w loFile (ie capturing from STDIN from previous process)
@@ -884,136 +964,38 @@ class Containerize():
 		CreateWorkspace(sshSession, lSourcePath, self.ranRepository, self.ranCommitID, self.ranTargetBranch, self.ranAllowMerge)
 
 	def DeployObject(self, HTML, EPC):
-		if self.eNB_serverId[self.eNB_instance] == '0':
-			lIpAddr = self.eNBIPAddress
-			lUserName = self.eNBUserName
-			lPassWord = self.eNBPassword
-			lSourcePath = self.eNBSourceCodePath
-		elif self.eNB_serverId[self.eNB_instance] == '1':
-			lIpAddr = self.eNB1IPAddress
-			lUserName = self.eNB1UserName
-			lPassWord = self.eNB1Password
-			lSourcePath = self.eNB1SourceCodePath
-		elif self.eNB_serverId[self.eNB_instance] == '2':
-			lIpAddr = self.eNB2IPAddress
-			lUserName = self.eNB2UserName
-			lPassWord = self.eNB2Password
-			lSourcePath = self.eNB2SourceCodePath
+		lIpAddr, lUserName, lPassWord, lSourcePath = GetCredentials(self)
 		if lIpAddr == '' or lUserName == '' or lPassWord == '' or lSourcePath == '':
 			HELP.GenericHelp(CONST.Version)
 			sys.exit('Insufficient Parameter')
 		logging.debug('\u001B[1m Deploying OAI Object on server: ' + lIpAddr + '\u001B[0m')
 		self.deployKind[self.eNB_instance] = True
-
-		mySSH = cls_cmd.getConnection(lIpAddr)
-
-		mySSH.cd(lSourcePath + '/' + self.yamlPath[self.eNB_instance])
-		mySSH.run('cp docker-compose.y*ml ci-docker-compose.yml', 5)
-		for image in IMAGES:
-			imageTag = ImageTagToUse(image, self.ranCommitID, self.ranBranch, self.ranAllowMerge)
-			if image == 'oai-gnb' or image == 'oai-nr-ue' or image == 'oai-nr-cuup':
-					ret = mySSH.run(f'docker image inspect oai-ci/{imageTag}', reportNonZero=False, silent=self.displayedNewTags)
-					if ret.returncode != 0:
-							imageTag = imageTag.replace('oai-gnb', 'oai-gnb-asan')
-							imageTag = imageTag.replace('oai-nr-ue', 'oai-nr-ue-asan')
-							imageTag = imageTag.replace('oai-nr-cuup', 'oai-nr-cuup-asan')
-							if not self.displayedNewTags:
-									logging.debug(f'\u001B[1m Using sanitized version of {image} with {imageTag}\u001B[0m')
-			mySSH.run(f'sed -i -e "s@oaisoftwarealliance/{image}:develop@oai-ci/{imageTag}@" ci-docker-compose.yml',silent=True)
-			mySSH.run(f'sed -i -e "s@{image}:latest@oai-ci/{imageTag}@" ci-docker-compose.yml',silent=True) # temporary solution for not using the new branch
-
-		svcName = self.services[self.eNB_instance]
-		if svcName == '':
-			logging.warning('no service name giv en: starting all services in ci-docker-compose.yml!')
-			ret = mySSH.run(f'docker compose -f {lSourcePath}/{self.yamlPath[self.eNB_instance]}/ci-docker-compose.yml config --services')
-			if ret.returncode != 0:
-				HTML.CreateHtmlTestRow(RAN.runtime_stats, 'KO', "cannot enumerate running services")
-				self.exitStatus = 1
-				return
-			allServices = ret.stdout.splitlines()
-
-		deployStatus = mySSH.run(f'docker compose --file ci-docker-compose.yml up -d -- {svcName}', 50)
-		if deployStatus.returncode != 0:
+		mySSH = cls_cmd.getConnection(lIpAddr, f'{lSourcePath}/{self.yamlPath[self.eNB_instance]}')
+		ReTagImages(mySSH,IMAGES,self.ranCommitID, self.ranBranch, self.ranAllowMerge, self.displayedNewTags)
+		deployStatus,allServices = DeployServices(mySSH,self.services[self.eNB_instance])
+		if deployStatus != 0:
 			mySSH.close()
 			self.exitStatus = 1
 			logging.error('Could not deploy')
 			HTML.CreateHtmlTestRow('Could not deploy', 'KO', CONST.ALL_PROCESSES_OK)
 			return
-		# Checking Status
-		services_list = self.services[self.eNB_instance].split()
-		if services_list == []: services_list=allServices #handing empty services
+		services_list = allServices if self.services[self.eNB_instance].split() == [] else self.services[self.eNB_instance].split()
+		status = True
 		for svcName in services_list:
-			logging.debug('current service in the service list: \033[4m%s\033[0m', svcName)
-			mySSH.run(f"docker compose -f docker-compose.yaml config --format json {svcName}  | jq -r '.services.\"{svcName}\".container_name'")
-			result = mySSH.getBefore()
-			unhealthyNb = 0
-			healthyNb = 0
-			containerName = ''
-			usedImage = ''
-			imageInfo = ''
-			if result is not None:
-				containerName = result.group('container_name')
-				time.sleep(5)
-				cnt = 0
-				while (cnt < 3):
-					if svcName != 'db_init':
-						mySSH.run('docker inspect --format="{{.State.Health.Status}}" ' + containerName, 5)
-						unhealthyNb = mySSH.getBefore().count('unhealthy')
-						healthyNb = mySSH.getBefore().count('healthy') - unhealthyNb
-						if healthyNb == 1:
-							cnt = 10
-						else:
-							time.sleep(10)
-							cnt += 1
-					else: 
-						# faking health of db_init
-						unhealthyNb = 0
-						healthyNb = 1
-						break
-				mySSH.run('docker inspect --format="ImageUsed: {{.Config.Image}}" ' + containerName)
-				for stdoutLine in mySSH.getBefore().split('\n'):
-					if stdoutLine.count('ImageUsed: oai-ci'):
-						usedImage = stdoutLine.replace('ImageUsed: oai-ci', 'oai-ci').strip()
-						logging.debug('Used image is ' + usedImage)
-				if usedImage != '':
-					ret = mySSH.run('docker image inspect --format "* Size     = {{.Size}} bytes\n* Creation = {{.Created}}\n* Id       = {{.Id}}" ' + usedImage)
-							imageInfo = ret.stdout
-			logging.debug(f' -- for service {svcName} containers: {str(healthyNb)} healthy, {str(healthyNb)} unhealthy')
-
+			containerName = GetContainerName(mySSH, svcName)
+			healthyNb,unhealthyNb = GetContainerHealth(mySSH,containerName)
 			self.testCase_id = HTML.testCase_id
 			self.eNB_logFile[self.eNB_instance] = f'{svcName}-{self.testCase_id}.log'
-
-			status = False
-			if healthyNb == 1:
-				status = True
-				logging.info('\u001B[1m Deploying OAI object Pass\u001B[0m')
-			else:
-				# containers are unhealthy, so we won't start. However, logs are stored at the end
-				# in UndeployObject so we here store the logs of the unhealthy container to report it
-				logfilename = f'{lSourcePath}/cmake_targets/log/{self.eNB_logFile[self.eNB_instance]}'
-				mySSH.run(f'docker logs {containerName} > {logfilename}', 30)
-				cwd = os.getcwd()
-				logging.warning(f'Deployment Failed, trying to copy the log from {logfilename} at {cwd}')
-				mySSH.copyin(logfilename,cwd,True)
-
+			if unhealthyNb: 
+				CopyFailedDeployLog(mySSH,lSourcePath,self.yamlPath[0].split('/'),containerName,self.eNB_logFile[self.eNB_instance])
+				status = False
+			logging.debug(GetImageInfo(mySSH, containerName))
 		mySSH.close()
-
-		message = ''
-		if usedImage != '':
-			message += f'Used Image = {usedImage} :\n'
-			message += imageInfo
-		else:
-			message += 'Could not retrieve used image info!\n'
 		if status:
-			message += '\nHealthy deployment!\n'
-		else:
-			message += '\nUnhealthy deployment! -- Check logs for reason!\n'
-		if status:
-			HTML.CreateHtmlTestRowQueue('N/A', 'OK', [message])
+			HTML.CreateHtmlTestRowQueue('N/A', '0K', '\nHealthy deployment!\n')
 		else:
 			self.exitStatus = 1
-			HTML.CreateHtmlTestRowQueue('N/A', 'KO', [message])
-
+			HTML.CreateHtmlTestRowQueue('N/A', 'KO', '\nUnhealthy deployment! -- Check logs for reason!\n')
 
 	def UndeployObject(self, HTML, RAN):
 		if self.eNB_serverId[self.eNB_instance] == '0':
@@ -1111,135 +1093,6 @@ class Containerize():
 			logging.error('\u001B[1m Undeploying OAI Object Failed\u001B[0m')
 		mySSH.close()
 
-	def DeployGenObject(self, HTML, RAN, UE):
-		self.exitStatus = 0
-		logging.debug('\u001B[1m Checking Services to deploy\u001B[0m')
-		# Implicitly we are running locally
-		myCmd = cls_cmd.LocalCmd(d = self.yamlPath[0])
-		self.deployKind[0] = False
-		cmd = 'docker-compose config --services'
-		listServices = myCmd.run(cmd)
-		if listServices.returncode != 0:
-			myCmd.close()
-			self.exitStatus = 1
-			HTML.CreateHtmlTestRow('SVC not Found', 'KO', CONST.ALL_PROCESSES_OK)
-			return
-		for reqSvc in self.services[0].split(' '):
-			res = re.search(reqSvc, listServices.stdout)
-			if res is None:
-				logging.error(reqSvc + ' not found in specified docker-compose')
-				self.exitStatus = 1
-		if (self.exitStatus == 1):
-			myCmd.close()
-			HTML.CreateHtmlTestRow('SVC not Found', 'KO', CONST.ALL_PROCESSES_OK)
-			return
-		cmd = 'cp docker-compose.y*ml docker-compose-ci.yml'
-		myCmd.run(cmd, silent=self.displayedNewTags)
-		imageNames = ['oai-enb', 'oai-gnb', 'oai-lte-ue', 'oai-nr-ue', 'oai-lte-ru', 'oai-nr-cuup']
-		for image in imageNames:
-			tagToUse = ImageTagToUse(image, self.ranCommitID, self.ranBranch, self.ranAllowMerge)
-			# In the scenario, for 5G images, we have the choice of either pulling normal images
-			# or -asan images. We need to detect which kind we did pull.
-			if image == 'oai-gnb' or image == 'oai-nr-ue' or image == 'oai-nr-cuup':
-				ret = myCmd.run(f'docker image inspect oai-ci/{tagToUse}', reportNonZero=False, silent=self.displayedNewTags)
-				if ret.returncode != 0:
-					tagToUse = tagToUse.replace('oai-gnb', 'oai-gnb-asan')
-					tagToUse = tagToUse.replace('oai-nr-ue', 'oai-nr-ue-asan')
-					tagToUse = tagToUse.replace('oai-nr-cuup', 'oai-nr-cuup-asan')
-					if not self.displayedNewTags:
-						logging.debug(f'\u001B[1m Using sanitized version of {image} with {tagToUse}\u001B[0m')
-			cmd = f'sed -i -e "s@oaisoftwarealliance/{image}:develop@oai-ci/{tagToUse}@" docker-compose-ci.yml'
-			myCmd.run(cmd, silent=self.displayedNewTags)
-		self.displayedNewTags = True
-
-		cmd = f'docker-compose -f docker-compose-ci.yml up -d {self.services[0]}'
-		deployStatus = myCmd.run(cmd, timeout=100)
-		if deployStatus.returncode != 0:
-			myCmd.close()
-			self.exitStatus = 1
-			logging.error('Could not deploy')
-			HTML.CreateHtmlTestRow('Could not deploy', 'KO', CONST.ALL_PROCESSES_OK)
-			return
-
-		logging.debug('\u001B[1m Checking if all deployed healthy\u001B[0m')
-		cmd = 'docker-compose -f docker-compose-ci.yml ps -a'
-		count = 0
-		healthy = 0
-		restarting = 0
-		newContainers = []
-		while (count < 10):
-			count += 1
-			containerStatus = []
-			deployStatus = myCmd.run(cmd, 30, silent=True)
-			healthy = 0
-			restarting = 0
-			for state in deployStatus.stdout.split('\n'):
-				state = state.strip()
-				res = re.search('Name|NAME|----------', state)
-				if res is not None:
-					continue
-				if len(state) == 0:
-					continue
-				res = re.search('^(?P<container_name>[a-zA-Z0-9\-\_]+) ', state)
-				if res is not None:
-					cName = res.group('container_name')
-					found = False
-					for alreadyDeployed in self.deployedContainers:
-						if cName == alreadyDeployed:
-							found = True
-					if not found:
-						newContainers.append(cName)
-						self.deployedContainers.append(cName)
-				if re.search('\(healthy\)', state) is not None:
-					healthy += 1
-				if re.search('rfsim4g-db-init.*Exit 0', state) is not None or re.search('rfsim4g-db-init.*Exited \(0\)', state) is not None:
-					myCmd.run('docker rm -f rfsim4g-db-init', timeout=30, silent=True, reportNonZero=False)
-				if re.search('l2sim4g-db-init.*Exit 0', state) is not None or re.search('l2sim4g-db-init.*Exited \(0\)', state) is not None:
-					myCmd.run('docker rm -f l2sim4g-db-init', timeout=30, silent=True, reportNonZero=False)
-				if re.search('Restarting', state) is None:
-					containerStatus.append(state)
-				else:
-					restarting += 1
-			if healthy == self.nb_healthy[0] and restarting == 0:
-				count = 100
-			else:
-				time.sleep(10)
-
-		html_cell = ''
-		for newCont in newContainers:
-			if newCont == 'rfsim4g-db-init':
-				continue
-			cmd = 'docker inspect -f "{{.Config.Image}}" ' + newCont
-			imageInspect = myCmd.run(cmd, timeout=30, silent=True)
-			imageName = str(imageInspect.stdout).strip()
-			cmd = 'docker image inspect --format \'{{.RepoTags}}\t{{.Size}} bytes\t{{index (split .Created ".") 0}}\n{{.Id}}\' ' + imageName
-			imageInspect = myCmd.run(cmd, 30, silent=True)
-			html_cell += imageInspect.stdout + '\n'
-		myCmd.close()
-
-		for cState in containerStatus:
-			html_cell += cState + '\n'
-		if count == 100 and healthy == self.nb_healthy[0]:
-			if self.tsharkStarted == False:
-				logging.debug('Starting tshark on public network')
-				self.CaptureOnDockerNetworks()
-			HTML.CreateHtmlTestRowQueue('n/a', 'OK', [html_cell])
-			for cState in containerStatus:
-				logging.debug(cState)
-			logging.info('\u001B[1m Deploying OAI Object(s) PASS\u001B[0m')
-		else:
-			HTML.CreateHtmlTestRowQueue('Could not deploy in time', 'KO', [html_cell])
-			for cState in containerStatus:
-				logging.debug(cState)
-			logging.error('\u001B[1m Deploying OAI Object(s) FAILED\u001B[0m')
-			HTML.testCase_id = 'AUTO-UNDEPLOY'
-			UE.testCase_id = 'AUTO-UNDEPLOY'
-			HTML.desc = 'Automatic Undeployment'
-			UE.desc = 'Automatic Undeployment'
-			UE.ShowTestID()
-			self.UndeployGenObject(HTML, RAN, UE)
-			self.exitStatus = 1
-
 	def CaptureOnDockerNetworks(self):
 		myCmd = cls_cmd.LocalCmd(d = self.yamlPath[0])
 		cmd = 'docker-compose -f docker-compose-ci.yml config | grep com.docker.network.bridge.name | sed -e "s@^.*name: @@"'
@@ -1267,116 +1120,6 @@ class Containerize():
 		x = threading.Thread(target = LaunchPySharkCapture, args = (interfaces,capture_filter,output_file,))
 		x.daemon = True
 		x.start()
-
-	def UndeployGenObject(self, HTML, RAN, UE):
-		self.exitStatus = 0
-		# Implicitly we are running locally
-		ymlPath = self.yamlPath[0].split('/')
-		logPath = '../cmake_targets/log/' + ymlPath[1]
-		myCmd = cls_cmd.LocalCmd(d = self.yamlPath[0])
-		cmd = 'cp docker-compose.y*ml docker-compose-ci.yml'
-		myCmd.run(cmd)
-
-		# check which containers are running for log recovery later
-		cmd = 'docker-compose -f docker-compose-ci.yml ps --all'
-		deployStatusLogs = myCmd.run(cmd, timeout=30)
-
-		# Stop the containers to shut down objects
-		logging.debug('\u001B[1m Stopping containers \u001B[0m')
-		cmd = 'docker-compose -f docker-compose-ci.yml stop -t3'
-		deployStatus = myCmd.run(cmd, timeout=100)
-		if deployStatus.returncode != 0:
-			myCmd.close()
-			self.exitStatus = 1
-			logging.error('Could not stop containers')
-			HTML.CreateHtmlTestRow('Could not stop', 'KO', CONST.ALL_PROCESSES_OK)
-			logging.error('\u001B[1m Undeploying OAI Object(s) FAILED\u001B[0m')
-			return
-
-		anyLogs = False
-		logging.debug('Working dir is now . (ie ci-scripts)')
-		myCmd2 = cls_cmd.LocalCmd()
-		myCmd2.run(f'mkdir -p {logPath}')
-		myCmd2.cd(logPath)
-		for state in deployStatusLogs.stdout.split('\n'):
-			res = re.search('Name|NAME|----------', state)
-			if res is not None:
-				continue
-			if len(state) == 0:
-				continue
-			res = re.search('^(?P<container_name>[a-zA-Z0-9\-\_]+) ', state)
-			if res is not None:
-				anyLogs = True
-				cName = res.group('container_name')
-				cmd = f'docker logs {cName} > {cName}.log 2>&1'
-				myCmd2.run(cmd, timeout=30, reportNonZero=False)
-				if re.search('magma-mme', cName) is not None:
-					cmd = f'docker cp -L {cName}:/var/log/mme.log {cName}-full.log'
-					myCmd2.run(cmd, timeout=30, reportNonZero=False)
-		fullStatus = True
-		if anyLogs:
-			# Analyzing log file(s)!
-			listOfPossibleRanContainers = ['enb*', 'gnb*', 'cu*', 'du*']
-			for container in listOfPossibleRanContainers:
-				filenames = './*-oai-' + container + '.log'
-				cmd = f'ls {filenames}'
-				lsStatus = myCmd2.run(cmd, silent=True, reportNonZero=False)
-				if lsStatus.returncode != 0:
-					continue
-				filenames = str(lsStatus.stdout).strip()
-
-				for filename in filenames.split('\n'):
-					logging.debug('\u001B[1m Analyzing xNB logfile ' + filename + ' \u001B[0m')
-					logStatus = RAN.AnalyzeLogFile_eNB(f'{logPath}/{filename}', HTML, self.ran_checkers)
-					if (logStatus < 0):
-						fullStatus = False
-						self.exitStatus = 1
-						HTML.CreateHtmlTestRow(RAN.runtime_stats, 'KO', logStatus)
-					else:
-						HTML.CreateHtmlTestRow(RAN.runtime_stats, 'OK', CONST.ALL_PROCESSES_OK)
-
-			listOfPossibleUeContainers = ['lte-ue*', 'nr-ue*']
-			for container in listOfPossibleUeContainers:
-				filenames = './*-oai-' + container + '.log'
-				cmd = f'ls {filenames}'
-				lsStatus = myCmd2.run(cmd, silent=True, reportNonZero=False)
-				if lsStatus.returncode != 0:
-					continue
-				filenames = str(lsStatus.stdout).strip()
-
-				for filename in filenames.split('\n'):
-					logging.debug(f'\u001B[1m Analyzing UE logfile {filename} \u001B[0m')
-					logStatus = UE.AnalyzeLogFile_UE(f'{logPath}/{filename}', HTML, RAN)
-					if (logStatus < 0):
-						fullStatus = False
-						self.exitStatus = 1
-						HTML.CreateHtmlTestRow('UE log Analysis', 'KO', logStatus)
-					else:
-						HTML.CreateHtmlTestRow('UE log Analysis', 'OK', CONST.ALL_PROCESSES_OK)
-		myCmd2.close()
-		if self.tsharkStarted:
-			self.tsharkStarted = StopPySharkCapture(ymlPath[1])
-		logging.debug('\u001B[1m Undeploying \u001B[0m')
-		logging.debug(f'Working dir is back {self.yamlPath[0]}')
-		cmd = 'docker-compose -f docker-compose-ci.yml down -v'
-		deployStatus = myCmd.run(cmd, timeout=100)
-		if deployStatus.returncode != 0:
-			myCmd.close()
-			self.exitStatus = 1
-			logging.error('Could not undeploy')
-			HTML.CreateHtmlTestRow('Could not undeploy', 'KO', CONST.ALL_PROCESSES_OK)
-			logging.error('\u001B[1m Undeploying OAI Object(s) FAILED\u001B[0m')
-			return
-
-		self.deployedContainers = []
-		myCmd.close()
-
-		if fullStatus:
-			HTML.CreateHtmlTestRow('n/a', 'OK', CONST.ALL_PROCESSES_OK)
-			logging.info('\u001B[1m Undeploying OAI Object(s) PASS\u001B[0m')
-		else:
-			HTML.CreateHtmlTestRow('n/a', 'KO', CONST.ALL_PROCESSES_OK)
-			logging.error('\u001B[1m Undeploying OAI Object(s) FAIL\u001B[0m')
 
 	def StatsFromGenObject(self, HTML):
 		self.exitStatus = 0
