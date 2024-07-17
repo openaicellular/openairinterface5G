@@ -3,13 +3,8 @@
  */
 
 /*! \file PHY/CODING/nr_ulsch_decoding_t2.c
- * \brief Defines the LDPC decoder
- * \author openairinterface
- * \date 28-02-2024
- * \version 1.0
  * \note: based on testbbdev test_bbdev_perf.c functions. Harq buffer offset added.
  * \mbuf and mempool allocated at the init step, LDPC parameters updated from OAI.
- * \warning
  */
 
 #include <stdint.h>
@@ -202,23 +197,30 @@ static int create_mempools(struct active_device *ad, int socket_id, uint16_t num
                                                     ops_pool_size, OPS_CACHE_SIZE, socket_id);
 
   if ((ad->bbdev_dec_op_pool == NULL) || (ad->bbdev_enc_op_pool == NULL))
-    AssertFatal(1 == 0, "ERROR Failed to create %u items ops pool for dev %u on socket %d.",
-                         ops_pool_size, ad->dev_id, socket_id);
+    AssertFatal(1 == 0,
+                "ERROR Failed to create %u items ops pool for dev %u on socket %d.",
+                ops_pool_size,
+                ad->dev_id,
+                socket_id);
 
   /* Inputs */
   mbuf_pool_size = optimal_mempool_size(ops_pool_size * nb_segments);
   data_room_size = RTE_MAX(in_max_sz + RTE_PKTMBUF_HEADROOM + FILLER_HEADROOM, (unsigned int)RTE_MBUF_DEFAULT_BUF_SIZE);
   ad->in_mbuf_pool = rte_pktmbuf_pool_create("in_mbuf_pool", mbuf_pool_size, 0, 0, data_room_size, socket_id);
   AssertFatal(ad->in_mbuf_pool != NULL,
-                       "ERROR Failed to create %u items input pktmbuf pool for dev %u on socket %d.",
-                       mbuf_pool_size, ad->dev_id, socket_id);
+              "ERROR Failed to create %u items input pktmbuf pool for dev %u on socket %d.",
+               mbuf_pool_size,
+               ad->dev_id,
+               socket_id);
 
   /* Hard outputs */
   data_room_size = RTE_MAX(out_buff_sz + RTE_PKTMBUF_HEADROOM + FILLER_HEADROOM, (unsigned int)RTE_MBUF_DEFAULT_BUF_SIZE);
   ad->hard_out_mbuf_pool = rte_pktmbuf_pool_create("hard_out_mbuf_pool", mbuf_pool_size, 0, 0, data_room_size, socket_id);
   AssertFatal(ad->hard_out_mbuf_pool != NULL,
-                       "ERROR Failed to create %u items hard output pktmbuf pool for dev %u on socket %d.",
-                       mbuf_pool_size, ad->dev_id, socket_id);
+              "ERROR Failed to create %u items hard output pktmbuf pool for dev %u on socket %d.",
+              mbuf_pool_size,
+              ad->dev_id,
+              socket_id);
   return 0;
 }
 
@@ -390,8 +392,11 @@ static int init_op_data_objs_dec(struct rte_bbdev_op_data *bufs,
       uint32_t data_len = nrLDPC_slot_decoding_parameters->TBs[h].segments[j].E;
       char *data;
       struct rte_mbuf *m_head = rte_pktmbuf_alloc(mbuf_pool);
-      AssertFatal(m_head != NULL, "Not enough mbufs in %d data type mbuf pool (needed %u, available %u)",
-                           op_type, nb_segments_decoding(nrLDPC_slot_decoding_parameters), mbuf_pool->size);
+      AssertFatal(m_head != NULL,
+                  "Not enough mbufs in %d data type mbuf pool (needed %u, available %u)",
+                  op_type,
+                  nb_segments_decoding(nrLDPC_slot_decoding_parameters),
+                  mbuf_pool->size);
   
       if (data_len > RTE_BBDEV_LDPC_E_MAX_MBUF) {
         printf("Warning: Larger input size than DPDK mbuf %u\n", data_len);
@@ -444,8 +449,11 @@ static int init_op_data_objs_enc(struct rte_bbdev_op_data *bufs,
       uint32_t data_len = (nrLDPC_slot_encoding_parameters->TBs[h].K - nrLDPC_slot_encoding_parameters->TBs[h].F + 7) / 8;
       char *data;
       struct rte_mbuf *m_head = rte_pktmbuf_alloc(mbuf_pool);
-      AssertFatal(m_head != NULL, "Not enough mbufs in %d data type mbuf pool (needed %u, available %u)",
-                           op_type, nb_segments_encoding(nrLDPC_slot_encoding_parameters), mbuf_pool->size);
+      AssertFatal(m_head != NULL,
+                  "Not enough mbufs in %d data type mbuf pool (needed %u, available %u)",
+                  op_type,
+                  nb_segments_encoding(nrLDPC_slot_encoding_parameters),
+                  mbuf_pool->size);
   
       if (data_len > RTE_BBDEV_LDPC_E_MAX_MBUF) {
         printf("Warning: Larger input size than DPDK mbuf %u\n", data_len);
@@ -529,9 +537,9 @@ free_buffers(struct active_device *ad, struct test_op_params *op_params)
 // based on DPDK BBDEV copy_reference_ldpc_dec_op
 static void
 set_ldpc_dec_op(struct rte_bbdev_dec_op **ops,
-		unsigned int start_idx,
-		struct data_buffers *bufs,
-    nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters)
+		            unsigned int start_idx,
+		            struct data_buffers *bufs,
+                nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters)
 {
   unsigned int h;
   unsigned int i;
@@ -576,11 +584,12 @@ set_ldpc_dec_op(struct rte_bbdev_dec_op **ops,
 }
 
 // based on DPDK BBDEV copy_reference_ldpc_enc_op
-static void set_ldpc_enc_op(struct rte_bbdev_enc_op **ops,
-                            unsigned int start_idx,
-                            struct rte_bbdev_op_data *inputs,
-                            struct rte_bbdev_op_data *outputs,
-                            nrLDPC_slot_encoding_parameters_t *nrLDPC_slot_encoding_parameters)
+static void
+set_ldpc_enc_op(struct rte_bbdev_enc_op **ops,
+                unsigned int start_idx,
+                struct rte_bbdev_op_data *inputs,
+                struct rte_bbdev_op_data *outputs,
+                nrLDPC_slot_encoding_parameters_t *nrLDPC_slot_encoding_parameters)
 {
   unsigned int h;
   unsigned int i;
@@ -594,7 +603,7 @@ static void set_ldpc_enc_op(struct rte_bbdev_enc_op **ops,
       ops[j]->ldpc_enc.n_filler = nrLDPC_slot_encoding_parameters->TBs[h].F;
       ops[j]->ldpc_enc.n_cb = (nrLDPC_slot_encoding_parameters->TBs[h].BG == 1) ? (66 * nrLDPC_slot_encoding_parameters->TBs[h].Z) : (50 * nrLDPC_slot_encoding_parameters->TBs[h].Z);
       if (nrLDPC_slot_encoding_parameters->TBs[h].tbslbrm != 0) {
-        uint32_t Nref = 3*nrLDPC_slot_encoding_parameters->TBs[h].tbslbrm/(2*nrLDPC_slot_encoding_parameters->TBs[h].C);
+        uint32_t Nref = 3 * nrLDPC_slot_encoding_parameters->TBs[h].tbslbrm / (2 * nrLDPC_slot_encoding_parameters->TBs[h].C);
         ops[j]->ldpc_enc.n_cb = min(ops[j]->ldpc_enc.n_cb, Nref);
       }
       ops[j]->ldpc_enc.rv_index = nrLDPC_slot_encoding_parameters->TBs[h].rv_index;
@@ -607,9 +616,10 @@ static void set_ldpc_enc_op(struct rte_bbdev_enc_op **ops,
   }
 }
 
-static int retrieve_ldpc_dec_op(struct rte_bbdev_dec_op **ops,
-                                const int vector_mask,
-                                nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters)
+static int
+retrieve_ldpc_dec_op(struct rte_bbdev_dec_op **ops,
+                     const int vector_mask,
+                     nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters)
 {
   struct rte_bbdev_op_data *hard_output;
   uint16_t data_len = 0;
@@ -633,8 +643,9 @@ static int retrieve_ldpc_dec_op(struct rte_bbdev_dec_op **ops,
   return 0;
 }
 
-static int retrieve_ldpc_enc_op(struct rte_bbdev_enc_op **ops,
-                                nrLDPC_slot_encoding_parameters_t *nrLDPC_slot_encoding_parameters)
+static int
+retrieve_ldpc_enc_op(struct rte_bbdev_enc_op **ops,
+                     nrLDPC_slot_encoding_parameters_t *nrLDPC_slot_encoding_parameters)
 {
   struct rte_bbdev_op_data *output;
   struct rte_mbuf *m;
@@ -819,12 +830,12 @@ int start_pmd_dec(struct active_device *ad,
   /* Allocate memory for thread parameters structure */
   struct thread_params *t_params = rte_zmalloc(NULL, num_lcores * sizeof(struct thread_params), RTE_CACHE_LINE_SIZE);
   AssertFatal(t_params != 0,
-                       "Failed to alloc %zuB for t_params",
-                       RTE_ALIGN(sizeof(struct thread_params) * num_lcores, RTE_CACHE_LINE_SIZE));
+              "Failed to alloc %zuB for t_params",
+              RTE_ALIGN(sizeof(struct thread_params) * num_lcores, RTE_CACHE_LINE_SIZE));
   rte_atomic16_set(&op_params->sync, SYNC_WAIT);
   /* Master core is set at first entry */
   t_params[0].dev_id = ad->dev_id;
-  t_params[0].lcore_id = 15;
+  t_params[0].lcore_id = rte_lcore_id();
   t_params[0].op_params = op_params;
   t_params[0].queue_id = ad->dec_queue;
   t_params[0].iter_count = 0;
@@ -863,7 +874,7 @@ int32_t start_pmd_enc(struct active_device *ad,
   struct thread_params *t_params = rte_zmalloc(NULL, num_lcores * sizeof(struct thread_params), RTE_CACHE_LINE_SIZE);
   rte_atomic16_set(&op_params->sync, SYNC_WAIT);
   t_params[0].dev_id = ad->dev_id;
-  t_params[0].lcore_id = 14;
+  t_params[0].lcore_id = rte_lcore_id() + 1;
   t_params[0].op_params = op_params;
   t_params[0].queue_id = ad->enc_queue;
   t_params[0].iter_count = 0;
@@ -891,10 +902,85 @@ struct test_op_params *op_params = NULL;
 
 struct rte_mbuf *m_head[DATA_NUM_TYPES];
 
+// OAI CODE
+int32_t nrLDPC_coding_init()
+{
+  pthread_mutex_init(&encode_mutex, NULL);
+  pthread_mutex_init(&decode_mutex, NULL);
+  int ret;
+  int dev_id = 0;
+  struct rte_bbdev_info info;
+  struct active_device *ad = active_devs;
+  char *dpdk_dev = NULL; //PCI address of the card
+  char *dpdk_core_list = NULL;
+  paramdef_t LoaderParams[] = {
+    {"dpdk_dev",    NULL, 0, .strptr = &dpdk_dev,    .defstrval = NULL, TYPE_STRING, 0, NULL},
+    {"dpdk_core_list", NULL, 0, .strptr = &dpdk_core_list, .defstrval = NULL,   TYPE_STRING, 0, NULL}
+  };
+  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_slot_t2");
+  AssertFatal(dpdk_dev!=NULL, "nrLDPC_slot_t2.dpdk_dev was not provided");
+  AssertFatal(dpdk_core_list!=NULL, "nrLDPC_slot_t2.dpdk_core_list was not provided");
+  char *argv_re[] = {"bbdev", "-a", dpdk_dev, "-l", dpdk_core_list, "--file-prefix=b6", "--"};
+  // EAL initialization, if already initialized (init in xran lib) try to probe DPDK device
+  ret = rte_eal_init(sizeofArray(argv_re), argv_re);
+  if (ret < 0) {
+    printf("EAL initialization failed, probing DPDK device %s\n", dpdk_dev);
+    if (rte_dev_probe(dpdk_dev) != 0) {
+      LOG_E(PHY, "T2 card %s not found\n", dpdk_dev);
+      return (-1);
+    }
+  }
+  // Use only device 0 - first detected device
+  rte_bbdev_info_get(0, &info);
+  // Set number of queues based on number of initialized cores (-l option) and driver
+  // capabilities
+  AssertFatal(add_dev(dev_id, &info)== 0, "Failed to setup bbdev");
+  AssertFatal(rte_bbdev_stats_reset(dev_id) == 0, "Failed to reset stats of bbdev %u", dev_id);
+  AssertFatal(rte_bbdev_start(dev_id) == 0, "Failed to start bbdev %u", dev_id);
+
+  //the previous calls have populated this global variable (beurk)
+  // One more global to remove, not thread safe global op_params
+  op_params = rte_zmalloc(NULL, sizeof(struct test_op_params), RTE_CACHE_LINE_SIZE);
+  AssertFatal(op_params != NULL,
+              "Failed to alloc %zuB for op_params",
+              RTE_ALIGN(sizeof(struct test_op_params), RTE_CACHE_LINE_SIZE));
+
+  int socket_id = GET_SOCKET(info.socket_id);
+  int out_max_sz = 8448; // max code block size (for BG1), 22 * 384
+  int in_max_sz = LDPC_MAX_CB_SIZE; // max number of encoded bits (for BG2 and MCS0)
+  int num_queues = 1;
+  int f_ret = create_mempools(ad, socket_id, num_queues, out_max_sz, in_max_sz);
+  if (f_ret != 0) {
+    printf("Couldn't create mempools");
+    return -1;
+  }
+  f_ret = init_test_op_params(op_params, RTE_BBDEV_OP_LDPC_DEC, ad->bbdev_dec_op_pool, num_queues, num_queues, 1);
+  f_ret = init_test_op_params(op_params, RTE_BBDEV_OP_LDPC_ENC, ad->bbdev_enc_op_pool, num_queues, num_queues, 1);
+  if (f_ret != 0) {
+    printf("Couldn't init test op params");
+    return -1;
+  }
+  return 0;
+}
+
+int32_t nrLDPC_coding_shutdown()
+{
+  struct active_device *ad = active_devs;
+  int dev_id = 0;
+  struct rte_bbdev_stats stats;
+  free_buffers(ad, op_params);
+  rte_free(op_params);
+  rte_bbdev_stats_get(dev_id, &stats);
+  rte_bbdev_stop(dev_id);
+  rte_bbdev_close(dev_id);
+  memset(active_devs, 0, sizeof(active_devs));
+  nb_active_devs = 0;
+  return 0;
+}
+
 int32_t nrLDPC_coding_decoder(nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_decoding_parameters){
   pthread_mutex_lock(&decode_mutex);
   // hardcoded we use first device
-  LOG_D(PHY,"Offload\n");
   int16_t z_ol[NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE] __attribute__((aligned(16)));
   int8_t l_ol[NR_LDPC_MAX_NUM_CB * LDPC_MAX_CB_SIZE] __attribute__((aligned(16)));
   struct active_device *ad = active_devs;
@@ -991,80 +1077,5 @@ int32_t nrLDPC_coding_encoder(nrLDPC_slot_encoding_parameters_t *nrLDPC_slot_enc
   ret = start_pmd_enc(ad, op_params, nrLDPC_slot_encoding_parameters);
   pthread_mutex_unlock(&encode_mutex);
   return ret;
-}
-
-// OAI CODE
-int32_t nrLDPC_coding_init()
-{
-  pthread_mutex_init(&encode_mutex, NULL);
-  pthread_mutex_init(&decode_mutex, NULL);
-  int ret;
-  int dev_id = 0;
-  struct rte_bbdev_info info;
-  struct active_device *ad = active_devs;
-  char *dpdk_dev = NULL; //PCI address of the card
-  char *dpdk_core_list = NULL;
-  paramdef_t LoaderParams[] = {
-    {"dpdk_dev",    NULL, 0, .strptr = &dpdk_dev,    .defstrval = NULL, TYPE_STRING, 0, NULL},
-    {"dpdk_core_list", NULL, 0, .strptr = &dpdk_core_list, .defstrval = NULL,   TYPE_STRING, 0, NULL}
-  };
-  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_slot_t2");
-  AssertFatal(dpdk_dev!=NULL, "nrLDPC_slot_t2.dpdk_dev was not provided");
-  AssertFatal(dpdk_core_list!=NULL, "nrLDPC_slot_t2.dpdk_core_list was not provided");
-  char *argv_re[] = {"bbdev", "-a", dpdk_dev, "-l", dpdk_core_list, "--file-prefix=b6", "--"};
-  // EAL initialization, if already initialized (init in xran lib) try to probe DPDK device
-  ret = rte_eal_init(7, argv_re);
-  if (ret < 0) {
-    printf("EAL initialization failed, probing DPDK device %s\n", dpdk_dev);
-    if (rte_dev_probe(dpdk_dev) != 0) {
-      LOG_E(PHY, "T2 card %s not found\n", dpdk_dev);
-      return (-1);
-    }
-  }
-  // Use only device 0 - first detected device
-  rte_bbdev_info_get(0, &info);
-  // Set number of queues based on number of initialized cores (-l option) and driver
-  // capabilities
-  AssertFatal(add_dev(dev_id, &info)== 0, "Failed to setup bbdev");
-  AssertFatal(rte_bbdev_stats_reset(dev_id) == 0, "Failed to reset stats of bbdev %u", dev_id);
-  AssertFatal(rte_bbdev_start(dev_id) == 0, "Failed to start bbdev %u", dev_id);
-
-  //the previous calls have populated this global variable (beurk)
-  // One more global to remove, not thread safe global op_params
-  op_params = rte_zmalloc(NULL, sizeof(struct test_op_params), RTE_CACHE_LINE_SIZE);
-  AssertFatal(op_params != NULL, "Failed to alloc %zuB for op_params",
-                       RTE_ALIGN(sizeof(struct test_op_params), RTE_CACHE_LINE_SIZE));
-
-  int socket_id = GET_SOCKET(info.socket_id);
-  int out_max_sz = 8448; // max code block size (for BG1), 22 * 384
-  int in_max_sz = LDPC_MAX_CB_SIZE; // max number of encoded bits (for BG2 and MCS0)
-  int num_queues = 1;
-  int f_ret = create_mempools(ad, socket_id, num_queues, out_max_sz, in_max_sz);
-  if (f_ret != 0) {
-    printf("Couldn't create mempools");
-    return -1;
-  }
-  f_ret = init_test_op_params(op_params, RTE_BBDEV_OP_LDPC_DEC, ad->bbdev_dec_op_pool, num_queues, num_queues, 1);
-  f_ret = init_test_op_params(op_params, RTE_BBDEV_OP_LDPC_ENC, ad->bbdev_enc_op_pool, num_queues, num_queues, 1);
-  if (f_ret != 0) {
-    printf("Couldn't init test op params");
-    return -1;
-  }
-  return 0;
-}
-
-int32_t nrLDPC_coding_shutdown()
-{
-  struct active_device *ad = active_devs;
-  int dev_id = 0;
-  struct rte_bbdev_stats stats;
-  free_buffers(ad, op_params);
-  rte_free(op_params);
-  rte_bbdev_stats_get(dev_id, &stats);
-  rte_bbdev_stop(dev_id);
-  rte_bbdev_close(dev_id);
-  memset(active_devs, 0, sizeof(active_devs));
-  nb_active_devs = 0;
-  return 0;
 }
 
