@@ -2455,7 +2455,6 @@ static void rrc_CU_process_measurement_abort(f1ap_measurement_abort_t *req)
 static void rrc_CU_process_positioning_information_response(MessageDef *msg_p, instance_t instance)
 {
   f1ap_positioning_information_resp_t *resp = &F1AP_POSITIONING_INFORMATION_RESP(msg_p);
-  //  gNB_RRC_INST *rrc = RC.nrrrc[instance];
   LOG_I(RRC,
         "Processing Received PositioningInformationResponse gNB_CU_ue_id=%d, gNB_DU_ue_id=%d \n",
         resp->gNB_CU_ue_id,
@@ -2524,7 +2523,6 @@ static void rrc_CU_process_positioning_activation_failure(MessageDef *msg_p, ins
 static void rrc_CU_process_trp_information_response(MessageDef *msg_p, instance_t instance)
 {
     f1ap_trp_information_resp_t *resp = &F1AP_TRP_INFORMATION_RESP(msg_p);
-  //  gNB_RRC_INST *rrc = RC.nrrrc[instance];
   LOG_I(RRC,
         "Processing Received TRPInformationResponse transaction_id=%d  \n",
         resp->transaction_id);
@@ -2542,20 +2540,18 @@ static void rrc_CU_process_trp_information_response(MessageDef *msg_p, instance_
   f1ap_msg->nrppa_msg_info.routing_id_buffer = resp->nrppa_msg_info.routing_id_buffer;
   f1ap_msg->nrppa_msg_info.routing_id_length = resp->nrppa_msg_info.routing_id_length;
 
-
-  // TODO Filling the TRP info here instead of MAC
   gNB_RRC_INST *rrc = RC.nrrrc[resp->nrppa_msg_info.instance];
+  
   // IE TRP Information List (M)
   {
-    // TODO Retrieve TRP information from RAN Context
-    int nb_of_TRP = 1; // TODO find the acutal number for TRP and add here
+    int nb_of_TRP = rrc->positioning_config.NumTRPs;
     f1ap_msg->trp_information_list.trp_information_list_length=nb_of_TRP;
-    f1ap_msg->trp_information_list.trp_information_item= malloc(nb_of_TRP * sizeof(f1ap_trp_information_item_t));
+    f1ap_msg->trp_information_list.trp_information_item= malloc(nb_of_TRP*sizeof(f1ap_trp_information_item_t));
     DevAssert(f1ap_msg->trp_information_list.trp_information_item);
     f1ap_trp_information_item_t *trp_info_item= f1ap_msg->trp_information_list.trp_information_item;
     LOG_D(MAC, "Preparing trp information list for NRPPA nb_of_TRP=%d \n", nb_of_TRP);
     for (int i = 0; i < nb_of_TRP; i++) {
-      trp_info_item->tRPInformation.tRPID=0;//   item->tRP_ID = 0; // long NRPPA_TRP_ID_t
+      trp_info_item->tRPInformation.tRPID=rrc->positioning_config.TRPIDs[i];
 
       // Preparing tRPInformation IE of TRPInformationList__Member
       
@@ -2563,6 +2559,7 @@ static void rrc_CU_process_trp_information_response(MessageDef *msg_p, instance_
       f1ap_trp_information_type_response_list_t *rspList =&trp_info_item->tRPInformation.tRPInformationTypeResponseList;
       rspList->trp_information_type_response_list_length= nb_tRPInfoTypes;
       rspList->trp_information_type_response_item=malloc(1*sizeof(f1ap_trp_information_type_response_item_t));
+      //rspList->trp_information_type_response_item=malloc(nb_tRPInfoTypes*sizeof(f1ap_trp_information_type_response_item_t));
       DevAssert(rspList->trp_information_type_response_item);
       f1ap_trp_information_type_response_item_t *rspItem= rspList->trp_information_type_response_item;
       // Preparing f1ap_TRPInformation_t a list of  TRPInformation_item
@@ -2589,14 +2586,14 @@ static void rrc_CU_process_trp_information_response(MessageDef *msg_p, instance_
       //IE referencePointType
       trpPosDef->choice.referenced.referencePointType.present=f1ap_trp_reference_point_type_pr_tRPPositionRelativeCartesian;
       f1ap_trp_reference_point_type_u  *RefPoTy= &trpPosDef->choice.referenced.referencePointType.choice;
-      RefPoTy->tRPPositionRelativeCartesian.xvalue=7;
-      RefPoTy->tRPPositionRelativeCartesian.xYZunit=1;
-      RefPoTy->tRPPositionRelativeCartesian.yvalue=4;
-      RefPoTy->tRPPositionRelativeCartesian.zvalue=5;
-      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.horizontalConfidence=10;
-      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.horizontalUncertainty=30;
-      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.verticalConfidence=40;
-      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.verticalUncertainty=60;
+      RefPoTy->tRPPositionRelativeCartesian.xvalue=rrc->positioning_config.TRPxAxis[i];
+      RefPoTy->tRPPositionRelativeCartesian.xYZunit=0; // unit 0= millimeter
+      RefPoTy->tRPPositionRelativeCartesian.yvalue=rrc->positioning_config.TRPyAxis[i];
+      RefPoTy->tRPPositionRelativeCartesian.zvalue=rrc->positioning_config.TRPzAxis[i];
+      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.horizontalConfidence=0;
+      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.horizontalUncertainty=0;
+      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.verticalConfidence=0;
+      RefPoTy->tRPPositionRelativeCartesian.locationUncertainty.verticalUncertainty=0;
 
       //IE dLPRSResourceCoordinates; // optional
       //rspItem->choice.geographicalCoordinates.dLPRSResourceCoordinates; // optional
@@ -2608,9 +2605,6 @@ static void rrc_CU_process_trp_information_response(MessageDef *msg_p, instance_
       }
     } // for (int i = 0; i < nb_of_TRP; i++)
   } // IE Information List */
- 
-
-
 
   itti_send_msg_to_task(TASK_NRPPA, instance, msg);
 }
@@ -2644,6 +2638,17 @@ static void rrc_CU_process_measurement_response(MessageDef *msg_p, instance_t in
   f1ap_msg->nrppa_msg_info.ue_rnti = resp->nrppa_msg_info.ue_rnti;
   f1ap_msg->nrppa_msg_info.routing_id_buffer = resp->nrppa_msg_info.routing_id_buffer;
   f1ap_msg->nrppa_msg_info.routing_id_length = resp->nrppa_msg_info.routing_id_length;
+
+  gNB_RRC_INST *rrc = RC.nrrrc[resp->nrppa_msg_info.instance];
+  int nb_meas_TRPs = f1ap_msg->pos_measurement_result_list.pos_measurement_result_list_length;
+  f1ap_pos_measurement_result_list_item_t *meas_item = f1ap_msg->pos_measurement_result_list.pos_measurement_result_list_item;
+  LOG_D(RRC, "Assigning user defined TRP IDs to each TOA measurement for # of TRPs %d \n", nb_meas_TRPs);
+  for (int i = 0; i < nb_meas_TRPs; i++) {
+    meas_item->tRPID  =rrc->positioning_config.TRPIDs[i];
+    if (i < nb_meas_TRPs - 1) {
+      meas_item++;
+    }
+  }
   itti_send_msg_to_task(TASK_NRPPA, instance, msg);
 }
 

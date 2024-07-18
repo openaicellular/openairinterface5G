@@ -36,7 +36,6 @@
 #include "nrppa_gNB_encoder.h"
 
 /* TRPInformationExchange (Parent) procedure for  TRPInformationRequest, TRPInformationResponse, and TRPInformationFailure*/
-// adeel TODO fill F1AP msg for rrc
 int nrppa_gNB_handle_TRPInformationExchange(nrppa_gnb_ue_info_t *nrppa_msg_info, NRPPA_NRPPA_PDU_t *pdu)
 {
   LOG_I(NRPPA, "Processing Received TRPInformationRequest \n");
@@ -86,8 +85,6 @@ int nrppa_gNB_handle_TRPInformationExchange(nrppa_gnb_ue_info_t *nrppa_msg_info,
   return 0;
 }
 
-// TODO fill F1AP msg for rrc
-
 int nrppa_gNB_TRPInformationResponse(instance_t instance, MessageDef *msg_p)
 {
   f1ap_trp_information_resp_t *resp = &F1AP_TRP_INFORMATION_RESP(msg_p);
@@ -113,20 +110,17 @@ int nrppa_gNB_TRPInformationResponse(instance_t instance, MessageDef *msg_p)
   NRPPA_TRPInformationResponse_t *out = &head->value.choice.TRPInformationResponse;
 
   // IE TRP Information List (M)
-  // TODO fill pdu using f1ap_trp_information_resp_t *resp
   {
     asn1cSequenceAdd(out->protocolIEs.list, NRPPA_TRPInformationResponse_IEs_t, ie);
     ie->id = NRPPA_ProtocolIE_ID_id_TRPInformationList;
     ie->criticality = NRPPA_Criticality_ignore;
     ie->value.present = NRPPA_TRPInformationResponse_IEs__value_PR_TRPInformationList;
 
-    // TODO Retrieve TRP information from RAN Context
-
-    int nb_of_TRP = resp->trp_information_list.trp_information_list_length; // TODO find the acutal number for TRP and add here
+    int nb_of_TRP = resp->trp_information_list.trp_information_list_length;
     f1ap_trp_information_item_t *trpInfItem= resp->trp_information_list.trp_information_item;
     for (int i = 0; i < nb_of_TRP; i++) {
       asn1cSequenceAdd(ie->value.choice.TRPInformationList.list, TRPInformationList__Member, item);
-      item->tRP_ID = trpInfItem->tRPInformation.tRPID ; // long NRPPA_TRP_ID_t
+      item->tRP_ID = trpInfItem->tRPInformation.tRPID;
 
       // Preparing tRPInformation IE of NRPPA_TRPInformationList__Member
       int nb_tRPInfoTypes = trpInfItem->tRPInformation.tRPInformationTypeResponseList.trp_information_type_response_list_length; 
@@ -134,7 +128,6 @@ int nrppa_gNB_TRPInformationResponse(instance_t instance, MessageDef *msg_p)
       for (int k = 0; k < nb_tRPInfoTypes; k++) // Preparing NRPPA_TRPInformation_t a list of  TRPInformation_item
       {
         asn1cSequenceAdd(item->tRPInformation.list, NRPPA_TRPInformationItem_t, trpinfo_item);
-        // TODO adeel retrive relevent info and add
         switch (resItem->present){
         case f1ap_trp_information_type_response_item_pr_NOTHING:
           trpinfo_item->present= NRPPA_TRPInformationItem_PR_NOTHING;
@@ -256,12 +249,10 @@ int nrppa_gNB_TRPInformationResponse(instance_t instance, MessageDef *msg_p)
           break;
         }
         if (k < nb_tRPInfoTypes - 1) {
-          printf("\n NRPPA TRP TEST 5 \n");
           resItem++;
         }
       } // for(int k=0; k < nb_tRPInfoTypes; k++)
       if (i < nb_of_TRP - 1) {
-          printf("\n NRPPA TRP TEST 6 \n");
           trpInfItem++;
         }
     } // for (int i = 0; i < nb_of_TRP; i++)

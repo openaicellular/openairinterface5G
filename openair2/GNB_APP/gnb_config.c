@@ -56,6 +56,7 @@
 #include "nr_pdcp/nr_pdcp_oai_api.h"
 
 //#include "L1_paramdef.h"
+#include "positioning_nr_paramdef.h"
 #include "prs_nr_paramdef.h"
 #include "L1_nr_paramdef.h"
 #include "MACRLC_nr_paramdef.h"
@@ -773,6 +774,59 @@ void RCconfig_nr_prs(void)
   else
   {
     LOG_I(PHY,"No " CONFIG_STRING_PRS_CONFIG " configuration found..!!\n");
+  }
+}
+
+void RCconfig_nr_positioning(void)
+{
+  positioning_config_t *positioning_config = NULL;
+  paramdef_t POSITIONING_Params[] = POSITIONING_PARAMS_DESC;
+  paramlist_def_t POSITIONING_ParamList = {CONFIG_STRING_POSITIONING_CONFIG,NULL,0};
+  if (RC.gNB == NULL) {
+    RC.gNB                       = (PHY_VARS_gNB **)malloc((1+NUMBER_OF_gNB_MAX)*sizeof(PHY_VARS_gNB*));
+    LOG_I(NR_PHY,"RC.gNB = %p\n",RC.gNB);
+    memset(RC.gNB,0,(1+NUMBER_OF_gNB_MAX)*sizeof(PHY_VARS_gNB*));
+  }
+
+  config_getlist(config_get_if(), &POSITIONING_ParamList, POSITIONING_Params, sizeofArray(POSITIONING_Params), NULL);
+
+  if (POSITIONING_ParamList.numelt > 0) {
+    for (int j = 0; j < RC.nb_nr_L1_inst; j++) {
+      if (RC.gNB[j] == NULL) {
+        RC.gNB[j]                       = (PHY_VARS_gNB *)malloc(sizeof(PHY_VARS_gNB));
+        LOG_I(NR_PHY,"RC.gNB[%d] = %p\n",j,RC.gNB[j]);
+        memset(RC.gNB[j],0,sizeof(PHY_VARS_gNB));
+	      RC.gNB[j]->Mod_id  = j;
+      } 
+      positioning_config =&RC.gNB[j]->positioning_config; 
+      positioning_config->NumTRPs=*(POSITIONING_ParamList.paramarray[j][POSITIONING_NUM_TRPS].uptr);
+      for (int l = 0; l < POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_IDS_LIST].numelt; l++){
+        positioning_config->TRPIDs[l]      = POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_IDS_LIST].uptr[l];
+      }
+      for (int l = 0; l < POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_X_AXIS_LIST].numelt; l++){
+        positioning_config->TRPxAxis[l]      = POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_X_AXIS_LIST].uptr[l];
+      }
+      for (int l = 0; l < POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_Y_AXIS_LIST].numelt; l++){
+        positioning_config->TRPyAxis[l]      = POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_Y_AXIS_LIST].uptr[l];
+        }
+      for (int l = 0; l < POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_Z_AXIS_LIST].numelt; l++){
+        positioning_config->TRPzAxis[l]      = POSITIONING_ParamList.paramarray[j][POSITIONING_TRP_Z_AXIS_LIST].uptr[l];
+        }
+      LOG_I(PHY, "-----------------------------------------\n");
+      LOG_I(PHY, "Positioning Config for gNB_id %d\n", j);
+      LOG_I(PHY, "-----------------------------------------\n");
+      LOG_I(PHY, "Number of TRPs \t\t%d\n", positioning_config->NumTRPs);
+      for(int i=0; i<positioning_config->NumTRPs ; i++){
+        LOG_I(PHY, "X-axis of TRP %d TRPs \t\t%d\n", positioning_config->TRPIDs[i], positioning_config->TRPxAxis[i]);
+        LOG_I(PHY, "Y-axis of TRP %d TRPs \t\t%d\n", positioning_config->TRPIDs[i], positioning_config->TRPyAxis[i]);
+        LOG_I(PHY, "Z-axis of TRP %d TRPs \t\t%d\n", positioning_config->TRPIDs[i], positioning_config->TRPzAxis[i]);
+      }
+      LOG_I(PHY, "-----------------------------------------\n");
+    } // for j
+  }
+  else
+  {
+    LOG_I(PHY,"No " CONFIG_STRING_POSITIONING_CONFIG " configuration found..!!\n");
   }
 }
 
@@ -1802,6 +1856,43 @@ void RCconfig_NRRRC(gNB_RRC_INST *rrc)
 
       }//
     }//End for (k=0; k <num_gnbs ; k++)
+  
+  // Extracting Parameter required for Positioning
+  positioning_config_rrc_t *positioning_config = NULL;
+  paramdef_t POSITIONING_Params[] = POSITIONING_PARAMS_DESC;
+  paramlist_def_t POSITIONING_ParamList = {CONFIG_STRING_POSITIONING_CONFIG,NULL,0};
+  config_getlist(config_get_if(), &POSITIONING_ParamList, POSITIONING_Params, sizeofArray(POSITIONING_Params), NULL);
+  if (POSITIONING_ParamList.numelt > 0) {
+    positioning_config =  &rrc->positioning_config; // &RC.gNB[j]->positioning_config; 
+    positioning_config->NumTRPs=*(POSITIONING_ParamList.paramarray[0][POSITIONING_NUM_TRPS].uptr);
+    for (int l = 0; l < POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_IDS_LIST].numelt; l++){
+      positioning_config->TRPIDs[l]      = POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_IDS_LIST].uptr[l];
+    }
+    for (int l = 0; l < POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_X_AXIS_LIST].numelt; l++){
+      positioning_config->TRPxAxis[l]      = POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_X_AXIS_LIST].uptr[l];
+    }
+    for (int l = 0; l < POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_Y_AXIS_LIST].numelt; l++){
+      positioning_config->TRPyAxis[l]      = POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_Y_AXIS_LIST].uptr[l];
+    }
+    for (int l = 0; l < POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_Z_AXIS_LIST].numelt; l++){
+      positioning_config->TRPzAxis[l]      = POSITIONING_ParamList.paramarray[0][POSITIONING_TRP_Z_AXIS_LIST].uptr[l];
+    }
+    
+    LOG_I(RRC, "-----------------------------------------\n");
+    LOG_I(RRC, "Positioning Config for gNB_id %d\n", 0);
+    LOG_I(RRC, "-----------------------------------------\n");
+    LOG_I(RRC, "Number of TRPs \t\t%d\n", positioning_config->NumTRPs);
+    for (int i = 0; i < positioning_config->NumTRPs; i++){
+      LOG_I(RRC, "X-axis of TRP %d TRPs \t\t%d\n", positioning_config->TRPIDs[i], positioning_config->TRPxAxis[i]);
+      LOG_I(RRC, "Y-axis of TRP %d TRPs \t\t%d\n", positioning_config->TRPIDs[i], positioning_config->TRPyAxis[i]);
+      LOG_I(RRC, "Z-axis of TRP %d TRPs \t\t%d\n", positioning_config->TRPIDs[i], positioning_config->TRPzAxis[i]);
+    }
+    LOG_I(RRC, "-----------------------------------------\n");
+  }
+  else
+  {
+    LOG_I(RRC,"No " CONFIG_STRING_POSITIONING_CONFIG " configuration found..!!\n");
+  }
     openair_rrc_gNB_configuration(rrc, &nrrrc_config);
   }//End if (num_gnbs>0)
 

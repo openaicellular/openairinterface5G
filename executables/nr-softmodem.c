@@ -370,6 +370,7 @@ static int create_gNB_tasks(ngran_node_t node_type, configmodule_interface_t *cf
         LOG_E(NGAP, "Create task for NGAP failed\n");
         return -1;
       }
+      RCconfig_nr_positioning();
       if (itti_create_task (TASK_NRPPA, nrppa_gNB_task, NULL) < 0) {
         LOG_E(NRPPA, "Create task for NRPPA failed\n");
         return -1;

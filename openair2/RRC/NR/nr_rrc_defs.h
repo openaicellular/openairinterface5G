@@ -442,6 +442,16 @@ typedef struct nr_rrc_cuup_container_t {
   sctp_assoc_t assoc_id;
 } nr_rrc_cuup_container_t;
 
+// Configuration parameters required for 5G Positioning
+typedef struct {
+    uint32_t TRPIDs[4];  //  user defined IDs for each TRP
+    uint32_t TRPxAxis[4];  //  x-axis values of each TRP
+    uint32_t TRPyAxis[4];  //  y-axis values of each TRP
+    uint32_t TRPzAxis[4];  //  z-axis values of each TRP
+    uint8_t  NumTRPs;    // number of TRPs max to 4
+}positioning_config_rrc_t;
+
+
 //---NR---(completely change)---------------------
 typedef struct gNB_RRC_INST_s {
 
@@ -477,8 +487,10 @@ typedef struct gNB_RRC_INST_s {
 
   RB_HEAD(rrc_cuup_tree, nr_rrc_cuup_container_t) cuups; // CU-UPs, indexed by assoc_id
   size_t num_cuups;
-
+  // Parameter required for positioning
+  positioning_config_rrc_t positioning_config;
 } gNB_RRC_INST;
+
 
 #include "nr_rrc_proto.h" //should be put here otherwise compilation error
 

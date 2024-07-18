@@ -584,7 +584,7 @@ typedef struct PHY_VARS_gNB_s {
   NR_gNB_PBCH        pbch;
   NR_gNB_COMMON      common_vars;
   NR_gNB_PRACH       prach_vars;
-  NR_gNB_PRS         prs_vars;
+  NR_gNB_PRS         prs_vars;  
   NR_gNB_PUSCH *pusch_vars;
   NR_gNB_PUCCH_t *pucch;
   NR_gNB_SRS_t *srs;
@@ -721,7 +721,9 @@ typedef struct PHY_VARS_gNB_s {
   struct processingData_L1tx *msgDataTx;
   void *scopeData;
   /// structure for analyzing high-level RT measurements
-  rt_L1_profiling_t rt_L1_profiling; 
+  rt_L1_profiling_t rt_L1_profiling;
+  // Parameter required for positioning
+  positioning_config_t positioning_config; 
 } PHY_VARS_gNB;
 
 struct puschSymbolReqId {

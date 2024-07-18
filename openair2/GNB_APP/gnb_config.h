@@ -94,6 +94,7 @@ typedef struct ru_config_s {
 
 void RCconfig_verify(configmodule_interface_t *cfg, ngran_node_t node_type);
 extern void RCconfig_nr_prs(void);
+extern void RCconfig_nr_positioning(void);
 extern void RCconfig_NR_L1(void);
 extern void RCconfig_nr_macrlc(configmodule_interface_t *cfg);
 extern void NRRCConfig(void);
