@@ -245,12 +245,53 @@ def DeployServices(mySSH,svcName):
 	deployStatus = mySSH.run(f'docker compose --file ci-docker-compose.yml up -d -- {svcName}', 50)
 	return deployStatus.returncode,allServices
 
-def CopyFailedDeployLog(mySSH,lSourcePath,ymlPath,containerName,filename):
-	logging.warning(f'Deployment Failed, trying to copy the log from {filename}')
+def CopyinContainerLog(mySSH,lSourcePath,ymlPath,containerName,filename):
 	logPath = f'{os.getcwd()}/../cmake_targets/log/{ymlPath[2]}'
 	os.system(f'mkdir -p {logPath}')
 	mySSH.run(f'docker logs {containerName} > {lSourcePath}/cmake_targets/log/{filename} 2>&1')
-	mySSH.copyin(f'{lSourcePath}/cmake_targets/log/{filename}', os.path.join(logPath, filename))
+	copyin_res = mySSH.copyin(f'{lSourcePath}/cmake_targets/log/{filename}', os.path.join(logPath, filename))
+	return copyin_res
+
+def GetRunningServices(mySSH,yamlDir):
+	ret = mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml config --services')
+	allServices = ret.stdout.splitlines()
+	services = []
+	for s in allServices:
+		# outputs the hash if the container is running
+		ret = mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml ps --all --quiet -- {s}')
+		c = ret.stdout
+		logging.debug(f'running service {s} with container id {c}')
+		if ret.stdout != "" and ret.returncode == 0: # something is running for that service
+			services.append((s, c))
+	logging.info(f'stopping services {[s for s, _ in services]}')
+	return services
+
+def CheckLogs(self,mySSH,ymlPath,service_name,HTML,RAN):
+	logPath = f'{os.getcwd()}/../cmake_targets/log/{ymlPath[2]}'
+	filename = f'{logPath}/{service_name}-{HTML.testCase_id}.log'
+	isFailed = 0
+	if (any(sub in service_name for sub in ['oai_ue','oai-nr-ue','lte_ue'])):
+		logging.debug(f'\u001B[1m Analyzing UE logfile {filename} \u001B[0m')
+		logStatus = cls_oaicitest.OaiCiTest().AnalyzeLogFile_UE(filename, HTML, RAN)
+		if (logStatus < 0):
+			HTML.CreateHtmlTestRow('UE log Analysis', 'KO', logStatus)
+			isFailed = 1
+		else:
+			HTML.CreateHtmlTestRow('UE log Analysis', 'OK', CONST.ALL_PROCESSES_OK)
+	elif (any(sub in service_name for sub in ['enb','rru','rcc','cu','du','gnb'])):
+		logging.debug(f'\u001B[1m Analyzing XnB logfile {filename}\u001B[0m')
+		logStatus = RAN.AnalyzeLogFile_eNB(filename, HTML, self.ran_checkers)
+		if (logStatus < 0):
+			HTML.CreateHtmlTestRow(RAN.runtime_stats, 'KO', logStatus)
+			isFailed = 1
+		else:
+			HTML.CreateHtmlTestRow(RAN.runtime_stats, 'OK', CONST.ALL_PROCESSES_OK)
+	elif service_name == 'nv-cubb':
+		msg = 'Undeploy PNF/Nvidia CUBB'
+		HTML.CreateHtmlTestRow(msg, 'OK', CONST.ALL_PROCESSES_OK)
+	else:
+		logging.info(f'Skipping to analyze log for service name {service_name}')
+	return isFailed
 # pyshark livecapture launches 2 processes:
 # * One using dumpcap -i lIfs -w - (ie redirecting the packets to STDOUT)
 # * One using tshark -i - -w loFile (ie capturing from STDIN from previous process)
@@ -987,110 +1028,37 @@ class Containerize():
 			self.testCase_id = HTML.testCase_id
 			self.eNB_logFile[self.eNB_instance] = f'{svcName}-{self.testCase_id}.log'
 			if unhealthyNb: 
-				CopyFailedDeployLog(mySSH,lSourcePath,self.yamlPath[0].split('/'),containerName,self.eNB_logFile[self.eNB_instance])
+				logging.warning(f"Deployment Failed: Trying to copy container logs {self.eNB_logFile[self.eNB_instance]}")
+				CopyinContainerLog(mySSH,lSourcePath,self.yamlPath[0].split('/'),containerName,self.eNB_logFile[self.eNB_instance])
 				status = False
 			logging.debug(GetImageInfo(mySSH, containerName))
 		mySSH.close()
 		if status:
-			HTML.CreateHtmlTestRowQueue('N/A', '0K', '\nHealthy deployment!\n')
+			HTML.CreateHtmlTestRowQueue('N/A', 'OK', ['Healthy deployment!'])
 		else:
 			self.exitStatus = 1
-			HTML.CreateHtmlTestRowQueue('N/A', 'KO', '\nUnhealthy deployment! -- Check logs for reason!\n')
+			HTML.CreateHtmlTestRowQueue('N/A', 'KO', ['Unhealthy deployment! -- Check logs for reason!'])
 
 	def UndeployObject(self, HTML, RAN):
-		if self.eNB_serverId[self.eNB_instance] == '0':
-			lIpAddr = self.eNBIPAddress
-			lUserName = self.eNBUserName
-			lPassWord = self.eNBPassword
-			lSourcePath = self.eNBSourceCodePath
-		elif self.eNB_serverId[self.eNB_instance] == '1':
-			lIpAddr = self.eNB1IPAddress
-			lUserName = self.eNB1UserName
-			lPassWord = self.eNB1Password
-			lSourcePath = self.eNB1SourceCodePath
-		elif self.eNB_serverId[self.eNB_instance] == '2':
-			lIpAddr = self.eNB2IPAddress
-			lUserName = self.eNB2UserName
-			lPassWord = self.eNB2Password
-			lSourcePath = self.eNB2SourceCodePath
+		lIpAddr, lUserName, lPassWord, lSourcePath = GetCredentials(self)
 		if lIpAddr == '' or lUserName == '' or lPassWord == '' or lSourcePath == '':
 			HELP.GenericHelp(CONST.Version)
 			sys.exit('Insufficient Parameter')
 		logging.debug(f'\u001B[1m Undeploying OAI Object from server: {lIpAddr}\u001B[0m')
 		mySSH = cls_cmd.getConnection(lIpAddr)
 		yamlDir = f'{lSourcePath}/{self.yamlPath[self.eNB_instance]}'
-		svcName = self.services[self.eNB_instance]
-		forceDown = False
-		if svcName != '':
-			logging.warning(f'service name given, but will stop all services in ci-docker-compose.yml!')
-			svcName = ''
-
-		ret = mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml config --services')
-		if ret.returncode != 0:
-			HTML.CreateHtmlTestRow(RAN.runtime_stats, 'KO', "cannot enumerate running services")
-			self.exitStatus = 1
-			return
-		# first line has command, last line has next command prompt
-		allServices = ret.stdout.splitlines()
-		services = []
-		for s in allServices:
-			# outputs the hash if the container is running
-			ret = mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml ps --all --quiet -- {s}')
-			c = ret.stdout
-			logging.debug(f'running service {s} with container id {c}')
-			if ret.stdout != "" and ret.returncode == 0: # something is running for that service
-				services.append((s, c))
-		logging.info(f'stopping services {[s for s, _ in services]}')
-
+		services = GetRunningServices(mySSH, yamlDir)
 		mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml stop -t3')
-		cwd = os.getcwd()
 		copyin_res = True
-		ymlPath = self.yamlPath[0].split('/')
-		logPath = f'{cwd}/../cmake_targets/log/{ymlPath[2]}'
-		# Creating destination log folder if needed on the python executor workspace
-		os.system(f'mkdir -p {logPath}')
-		for service_name, container_id in services:
-			# head -n -1 suppresses the final "X exited with status code Y"
-			filename = f'{service_name}-{HTML.testCase_id}.log'
-			mySSH.run(f'docker logs {container_id} > {lSourcePath}/cmake_targets/log/{filename} 2>&1')
-			copyin_res = mySSH.copyin(f'{lSourcePath}/cmake_targets/log/{filename}', os.path.join(logPath, filename)) and copyin_res
-
+		copyin_res = all(CopyinContainerLog(mySSH, lSourcePath, self.yamlPath[0].split('/'), container_id, f'{service_name}-{HTML.testCase_id}.log') for service_name, container_id in services)
 		mySSH.run(f'docker compose -f {yamlDir}/ci-docker-compose.yml down -v')
-
-		# Analyzing log file!
 		if not copyin_res:
 			HTML.htmleNBFailureMsg='Could not copy logfile(s) to analyze it!'
 			HTML.CreateHtmlTestRow('N/A', 'KO', CONST.ENB_PROCESS_NOLOGFILE_TO_ANALYZE)
 			self.exitStatus = 1
 		else:
-			for service_name, _ in services:
-				self.exitStatus == 0
-				filename = f'{logPath}/{service_name}-{HTML.testCase_id}.log'
-				if (any(sub in service_name for sub in ['oai_ue','oai-nr-ue','lte_ue'])):
-					logging.debug(f'\u001B[1m Analyzing UE logfile {filename} \u001B[0m')
-					logStatus = cls_oaicitest.OaiCiTest().AnalyzeLogFile_UE(filename, HTML, RAN)
-					if (logStatus < 0):
-						HTML.CreateHtmlTestRow('UE log Analysis', 'KO', logStatus)
-						self.exitStatus = 1
-					else:
-						HTML.CreateHtmlTestRow('UE log Analysis', 'OK', CONST.ALL_PROCESSES_OK)
-				elif (any(sub in service_name for sub in ['enb','rru','rcc','cu','du','gnb'])):
-					logging.debug(f'\u001B[1m Analyzing XnB logfile {filename}\u001B[0m')
-					logStatus = RAN.AnalyzeLogFile_eNB(filename, HTML, self.ran_checkers)
-					if (logStatus < 0):
-						HTML.CreateHtmlTestRow(RAN.runtime_stats, 'KO', logStatus)
-						self.exitStatus = 1
-					else:
-						HTML.CreateHtmlTestRow(RAN.runtime_stats, 'OK', CONST.ALL_PROCESSES_OK)
-				elif service_name == 'nv-cubb':
-					msg = 'Undeploy PNF/Nvidia CUBB'
-					HTML.CreateHtmlTestRow(msg, 'OK', CONST.ALL_PROCESSES_OK)
-				else:
-					logging.info(f'Skipping to analyze log for service name {service_name}')
-		if self.exitStatus == 0:
-			logging.info('\u001B[1m Undeploying OAI Object Pass\u001B[0m')
-		else:
-			logging.error('\u001B[1m Undeploying OAI Object Failed\u001B[0m')
+			self.exitStatus = 1 if any(CheckLogs(self, mySSH, self.yamlPath[0].split('/'), service_name, HTML, RAN) for service_name, _ in services) else 0
+			logging.info('\u001B[1m Undeploying OAI Object Pass\u001B[0m') if self.exitStatus == 0 else logging.error('\u001B[1m Undeploying OAI Object Failed\u001B[0m')
 		mySSH.close()
 
 	def CaptureOnDockerNetworks(self):
