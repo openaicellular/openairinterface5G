@@ -2542,7 +2542,7 @@ void nr_schedule_csirs_reception(NR_UE_MAC_INST_t *mac, int frame, int slot)
   uint16_t bwp_size = current_DL_BWP->BWPSize;
   uint16_t bwp_start = current_DL_BWP->BWPStart;
 
-  for (int id = 0; id < csi_measconfig->nzp_CSI_RS_ResourceToAddModList->list.count; id++){
+  for (int id = 0; id < csi_measconfig->nzp_CSI_RS_ResourceToAddModList->list.count; id++) {
     NR_NZP_CSI_RS_Resource_t *nzpcsi = csi_measconfig->nzp_CSI_RS_ResourceToAddModList->list.array[id];
     int period, offset;
     csi_period_offset(NULL, nzpcsi->periodicityAndOffset, &period, &offset);
@@ -2558,7 +2558,10 @@ void nr_schedule_csirs_reception(NR_UE_MAC_INST_t *mac, int frame, int slot)
     csirs_config_pdu->subcarrier_spacing = mu;
     csirs_config_pdu->cyclic_prefix = current_DL_BWP->cyclicprefix ? *current_DL_BWP->cyclicprefix : 0;
 
-    csirs_config_pdu->csi_type = 1; // NZP-CSI-RS
+    if (csi_res_id > NR_maxNrofCSI_ResourceConfigurations)
+      csirs_config_pdu->csi_type = 0; // TRS
+    else
+      csirs_config_pdu->csi_type = 1; // NZP-CSI-RS
 
     csirs_config_pdu->scramb_id = nzpcsi->scramblingID;
     csirs_config_pdu->power_control_offset = nzpcsi->powerControlOffset + 8;
