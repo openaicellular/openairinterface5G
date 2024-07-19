@@ -304,7 +304,7 @@ set(default_ldpc "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x
 set(slot_demo "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.conf" "--loader.ldpc.shlibversion" "_slot_demo")
 set(t2_offload "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.t2_offload.conf" "--ldpc-offload-enable")
 set(slot_t2 "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.slot_t2.conf")
-set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.slot_xdma.conf")
+set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.slot_xdma.conf")
 
 set(NR_SOFTMODEM_OPTION_TO_TEST_LIST
   default_ldpc

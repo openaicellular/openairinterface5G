@@ -68,6 +68,7 @@
 
 // Global var to limit the rework of the dirty legacy code
 ldpc_interface_t ldpc_interface_demo;
+int num_threads_prepare_max = 0;
 
 /*!
  * \typedef args_fpga_decode_prepare_t
@@ -100,6 +101,10 @@ void nr_ulsch_FPGA_decoding_prepare_blocks(void *args);
 
 int32_t nrLDPC_coding_init(void)
 {
+  paramdef_t LoaderParams[] = {{"num_threads_prepare", NULL, 0, .iptr = &num_threads_prepare_max, .defintval = 0, TYPE_INT, 0, NULL}};
+  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_coding_xdma");
+  AssertFatal(num_threads_prepare_max != 0, "nrLDPC_coding_xdma.num_threads_prepare was not provided");
+
   load_LDPClib(DEMO_LDPCLIB_SUFFIX, &ldpc_interface_demo);
   return 0;
 }
@@ -113,7 +118,7 @@ int32_t nrLDPC_coding_shutdown(void)
 int32_t nrLDPC_coding_decoder(nrLDPC_slot_decoding_parameters_t *slot_params, int frame_rx, int slot_rx)
 {
   int nbDecode = 0;
-  for (int ULSCH_id = 0; ULSCH_id < slot_params->nb_pusch; ULSCH_id++)
+  for (int ULSCH_id = 0; ULSCH_id < slot_params->nb_TBs; ULSCH_id++)
     nbDecode += decoder_xdma(&slot_params->TBs[ULSCH_id], frame_rx, slot_rx, slot_params->threadPool, slot_params->respDecode);
   return nbDecode;
 }
@@ -197,11 +202,6 @@ int decoder_xdma(nrLDPC_TB_decoding_parameters_t *TB_params,
   int length_dec = lenWithCrc(TB_params->C, TB_params->A);
   uint8_t crc_type = crcType(TB_params->C, TB_params->A);
   int no_iteration_ldpc = 2;
-
-  int num_threads_prepare_max = 0;
-  paramdef_t LoaderParams[] = {{"num_threads_prepare", NULL, 0, .iptr = &num_threads_prepare_max, .defintval = NULL, TYPE_INT, 0, NULL}};
-  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_coding_xdma");
-  AssertFatal(num_threads_prepare_max != 0, "nrLDPC_coding_xdma.num_threads_prepare was not provided");
 
   uint32_t num_threads_prepare = 0;
   uint32_t r_remaining = 0;
@@ -303,13 +303,11 @@ void nr_ulsch_FPGA_decoding_prepare_blocks(void *args)
   nrLDPC_TB_decoding_parameters_t *TB_params = arguments->TB_params;
 
   uint8_t Qm = TB_params->Qm;
-  uint8_t nb_layers = TB_params->nb_layers;
 
   uint8_t BG = TB_params->BG;
   uint8_t rv_index = TB_params->rv_index;
   uint8_t max_ldpc_iterations = TB_params->max_ldpc_iterations;
 
-  uint32_t G = TB_params->G;
   uint32_t tbslbrm = TB_params->tbslbrm;
   uint32_t Kr = TB_params->K;
   uint32_t Z = TB_params->Z;
