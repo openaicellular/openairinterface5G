@@ -72,36 +72,43 @@ static void nr_pusch_antenna_processing(void *arg) {
   puschAntennaProc_t *rdata=(puschAntennaProc_t*)arg;
 
   PHY_VARS_gNB *gNB = rdata->gNB;
-  int ul_id = rdata->ul_id;
   unsigned char Ns = rdata->Ns;
-  int aarx = rdata->aarx;
   int nl = rdata->nl;
-  unsigned short bwp_start_subcarrier = rdata->bwp_start_subcarrier;
-  unsigned char symbol = rdata->symbol;
-  nfapi_nr_pusch_pdu_t *pusch_pdu = rdata->pusch_pdu;
-  const int chest_freq = rdata->chest_freq;
-  c16_t *pilot = rdata->pilot;
   unsigned short p = rdata->p;
-  c16_t *ul_ls_est = rdata->ul_ls_est;
+  unsigned char symbol = rdata->symbol;
+  int ul_id = rdata->ul_id;
+  int aarx = rdata->aarx;
+  unsigned short bwp_start_subcarrier = rdata->bwp_start_subcarrier;
+  nfapi_nr_pusch_pdu_t *pusch_pdu = rdata->pusch_pdu;
   int *max_ch = rdata->max_ch;
-  delay_t *delay = rdata->delay;
+  c16_t *pilot = rdata->pilot;
   uint64_t *noise_amp2 = rdata->noise_amp2;
-  int nest_count = rdata->nest_count;
+  int *nest_count = rdata->nest_count;
+  delay_t *delay = rdata->delay;
 
+  const int chest_freq = gNB->chest_freq;
   NR_gNB_PUSCH *pusch_vars = &gNB->pusch_vars[ul_id];
   c16_t **ul_ch_estimates = (c16_t **)pusch_vars->ul_ch_estimates;
   const int symbolSize = gNB->frame_parms.ofdm_symbol_size;
   const int soffset = (Ns & 3) * gNB->frame_parms.symbols_per_slot*symbolSize;
-  const int nushift = (p >> 1) & 1; // DMRS TYPE 2
+  const int nushift = (p >> 1) & 1;
   int ch_offset = symbolSize*symbol;
   const int symbol_offset = symbolSize*symbol;
   const int k0 = bwp_start_subcarrier;
   const int nb_rb_pusch = pusch_pdu->rb_size; // needed for both
 
- c16_t *rxdataF = (c16_t *)&gNB->common_vars.rxdataF[aarx][symbol_offset];
- c16_t *ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][ch_offset];
+  c16_t ul_ls_est[symbolSize] __attribute__((aligned(32)));
+  memset(ul_ls_est, 0, sizeof(c16_t) * symbolSize);
+  c16_t *rxdataF = (c16_t *)&gNB->common_vars.rxdataF[aarx][symbol_offset];
+  c16_t *ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][ch_offset];
+  memset(ul_ch,0,sizeof(*ul_ch)*symbolSize);
 
- memset(ul_ch,0,sizeof(*ul_ch)*symbolSize);
+#ifdef DEBUG_PUSCH_THREAD
+ printf("\n Antenna Proc - Initial values: \n");
+ printf("Array # = %i\t max_ch = %d\t noise = %lu\t delay = %i\t \n", aarx, *max_ch, *(noise_amp2), delay->est_delay >> 1);
+ printf("\n Antenna Proc - Ends \n");
+#endif
+
 #ifdef DEBUG_PUSCH
  LOG_I(PHY, "In %s symbol_offset %d, nushift %d\n", __FUNCTION__, symbol_offset, nushift);
  LOG_I(PHY, "In %s ch est pilot, N_RB_UL %d\n", __FUNCTION__, gNB->frame_parms.N_RB_UL);
@@ -197,7 +204,7 @@ static void nr_pusch_antenna_processing(void *arg) {
        printf("ch -> (%4d,%4d), ch_inter -> (%4d,%4d)\n", ul_ls_est[k].r, ul_ls_est[k].i, ul_ch[k].r, ul_ch[k].i);
 #endif
        pilot_cnt++;
-       nest_count += 2;
+       *(nest_count) += 2;
      }
    }
 
@@ -216,7 +223,7 @@ static void nr_pusch_antenna_processing(void *arg) {
      ul_ls_est[n + 4] = ch;
      ul_ls_est[n + 5] = ch;
      *(noise_amp2) += c16amp2(c16sub(ch0, ch));
-     nest_count++;
+     *(nest_count) += 1;
    }
 
    // Delay compensation
@@ -403,8 +410,9 @@ static void nr_pusch_antenna_processing(void *arg) {
    printf("%d\n", idxP);
  }
 #endif
-// retreive the value of noise_amp2  inside the array
+// update the values inside the arrays
 *(rdata->noise_amp2) = *(noise_amp2);
+*(rdata->nest_count) = *(nest_count);
 #ifdef DEBUG_PUSCH_THREAD
  printf("\n INNER THREAD - Starts with: \n");
  printf("Array # = %i\t max_ch = %d\t noise = %lu\t delay = %i\t \n", aarx, *max_ch, *(noise_amp2), delay->est_delay >> 1);
@@ -425,14 +433,13 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
                                uint32_t *nvar)
 {
  c16_t pilot[3280] __attribute__((aligned(32)));
- const int chest_freq = gNB->chest_freq;
+
 
 #ifdef DEBUG_CH
  FILE *debug_ch_est;
  debug_ch_est = fopen("debug_ch_est.txt","w");
 #endif
 
- const int symbolSize = gNB->frame_parms.ofdm_symbol_size; //not sure yet
  const int nb_rb_pusch = pusch_pdu->rb_size;
 
 //  LOG_D(PHY, "ch_offset %d, soffset %d, symbol_offset %d, OFDM size %d, Ns = %d, k0 = %d, symbol %d\n",
@@ -487,27 +494,25 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 #endif
 
  gNB->nbAarx = 0;
-
  int nest_count = 0;
  uint64_t noise_amp2 = 0;
- c16_t ul_ls_est[symbolSize] __attribute__((aligned(32)));
- memset(ul_ls_est, 0, sizeof(c16_t) * symbolSize);
  delay_t *delay = &gNB->ulsch[ul_id].delay;
  memset(delay, 0, sizeof(*delay));
  // pointers of arrays with size of rx antennas
  // used to collect individual data from the thread pool
  int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
-
-
  delay_t **delay_arr = (delay_t **)malloc(nb_antennas_rx * sizeof(delay_t *));
  uint64_t *noise_amp2_arr[nb_antennas_rx];
  int *max_ch_arr[nb_antennas_rx];
-
+ int *nest_count_arr[nb_antennas_rx];
 // initializing an array of pointers
 // add error handeling
  for (int i = 0; i < nb_antennas_rx; ++i) {
     max_ch_arr[i] = (int *)malloc(sizeof(int));
     *(max_ch_arr[i]) = *max_ch;
+
+    nest_count_arr[i] = (int *)malloc(sizeof(int));
+    *(nest_count_arr[i]) = nest_count;
 
     noise_amp2_arr[i] = (uint64_t *)malloc(sizeof(uint64_t));
     *(noise_amp2_arr[i]) = noise_amp2;
@@ -525,36 +530,26 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
    notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(puschAntennaProc_t), id.p, &gNB->respPuschAarx, &nr_pusch_antenna_processing); // create a job for Tpool
    puschAntennaProc_t *rdata = (puschAntennaProc_t*)NotifiedFifoData(req); // data for the job
 
-
    // Local init in the current loop
    rdata->gNB = gNB;
+   rdata->Ns = Ns;
+   rdata->nl = nl;
+   rdata->p = p;
+   rdata->symbol = symbol;
    rdata->aarx = aarx;
    rdata->ul_id = ul_id;
-   rdata->Ns = Ns;
-   rdata->pilot = pilot;
    rdata->bwp_start_subcarrier = bwp_start_subcarrier;
-   rdata->symbol = symbol;
-   rdata->ul_ls_est = ul_ls_est;
-   rdata->delay = delay_arr[rdata->aarx];
-   rdata->nl = nl;
    rdata->pusch_pdu = pusch_pdu;
-   rdata->chest_freq = chest_freq;
-   rdata->p = p;
-   rdata->nest_count = nest_count;
-   rdata->noise_amp2 = noise_amp2_arr[rdata->aarx];
    rdata->max_ch = max_ch_arr[rdata->aarx];
-
+   rdata->pilot = pilot;
+   rdata->nest_count = nest_count_arr[rdata->aarx];
+   rdata->noise_amp2 = noise_amp2_arr[rdata->aarx];
+   rdata->delay = delay_arr[rdata->aarx];
    // Call the nr_pusch_antenna_processing function
-   //   nr_pusch_antenna_processing(rdata);
    pushTpool(&gNB->threadPool, req);
    gNB->nbAarx++;
 
    LOG_D(PHY,"Added Antenna (count %d) to process, in pipe\n",gNB->nbAarx);
-
-    // value update of rdata to be passed to the next inner call
-    // max_ch_arr[aarx] = rdata->max_ch;
-    // noise_amp2_arr[aarx] = rdata->noise_amp2;
-    // delay_arr[aarx] = rdata->delay;
  } // Antenna Loop
 
  while (gNB->nbAarx > 0) {
@@ -565,17 +560,21 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
  stop_meas(&gNB->pusch_channel_estimation_antenna_processing_stats);
 
+ *delay = *(delay_arr[2]);
+ *max_ch = *(max_ch_arr[2]);
+  noise_amp2 = *(noise_amp2_arr[2]);
+  nest_count = *(nest_count_arr[2]);
 #ifdef DEBUG_CH
  fclose(debug_ch_est);
 #endif
 #ifdef DEBUG_PUSCH_THREAD
   printf("Initial nvar= %u\n", *nvar);
+  printf("nest_count = %i\t, noise_amp2 = %lu\t", nest_count, noise_amp2);
 #endif
  if (nvar && nest_count > 0) {
-    *nvar = (uint32_t)(*(noise_amp2_arr[nb_antennas_rx - 1]) / nest_count); // dereference to get value from pointer
-   //*nvar = (uint32_t)(noise_amp2 / nest_count);
+    // *nvar = (uint32_t)(*(noise_amp2_arr[nb_antennas_rx - 1]) / *(nest_count_arr[nb_antennas_rx - 1])); // dereference to get value from pointer
+    *nvar = (uint32_t)(noise_amp2 / nest_count);
  }
-
  #ifdef DEBUG_PUSCH_THREAD
 
  printf("\n Exit Pool - Starts with: %i\n",gNB->frame_parms.nb_antennas_rx);
@@ -590,6 +589,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 for (int i = 0; i < nb_antennas_rx; ++i) {
   free(max_ch_arr[i]);
   free(noise_amp2_arr[i]);
+  free(nest_count_arr[i]);
 }
 
  return 0;

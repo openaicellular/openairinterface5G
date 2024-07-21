@@ -729,21 +729,6 @@ typedef struct PHY_VARS_gNB_s {
   rt_L1_profiling_t rt_L1_profiling; 
 } PHY_VARS_gNB;
 
-typedef struct puschSymbolProc_s {
-  PHY_VARS_gNB *gNB;
-  NR_DL_FRAME_PARMS *frame_parms;
-  nfapi_nr_pusch_pdu_t *rel15_ul;
-  int ulsch_id;
-  int slot;
-  int startSymbol;
-  int numSymbols;
-  int16_t *llr;
-  int16_t **llr_layers;
-  int16_t *scramblingSequence;
-  int16_t *s;
-  uint32_t nvar;
-} puschSymbolProc_t;
-
 struct puschSymbolReqId {
   uint16_t ulsch_id;
   uint16_t frame;
@@ -758,22 +743,19 @@ union puschSymbolReqUnion {
 
 typedef struct puschAntennaProc_s {
   PHY_VARS_gNB *gNB;
-  int ul_id;
   unsigned char Ns;
-  int aarx;
   int nl;
-  nfapi_nr_pusch_pdu_t *pusch_pdu;
-  int chest_freq;
-  c16_t *pilot;
   unsigned short p;
-  c16_t *ul_ls_est;
-  delay_t *delay;
-  uint64_t *noise_amp2;
-  int *max_ch;
-  uint64_t *nvar;
-  int nest_count;
-  unsigned short bwp_start_subcarrier;
   unsigned char symbol;
+  int ul_id;
+  unsigned short bwp_start_subcarrier;
+  int aarx;
+  nfapi_nr_pusch_pdu_t *pusch_pdu;
+  int *max_ch;
+  c16_t *pilot;
+  int *nest_count;
+  uint64_t *noise_amp2;
+  delay_t *delay;
 } puschAntennaProc_t;
 
 struct puschAntennaReqId {
