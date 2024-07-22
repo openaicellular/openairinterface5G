@@ -560,10 +560,10 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
  stop_meas(&gNB->pusch_channel_estimation_antenna_processing_stats);
 
- *delay = *(delay_arr[2]);
- *max_ch = *(max_ch_arr[2]);
-  noise_amp2 = *(noise_amp2_arr[2]);
-  nest_count = *(nest_count_arr[2]);
+ *delay = *(delay_arr[0]);
+ *max_ch = *(max_ch_arr[0]);
+  noise_amp2 = *(noise_amp2_arr[0]);
+  nest_count = *(nest_count_arr[0]);
 #ifdef DEBUG_CH
  fclose(debug_ch_est);
 #endif
