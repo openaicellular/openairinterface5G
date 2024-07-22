@@ -29,36 +29,32 @@
 
 #define PRINT_ERROR(...) fprintf(stderr, ##__VA_ARGS__);
 
-#define CHECK_F1AP_CONDITION(condition)                                       \
-  do {                                                                        \
-    if (!(condition)) {                                                       \
-      fprintf(stderr, "Invalid message: condition %s failed!\n", #condition); \
-      return NULL;                                                            \
-    }                                                                         \
+#define _F1_EQ_CHECK_GENERIC(condition, fmt, ...)                                                  \
+  do {                                                                                             \
+    if (!(condition)) {                                                                            \
+      PRINT_ERROR("F1 Equality Check failure: %s:%d: Condition '%s' failed: " fmt " != " fmt "\n", \
+                  __FILE__,                                                                        \
+                  __LINE__,                                                                        \
+                  #condition,                                                                      \
+                  ##__VA_ARGS__);                                                                  \
+      return false;                                                                                \
+    }                                                                                              \
   } while (0)
 
-#define CHECK_IE_CONDITION(condition)                                    \
-  do {                                                                   \
-    if (!(condition)) {                                                  \
-      fprintf(stderr, "Invalid IE: condition %s failed!\n", #condition); \
-      return false;                                                      \
-    }                                                                    \
+#define _F1_CHECK_ERROR(condition)                                                         \
+  do {                                                                                     \
+    if (condition) {                                                                       \
+      PRINT_ERROR("F1 Equality Check error: %s:%d: %s\n", __FILE__, __LINE__, #condition); \
+      return false;                                                                        \
+    }                                                                                      \
   } while (0)
 
-#define CHECK_CRITICALITY_REJECT(criticality)                                                           \
-  do {                                                                                                  \
-    if (criticality != F1AP_Criticality_reject) {                                                       \
-      fprintf(stderr, "Invalid criticality, expected F1AP_Criticality_reject, got %ld\n", criticality); \
-      return false;                                                                                     \
-    }                                                                                                   \
-  } while (0)
-
-#define _F1_EQ_CHECK_GENERIC(condition, fmt, ...) \
-  do { \
-    if (!(condition)) { \
-      PRINT_ERROR("Equality check failed: %s:%d: Condition '%s' failed: " fmt " != " fmt "\n", __FILE__, __LINE__, #condition, ##__VA_ARGS__); \
-      return false; \
-    } \
+#define _F1_CHECK_WARNING(condition)                                                                          \
+  do {                                                                                                        \
+    if (condition) {                                                                                          \
+      PRINT_ERROR("F1AP decoding warning: %s:%d: '%s' not supported yet.\n", __FILE__, __LINE__, #condition); \
+      break;                                                                                                  \
+    }                                                                                                         \
   } while (0)
 
 #define _F1_EQ_CHECK_LONG(A, B) _F1_EQ_CHECK_GENERIC(A == B, "%ld", A, B);
