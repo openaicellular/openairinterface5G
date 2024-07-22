@@ -224,7 +224,8 @@ static int fill_imeisv(FGSMobileIdentity *mi, const uicc_t *uicc)
   return 19;
 }
 
-int mm_msg_encode(MM_msg *mm_msg, uint8_t *buffer, uint32_t len) {
+static int mm_msg_encode(MM_msg *mm_msg, uint8_t *buffer, uint32_t len)
+{
   LOG_FUNC_IN;
   int header_result;
   int encode_result;
