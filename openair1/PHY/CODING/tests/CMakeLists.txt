@@ -334,10 +334,12 @@ endforeach()
 set(default_ldpc "-O" "${CMAKE_CURRENT_SOURCE_DIR}/nrue.uicc.1.conf")
 set(slot_demo "-O" "${CMAKE_CURRENT_SOURCE_DIR}/nrue.uicc.1.slot_demo.conf")
 set(slot_t2 "-O" "${CMAKE_CURRENT_SOURCE_DIR}/nrue.uicc.1.slot_t2.conf")
+set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/nrue.uicc.1.slot_xdma.conf")
 
 set(NR_UESOFTMODEM_OPTION_TO_TEST_LIST
   default_ldpc
   slot_demo
+  slot_xdma
 )
 
 #if (ENABLE_LDPC_T2)
