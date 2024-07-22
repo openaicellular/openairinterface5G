@@ -38,14 +38,13 @@ void nr_pbch_dmrs_rx(int dmrss, const unsigned int *nr_gold_pbch, c16_t *output,
 int nr_pdcch_dmrs_rx(const unsigned int *nr_gold_pdcch, c16_t *output, const unsigned short p, const unsigned short nb_rb_coreset);
 
 int nr_pdsch_dmrs_rx(const PHY_VARS_NR_UE *ue,
-                     unsigned int Ns,
+                     const unsigned int Ns,
                      const unsigned int *nr_gold_pdsch,
-                     c16_t *output,
-                     unsigned short p,
-                     unsigned char lp,
-                     unsigned short nb_pdsch_rb,
-                     uint8_t config_type);
-
+                     const unsigned short p,
+                     const unsigned char lp,
+                     const unsigned short nb_pdsch_rb,
+                     const uint8_t config_type,
+                     c16_t *output);
 void sl_generate_pss(SL_NR_UE_INIT_PARAMS_t *sl_init_params, uint8_t n_sl_id2, uint16_t scaling);
 void sl_generate_pss_ifft_samples(sl_nr_ue_phy_params_t *sl_ue_params, SL_NR_UE_INIT_PARAMS_t *sl_init_params);
 void sl_generate_sss(SL_NR_UE_INIT_PARAMS_t *sl_init_params, uint16_t slss_id, uint16_t scaling);

@@ -1019,11 +1019,10 @@ int main(int argc, char **argv)
         nfapi_nr_dl_tti_pdsch_pdu_rel15_t *pdsch_pdu_rel15 = &dl_tti_pdsch_pdu->pdsch_pdu.pdsch_pdu_rel15;
         pdu_bit_map = pdsch_pdu_rel15->pduBitmap;
         if(pdu_bit_map & 0x1) {
-          set_ptrs_symb_idx(&dlPtrsSymPos,
-                            pdsch_pdu_rel15->NrOfSymbols,
-                            pdsch_pdu_rel15->StartSymbolIndex,
-                            1<<pdsch_pdu_rel15->PTRSTimeDensity,
-                            pdsch_pdu_rel15->dlDmrsSymbPos);
+          dlPtrsSymPos = get_ptrs_symb_idx(pdsch_pdu_rel15->NrOfSymbols,
+                                           pdsch_pdu_rel15->StartSymbolIndex,
+                                           1 << pdsch_pdu_rel15->PTRSTimeDensity,
+                                           pdsch_pdu_rel15->dlDmrsSymbPos);
           ptrsSymbPerSlot = get_ptrs_symbols_in_slot(dlPtrsSymPos, pdsch_pdu_rel15->StartSymbolIndex, pdsch_pdu_rel15->NrOfSymbols);
           ptrsRePerSymb = ((rel15->rbSize + rel15->PTRSFreqDensity - 1) / rel15->PTRSFreqDensity);
           LOG_D(PHY,"[DLSIM] PTRS Symbols in a slot: %2u, RE per Symbol: %3u, RE in a slot %4d\n", ptrsSymbPerSlot, ptrsRePerSymb, ptrsSymbPerSlot * ptrsRePerSymb);
@@ -1264,13 +1263,13 @@ int main(int argc, char **argv)
     }
 
     if (n_trials == 1) {
-
-      LOG_M("rxsig0.m","rxs0", UE->common_vars.rxdata[0], frame_length_complex_samples, 1, 1);
-      if (UE->frame_parms.nb_antennas_rx>1)
-	LOG_M("rxsig1.m","rxs1", UE->common_vars.rxdata[1], frame_length_complex_samples, 1, 1);
-      LOG_M("rxF0.m","rxF0", UE->phy_sim_rxdataF, frame_parms->samples_per_slot_wCP, 1, 1);
-      LOG_M("rxF_ext.m","rxFe",UE->phy_sim_pdsch_rxdataF_ext,g_rbSize*12*14,1,1);
-      LOG_M("chestF0.m","chF0",UE->phy_sim_pdsch_dl_ch_estimates_ext,g_rbSize*12*14,1,1);
+      LOG_M("rxsig0.m", "rxs0", UE->common_vars.rxdata[0], frame_length_complex_samples, 1, 1);
+      if (UE->frame_parms.nb_antennas_rx > 1)
+        LOG_M("rxsig1.m", "rxs1", UE->common_vars.rxdata[1], frame_length_complex_samples, 1, 1);
+      LOG_M("rxF0.m", "rxF0", UE->phy_sim_rxdataF, frame_parms->samples_per_slot_wCP, 1, 1);
+      LOG_M("rxF_ext.m", "rxFe", UE->phy_sim_pdsch_rxdataF_ext, g_rbSize * 12 * 14, 1, 1);
+      LOG_M("chestF0.m", "chF0", UE->phy_sim_pdsch_dl_ch_estimates, g_rbSize * 12 * 14, 1, 1);
+      LOG_M("chestF0_ext.m", "chF0_e", UE->phy_sim_pdsch_dl_ch_estimates_ext, g_rbSize * 12 * 14, 1, 1);
       write_output("rxF_comp.m","rxFc",UE->phy_sim_pdsch_rxdataF_comp,N_RB_DL*12*14,1,1);
       LOG_M("rxF_llr.m","rxFllr",UE->phy_sim_pdsch_llr,available_bits,1,0);
       break;

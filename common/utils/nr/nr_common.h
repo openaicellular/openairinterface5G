@@ -250,6 +250,7 @@ int get_scan_ssb_first_sc(const double fc,
 void check_ssb_raster(uint64_t freq, int band, int scs);
 int get_smallest_supported_bandwidth_index(int scs, frequency_range_t frequency_range, int n_rbs);
 
+#define SYMBOL_HAS_LONGER_CP(a, b) (!(a % (0x7 << b)))
 #define CEILIDIV(a,b) ((a+b-1)/b)
 #define ROUNDIDIV(a,b) (((a<<1)+b)/(b<<1))
 

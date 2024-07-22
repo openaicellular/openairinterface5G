@@ -1534,18 +1534,22 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
 
   nvar /= (rel15_ul->nr_of_symbols * rel15_ul->nrOfLayers * frame_parms->nb_antennas_rx);
 
-  // averaging time domain channel estimates
-  if (gNB->chest_time == 1) 
-  {
-    nr_chest_time_domain_avg(frame_parms,
-                             pusch_vars->ul_ch_estimates,
-                             rel15_ul->nr_of_symbols,
-                             rel15_ul->start_symbol_index,
-                             rel15_ul->ul_dmrs_symb_pos,
-                             rel15_ul->rb_size);
-    pusch_vars->dmrs_symbol = get_next_dmrs_symbol_in_slot(rel15_ul->ul_dmrs_symb_pos, 
-                                                           rel15_ul->start_symbol_index, 
-                                                           rel15_ul->nr_of_symbols);
+  if (gNB->chest_time == 1) { // averaging time domain channel estimates
+    for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
+      nr_chest_time_domain_avg(frame_parms,
+                               rel15_ul->nr_of_symbols,
+                               rel15_ul->start_symbol_index,
+                               rel15_ul->ul_dmrs_symb_pos,
+                               rel15_ul->rb_size,
+                               0,
+                               0,
+                               0,
+                               false,
+                               (c16_t *)pusch_vars->ul_ch_estimates[aarx]);
+    }
+
+    pusch_vars->dmrs_symbol =
+        get_next_dmrs_symbol_in_slot(rel15_ul->ul_dmrs_symb_pos, rel15_ul->start_symbol_index, rel15_ul->nr_of_symbols);
   }
 
   stop_meas(&gNB->ulsch_channel_estimation_stats);
@@ -1564,12 +1568,10 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
 
   uint32_t unav_res = 0;
   if (rel15_ul->pdu_bit_map & PUSCH_PDU_BITMAP_PUSCH_PTRS) {
-    uint16_t ptrsSymbPos = 0;
-    set_ptrs_symb_idx(&ptrsSymbPos,
-                      rel15_ul->nr_of_symbols,
-                      rel15_ul->start_symbol_index,
-                      1 << rel15_ul->pusch_ptrs.ptrs_time_density,
-                      rel15_ul->ul_dmrs_symb_pos);
+    uint16_t ptrsSymbPos = get_ptrs_symb_idx(rel15_ul->nr_of_symbols,
+                                             rel15_ul->start_symbol_index,
+                                             1 << rel15_ul->pusch_ptrs.ptrs_time_density,
+                                             rel15_ul->ul_dmrs_symb_pos);
     int ptrsSymbPerSlot = get_ptrs_symbols_in_slot(ptrsSymbPos, rel15_ul->start_symbol_index, rel15_ul->nr_of_symbols);
     int n_ptrs = (rel15_ul->rb_size + rel15_ul->pusch_ptrs.ptrs_freq_density - 1) / rel15_ul->pusch_ptrs.ptrs_freq_density;
     unav_res = n_ptrs * ptrsSymbPerSlot;

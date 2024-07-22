@@ -88,11 +88,8 @@ void nr_generate_pdsch(processingData_L1tx_t *msgTx, int frame, int slot)
     int n_ptrs = 0;
     uint32_t ptrsSymbPerSlot = 0;
     if(rel15->pduBitmap & 0x1) {
-      set_ptrs_symb_idx(&dlPtrsSymPos,
-                        rel15->NrOfSymbols,
-                        rel15->StartSymbolIndex,
-                        1 << rel15->PTRSTimeDensity,
-                        rel15->dlDmrsSymbPos);
+      dlPtrsSymPos =
+          get_ptrs_symb_idx(rel15->NrOfSymbols, rel15->StartSymbolIndex, 1 << rel15->PTRSTimeDensity, rel15->dlDmrsSymbPos);
       n_ptrs = (rel15->rbSize + rel15->PTRSFreqDensity - 1) / rel15->PTRSFreqDensity;
       ptrsSymbPerSlot = get_ptrs_symbols_in_slot(dlPtrsSymPos, rel15->StartSymbolIndex, rel15->NrOfSymbols);
     }

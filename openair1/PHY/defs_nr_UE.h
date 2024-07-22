@@ -524,8 +524,15 @@ typedef struct PHY_VARS_NR_UE_s {
   time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t pdcch_procedures_stat;
   time_stats_t pdsch_procedures_stat;
+  time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+  time_stats_t pdsch_comp_out;
+  time_stats_t pdsch_llr_gen;
+  time_stats_t pdsch_llr_demapping;
+  time_stats_t pdsch_mem_init;
   time_stats_t pdsch_procedures_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t dlsch_procedures_stat;
+  time_stats_t dlsch_ldpc_whole;
 
   time_stats_t rx_pdsch_stats;
   time_stats_t ofdm_demod_stats;
@@ -658,6 +665,29 @@ typedef struct nr_rxtx_thread_data_s {
   int rx_offset;
   enum stream_status_e stream_status;
 } nr_rxtx_thread_data_t;
+
+typedef struct nr_ue_symb_data_s {
+  PHY_VARS_NR_UE *UE;
+  UE_nr_rxtx_proc_t *proc;
+  UE_nr_rxtx_proc_t valProc;
+  int symbol;
+  int G;
+  c16_t *rxdataF_ext;
+  NR_UE_DLSCH_t dlsch[2];
+  NR_UE_DLSCH_t *p_dlsch;
+  c16_t *ptrs_phase_per_slot;
+  int32_t *ptrs_re_per_slot;
+  c16_t *rxdataF_comp;
+  c16_t *pdsch_dl_ch_estimates;
+  c16_t *pdsch_dl_ch_est_ext;
+  c16_t *dl_ch_mag;
+  c16_t *dl_ch_magb;
+  c16_t *dl_ch_magr;
+  int llrSize;
+  int16_t *layer_llr;
+  time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+} nr_ue_symb_data_t;
 
 typedef struct LDPCDecode_ue_s {
   PHY_VARS_NR_UE *phy_vars_ue;

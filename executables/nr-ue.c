@@ -999,7 +999,9 @@ void *UE_thread(void *arg)
       // or the computed value is 0 = no offset to do
       // we store it to apply the drift compensation at beginning of next frame
       shiftForNextFrame = ret;
-    pushTpool(&(get_nrUE_params()->Tpool), newRx);
+    // Disable parallel dl processing
+    UE_dl_processing((void*)curMsgRx);
+    delNotifiedFIFO_elt(newRx);
 
     // Start TX slot processing here. It runs in parallel with RX slot processing
     // in current code, DURATION_RX_TO_TX constant is the limit to get UL data to encode from a RX slot

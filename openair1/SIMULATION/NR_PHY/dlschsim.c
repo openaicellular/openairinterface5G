@@ -422,16 +422,13 @@ int main(int argc, char **argv)
 	UE = calloc(1, sizeof(*UE));
 	memcpy(&UE->frame_parms, frame_parms, sizeof(NR_DL_FRAME_PARMS));
 
-	//phy_init_nr_top(frame_parms);
-	if (init_nr_ue_signal(UE, 1) != 0) {
+  if (init_nr_ue_signal(UE, 1) != 0) {
 		printf("Error at UE NR initialisation\n");
 		exit(-1);
 	}
 
-	//nr_init_frame_parms_ue(&UE->frame_parms);
-	//init_nr_ue_transport(UE, 0);
-  NR_UE_DLSCH_t dlsch_ue[NR_MAX_NB_LAYERS > 4? 2:1] = {0};
-  int num_codeword = NR_MAX_NB_LAYERS > 4? 2:1;
+  int num_codeword = NR_MAX_NB_LAYERS > 4 ? 2 : 1;
+  NR_UE_DLSCH_t dlsch_ue[num_codeword];
   nr_ue_dlsch_init(dlsch_ue, num_codeword, 5);
   for (int i=0; i < num_codeword; i++)
     dlsch_ue[0].rnti = n_rnti;

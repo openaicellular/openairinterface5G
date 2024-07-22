@@ -148,5 +148,7 @@ typedef struct {
   uint16_t ptrs_symbols;
   // PTRS symbol index, to be updated every PTRS symbol within a slot.
   uint8_t ptrs_symbol_index;
+  // PDSCH noise variance
+  uint32_t nvar;
 } NR_UE_DLSCH_t;
 #endif
