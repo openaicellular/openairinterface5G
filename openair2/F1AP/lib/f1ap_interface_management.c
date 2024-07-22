@@ -474,25 +474,19 @@ f1ap_setup_req_t cp_f1ap_setup_request(const f1ap_setup_req_t *msg)
  */
 bool eq_f1ap_setup_request(const f1ap_setup_req_t *a, const f1ap_setup_req_t *b)
 {
-  EQUALITY_CHECK(a->gNB_DU_id == b->gNB_DU_id, "a=%ld, b=%ld", a->gNB_DU_id, b->gNB_DU_id);
-  EQUALITY_CHECK(strcmp(a->gNB_DU_name, b->gNB_DU_name) == 0, "a=%s, b=%s", a->gNB_DU_name, b->gNB_DU_name);
-  EQUALITY_CHECK(a->transaction_id == b->transaction_id, "a=%ld, b=%ld", a->transaction_id, b->transaction_id);
-  EQUALITY_CHECK(a->num_cells_available == b->num_cells_available,
-                         "a=%d, b=%d",
-                         a->num_cells_available,
-                         b->num_cells_available);
+  _F1_EQ_CHECK_LONG(a->gNB_DU_id, b->gNB_DU_id);
+  _F1_EQ_CHECK_STR(a->gNB_DU_name, b->gNB_DU_name);
+  _F1_EQ_CHECK_LONG(a->transaction_id, b->transaction_id);
+  _F1_EQ_CHECK_INT(a->num_cells_available, b->num_cells_available);
   for (int i = 0; i < a->num_cells_available; i++) {
     if (!eq_f1ap_cell_info(&a->cell[i].info, &b->cell[i].info))
       return false;
     if (!eq_f1ap_sys_info(a->cell[i].sys_info, b->cell[i].sys_info))
       return false;
   }
-  EQUALITY_CHECK(sizeofArray(a->rrc_ver) == sizeofArray(b->rrc_ver),
-                         "a=%ld, b=%ld",
-                         sizeofArray(a->rrc_ver),
-                         sizeofArray(b->rrc_ver));
+  _F1_EQ_CHECK_LONG(sizeofArray(a->rrc_ver), sizeofArray(b->rrc_ver));
   for (int i = 0; i < sizeofArray(a->rrc_ver); i++) {
-    EQUALITY_CHECK(a->rrc_ver[i] == b->rrc_ver[i], "a=%d, b=%d", a->rrc_ver[i], b->rrc_ver[i]);
+    _F1_EQ_CHECK_INT(a->rrc_ver[i], b->rrc_ver[i]);
   }
   return true;
 }
@@ -771,19 +765,15 @@ bool decode_f1ap_setup_response(const F1AP_F1AP_PDU_t *pdu, f1ap_setup_resp_t *o
  */
 bool eq_f1ap_setup_response(const f1ap_setup_resp_t *a, const f1ap_setup_resp_t *b)
 {
-  EQUALITY_CHECK(strcmp(a->gNB_CU_name, b->gNB_CU_name) == 0, "a='%s', b='%s'", a->gNB_CU_name, b->gNB_CU_name);
-  EQUALITY_CHECK(a->num_cells_to_activate == b->num_cells_to_activate, "a=%d, b=%d", a->num_cells_to_activate, b->num_cells_to_activate);
-  EQUALITY_CHECK(a->transaction_id == b->transaction_id, "a=%ld, b=%ld", a->transaction_id, b->transaction_id);
+  _F1_EQ_CHECK_STR(a->gNB_CU_name, b->gNB_CU_name);
+  _F1_EQ_CHECK_INT(a->num_cells_to_activate, b->num_cells_to_activate);
+  _F1_EQ_CHECK_LONG(a->transaction_id, b->transaction_id);
   if (a->num_cells_to_activate) {
     for (int i = 0; i < a->num_cells_to_activate; i++) {
-      EQUALITY_CHECK(a->cells_to_activate[i].nr_cellid == b->cells_to_activate[i].nr_cellid,
-        "a=%ld, b=%ld", a->cells_to_activate[i].nr_cellid, b->cells_to_activate[i].nr_cellid);
-      EQUALITY_CHECK(a->cells_to_activate[i].nrpci == b->cells_to_activate[i].nrpci,
-        "a=%d, b=%d", a->cells_to_activate[i].nrpci, b->cells_to_activate[i].nrpci);
-      EQUALITY_CHECK(a->cells_to_activate[i].num_SI == b->cells_to_activate[i].num_SI,
-        "a=%d, b=%d", a->cells_to_activate[i].num_SI, b->cells_to_activate[i].num_SI);
-      EQUALITY_CHECK(a->cells_to_activate[i].nr_cellid == b->cells_to_activate[i].nr_cellid,
-        "a=%ld, b=%ld", a->cells_to_activate[i].nr_cellid, b->cells_to_activate[i].nr_cellid);
+      _F1_EQ_CHECK_LONG(a->cells_to_activate[i].nr_cellid, b->cells_to_activate[i].nr_cellid);
+      _F1_EQ_CHECK_INT(a->cells_to_activate[i].nrpci, b->cells_to_activate[i].nrpci);
+      _F1_EQ_CHECK_INT(a->cells_to_activate[i].num_SI, b->cells_to_activate[i].num_SI);
+      _F1_EQ_CHECK_LONG(a->cells_to_activate[i].nr_cellid, b->cells_to_activate[i].nr_cellid);
       if (!eq_f1ap_plmn(&a->cells_to_activate[i].plmn, &b->cells_to_activate[i].plmn))
         return false;
       if (sizeofArray(a->cells_to_activate[i].SI_msg) != sizeofArray(b->cells_to_activate[i].SI_msg))
@@ -798,10 +788,9 @@ bool eq_f1ap_setup_response(const f1ap_setup_resp_t *a, const f1ap_setup_resp_t 
       }
     }
   }
-  EQUALITY_CHECK(sizeofArray(a->rrc_ver) == sizeofArray(b->rrc_ver),
-    "a=%ld, b=%ld", sizeofArray(a->rrc_ver), sizeofArray(b->rrc_ver));
+  _F1_EQ_CHECK_LONG(sizeofArray(a->rrc_ver), sizeofArray(b->rrc_ver));
   for (int i = 0; i < sizeofArray(a->rrc_ver); i++) {
-    EQUALITY_CHECK(a->rrc_ver[i] == b->rrc_ver[i], "a=%d, b=%d", a->rrc_ver[i], b->rrc_ver[i]);
+    _F1_EQ_CHECK_INT(a->rrc_ver[i], b->rrc_ver[i]);
   }
   return true;
 }
@@ -1334,10 +1323,10 @@ void free_f1ap_du_configuration_update(f1ap_gnb_du_configuration_update_t *msg)
  */
 bool eq_f1ap_du_configuration_update(const f1ap_gnb_du_configuration_update_t *a, const f1ap_gnb_du_configuration_update_t *b)
 {
-  EQUALITY_CHECK(a->gNB_DU_ID == b->gNB_DU_ID, "a='%ld', b='%ld'", a->gNB_DU_ID, b->gNB_DU_ID);
-  EQUALITY_CHECK(a->transaction_id == b->transaction_id, "a='%ld', b='%ld'", a->transaction_id, b->transaction_id);
+  _F1_EQ_CHECK_LONG(a->gNB_DU_ID, b->gNB_DU_ID);
+  _F1_EQ_CHECK_LONG(a->transaction_id, b->transaction_id);
   /* to add */
-  EQUALITY_CHECK(a->num_cells_to_add == b->num_cells_to_add, "a='%d', b='%d'", a->num_cells_to_add, b->num_cells_to_add);
+  _F1_EQ_CHECK_INT(a->num_cells_to_add, b->num_cells_to_add);
   for (int i = 0; i < a->num_cells_to_add; i++) {
     if (!eq_f1ap_cell_info(&a->cell_to_add[i].info, &b->cell_to_add[i].info))
       return false;
@@ -1347,23 +1336,14 @@ bool eq_f1ap_du_configuration_update(const f1ap_gnb_du_configuration_update_t *a
     }
   }
   /* to delete */
-  EQUALITY_CHECK(a->num_cells_to_delete == b->num_cells_to_delete,
-                         "a='%d', b='%d'",
-                         a->num_cells_to_delete,
-                         b->num_cells_to_delete);
+  _F1_EQ_CHECK_INT(a->num_cells_to_delete, b->num_cells_to_delete);
   for (int i = 0; i < a->num_cells_to_delete; i++) {
-    EQUALITY_CHECK(a->cell_to_delete[i].nr_cellid == b->cell_to_delete[i].nr_cellid,
-                           "a='%ld', b='%ld'",
-                           a->cell_to_delete[i].nr_cellid,
-                           b->cell_to_delete[i].nr_cellid);
+    _F1_EQ_CHECK_LONG(a->cell_to_delete[i].nr_cellid, b->cell_to_delete[i].nr_cellid);
     if (!eq_f1ap_plmn(&a->cell_to_delete[i].plmn, &b->cell_to_delete[i].plmn))
       return false;
   }
   /* to modify */
-  EQUALITY_CHECK(a->num_cells_to_modify == b->num_cells_to_modify,
-                         "a='%d', b='%d'",
-                         a->num_cells_to_modify,
-                         b->num_cells_to_modify);
+  _F1_EQ_CHECK_INT(a->num_cells_to_modify, b->num_cells_to_modify);
   for (int i = 0; i < a->num_cells_to_modify; i++) {
     if (!eq_f1ap_cell_info(&a->cell_to_modify[i].info, &b->cell_to_modify[i].info))
       return false;
@@ -1639,41 +1619,19 @@ void free_f1ap_cu_configuration_update(f1ap_gnb_cu_configuration_update_t *msg)
  */
 bool eq_f1ap_cu_configuration_update(const f1ap_gnb_cu_configuration_update_t *a, const f1ap_gnb_cu_configuration_update_t *b)
 {
-  EQUALITY_CHECK(a->transaction_id == b->transaction_id, "a='%ld', b='%ld'", a->transaction_id, b->transaction_id);
+  _F1_EQ_CHECK_LONG(a->transaction_id, b->transaction_id);
   /* to activate */
-  EQUALITY_CHECK(a->num_cells_to_activate == b->num_cells_to_activate,
-                         "a='%d', b='%d'",
-                         a->num_cells_to_activate,
-                         b->num_cells_to_activate);
+  _F1_EQ_CHECK_INT(a->num_cells_to_activate, b->num_cells_to_activate);
   for (int i = 0; i < a->num_cells_to_activate; i++) {
-    EQUALITY_CHECK(a->cells_to_activate[i].nr_cellid == b->cells_to_activate[i].nr_cellid,
-                           "a='%ld', b='%ld'",
-                           a->cells_to_activate[i].nr_cellid,
-                           b->cells_to_activate[i].nr_cellid);
-    EQUALITY_CHECK(a->cells_to_activate[i].nrpci == b->cells_to_activate[i].nrpci,
-                           "a='%d', b='%d'",
-                           a->cells_to_activate[i].nrpci,
-                           b->cells_to_activate[i].nrpci);
+    _F1_EQ_CHECK_LONG(a->cells_to_activate[i].nr_cellid, b->cells_to_activate[i].nr_cellid);
+    _F1_EQ_CHECK_INT(a->cells_to_activate[i].nrpci, b->cells_to_activate[i].nrpci);
     if (!eq_f1ap_plmn(&a->cells_to_activate[i].plmn, &b->cells_to_activate[i].plmn))
       return false;
-    EQUALITY_CHECK(a->cells_to_activate[i].num_SI == b->cells_to_activate[i].num_SI,
-                           "a='%d', b='%d'",
-                           a->cells_to_activate[i].num_SI,
-                           b->cells_to_activate[i].num_SI);
+    _F1_EQ_CHECK_INT(a->cells_to_activate[i].num_SI, b->cells_to_activate[i].num_SI);
     for (int s = 0; s < a->cells_to_activate[i].num_SI; s++) {
-      EQUALITY_CHECK(*a->cells_to_activate[i].SI_msg[s].SI_container == *a->cells_to_activate[i].SI_msg[s].SI_container,
-                             "a='%s', b='%s'",
-                             a->cells_to_activate[i].SI_msg[s].SI_container,
-                             a->cells_to_activate[i].SI_msg[s].SI_container);
-      EQUALITY_CHECK(
-          a->cells_to_activate[i].SI_msg[s].SI_container_length == a->cells_to_activate[i].SI_msg[s].SI_container_length,
-          "a='%d', b='%d'",
-          a->cells_to_activate[i].SI_msg[s].SI_container_length,
-          a->cells_to_activate[i].SI_msg[s].SI_container_length);
-      EQUALITY_CHECK(a->cells_to_activate[i].SI_msg[s].SI_type == a->cells_to_activate[i].SI_msg[s].SI_type,
-                             "a='%d', b='%d'",
-                             a->cells_to_activate[i].SI_msg[s].SI_type,
-                             a->cells_to_activate[i].SI_msg[s].SI_type);
+      _F1_EQ_CHECK_INT(*a->cells_to_activate[i].SI_msg[s].SI_container, *a->cells_to_activate[i].SI_msg[s].SI_container);
+      _F1_EQ_CHECK_INT(a->cells_to_activate[i].SI_msg[s].SI_container_length, a->cells_to_activate[i].SI_msg[s].SI_container_length);
+      _F1_EQ_CHECK_INT(a->cells_to_activate[i].SI_msg[s].SI_type, a->cells_to_activate[i].SI_msg[s].SI_type);
     }
   }
   return true;

@@ -27,6 +27,8 @@
 #include <stdio.h>
 #include "openair3/UTILS/conversions.h"
 
+#define PRINT_ERROR(...) fprintf(stderr, ##__VA_ARGS__);
+
 #define CHECK_F1AP_CONDITION(condition)                                       \
   do {                                                                        \
     if (!(condition)) {                                                       \
@@ -51,13 +53,17 @@
     }                                                                                                   \
   } while (0)
 
-#define EQUALITY_CHECK(condition, fmt, ...) \
+#define _F1_EQ_CHECK_GENERIC(condition, fmt, ...) \
   do { \
     if (!(condition)) { \
-      fprintf(stderr, "Equality check failed: %s:%d: Condition '%s' failed: " fmt "\n", __FILE__, __LINE__, #condition, ##__VA_ARGS__); \
+      PRINT_ERROR("Equality check failed: %s:%d: Condition '%s' failed: " fmt " != " fmt "\n", __FILE__, __LINE__, #condition, ##__VA_ARGS__); \
       return false; \
     } \
   } while (0)
+
+#define _F1_EQ_CHECK_LONG(A, B) _F1_EQ_CHECK_GENERIC(A == B, "%ld", A, B);
+#define _F1_EQ_CHECK_INT(A, B) _F1_EQ_CHECK_GENERIC(A == B, "%d", A, B);
+#define _F1_EQ_CHECK_STR(A, B) _F1_EQ_CHECK_GENERIC(strcmp(A, B) == 0, "'%s'", A, B);
 
 /* macro to look up IE. If mandatory and not found, macro will print
  * descriptive debug message to stderr and force exit in calling function */
