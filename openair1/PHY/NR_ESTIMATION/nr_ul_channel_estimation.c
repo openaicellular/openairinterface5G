@@ -105,7 +105,7 @@ static void nr_pusch_antenna_processing(void *arg) {
 
 #ifdef DEBUG_PUSCH_THREAD
  printf("\n Antenna Proc - Initial values: \n");
- printf("Array # = %i\t max_ch = %d\t noise = %lu\t delay = %i\t \n", aarx, *max_ch, *(noise_amp2), delay->est_delay >> 1);
+ printf("Array # = %i\t max_ch = %d\t nest_count = %d\t noise = %lu\t delay = %i\t", aarx, *max_ch, *(nest_count) ,*(noise_amp2), delay->est_delay >> 1);
  printf("\n Antenna Proc - Ends \n");
 #endif
 
@@ -136,7 +136,7 @@ static void nr_pusch_antenna_processing(void *arg) {
      }
 
      c16_t ch16 = {.r = (int16_t)ch.r, .i = (int16_t)ch.i};
-     *max_ch = max(*max_ch, max(abs(ch.r), abs(ch.i)));
+       *max_ch = max(abs(ch.r), abs(ch.i));
      for (int k = pilot_cnt << 1; k < (pilot_cnt << 1) + 4; k++) {
        ul_ls_est[k] = ch16;
      }
@@ -218,7 +218,7 @@ static void nr_pusch_antenna_processing(void *arg) {
      c16_t ch1 = c16mulShift(*pil, rx[(k0 + n + 1) % symbolSize], 15);
      pil++;
      c16_t ch = c16addShift(ch0, ch1, 1);
-     *max_ch = max(*max_ch, max(abs(ch.r), abs(ch.i)));
+     *max_ch = max(abs(ch.r), abs(ch.i));
      multadd_real_four_symbols_vector_complex_scalar(filt8_rep4, &ch, &ul_ls_est[n]);
      ul_ls_est[n + 4] = ch;
      ul_ls_est[n + 5] = ch;
@@ -260,7 +260,7 @@ static void nr_pusch_antenna_processing(void *arg) {
 
    for (int pilot_cnt=6; pilot_cnt<6*(nb_rb_pusch-1); pilot_cnt += 6) {
      ch=c32x16cumulVectVectWithSteps(pilot, &pil_offset, 1, rxF, &re_offset, 2, symbolSize, 6);
-     *max_ch = max(*max_ch, max(abs(ch.r), abs(ch.i)));
+      *max_ch = max(abs(ch.r), abs(ch.i));
 
 #if NO_INTERP
      for (c16_t *end=ul_ch+12; ul_ch<end; ul_ch++)
@@ -354,7 +354,7 @@ static void nr_pusch_antenna_processing(void *arg) {
      re_offset = (re_offset+5) % symbolSize;
 
      ch=c16x32div(ch0, 4);
-     *max_ch = max(*max_ch, max(abs(ch.r), abs(ch.i)));
+     *max_ch = max(abs(ch.r), abs(ch.i));
 
 #if NO_INTERP
      for (c16_t *end=ul_ch+12; ul_ch<end; ul_ch++)
@@ -414,9 +414,9 @@ static void nr_pusch_antenna_processing(void *arg) {
 *(rdata->noise_amp2) = *(noise_amp2);
 *(rdata->nest_count) = *(nest_count);
 #ifdef DEBUG_PUSCH_THREAD
- printf("\n INNER THREAD - Starts with: \n");
- printf("Array # = %i\t max_ch = %d\t noise = %lu\t delay = %i\t \n", aarx, *max_ch, *(noise_amp2), delay->est_delay >> 1);
- printf("\n INNER THREAD - Ends \n");
+ printf("\n START - Loop values \n");
+ printf("Array # = %i\t max_ch = %d\t nest_count = %d\t noise = %lu\t delay = %i\t", aarx, *max_ch, *(nest_count) ,*(noise_amp2), delay->est_delay >> 1);
+ printf("\n END - Loop values \n");
 #endif
 
 }
@@ -521,6 +521,16 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
     *(delay_arr[i]) = *delay;
   }
 
+ #ifdef DEBUG_PUSCH_THREAD
+
+ printf("\n START Initial values - Antennas: %i\n",gNB->frame_parms.nb_antennas_rx);
+ for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
+    printf("Array # = %i\t max_ch = %d\t max_ch_arr = %d\t nest_count = %d\t nest_count_arr = %d\t noise_arr = %lu\t  delay = %i\t delay_arr = %i\t nvar= %u\t \n",aarx ,*max_ch,*max_ch_arr[aarx],nest_count,*nest_count_arr[aarx] ,*noise_amp2_arr[aarx], delay->est_delay >>1, (delay_arr[aarx]->est_delay )>> 1, *nvar);
+ }
+ printf("\n END Initial values \n");
+
+ #endif
+
  start_meas(&gNB->pusch_channel_estimation_antenna_processing_stats);
  int numAntennas = gNB->dmrs_num_antennas_per_thread;
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx+=numAntennas) {
@@ -559,29 +569,28 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  }
 
  stop_meas(&gNB->pusch_channel_estimation_antenna_processing_stats);
+ for (int aarx = 0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++){
+         *max_ch = max(*max_ch,*(max_ch_arr[aarx]));
+          noise_amp2 += *(noise_amp2_arr[aarx]);
+          nest_count += *(nest_count_arr[aarx]);
+ }
 
- *delay = *(delay_arr[0]);
- *max_ch = *(max_ch_arr[0]);
-  noise_amp2 = *(noise_amp2_arr[0]);
-  nest_count = *(nest_count_arr[0]);
+ *delay = *(delay_arr[nb_antennas_rx - 1]);
+
 #ifdef DEBUG_CH
  fclose(debug_ch_est);
 #endif
-#ifdef DEBUG_PUSCH_THREAD
-  printf("Initial nvar= %u\n", *nvar);
-  printf("nest_count = %i\t, noise_amp2 = %lu\t", nest_count, noise_amp2);
-#endif
+
  if (nvar && nest_count > 0) {
-    // *nvar = (uint32_t)(*(noise_amp2_arr[nb_antennas_rx - 1]) / *(nest_count_arr[nb_antennas_rx - 1])); // dereference to get value from pointer
     *nvar = (uint32_t)(noise_amp2 / nest_count);
  }
  #ifdef DEBUG_PUSCH_THREAD
 
- printf("\n Exit Pool - Starts with: %i\n",gNB->frame_parms.nb_antennas_rx);
+ printf("\n START Final values - Antennas: %i\n",gNB->frame_parms.nb_antennas_rx);
  for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
-    printf("Array # = %i\t max_ch = %d\t max_ch_arr = %d\t noise_arr = %lu\t  delay = %i\t  nvar= %u\t \n", aarx, *max_ch ,*max_ch_arr[aarx], *noise_amp2_arr[aarx], (delay_arr[aarx]->est_delay )>> 1, *nvar);
+    printf("Array # = %i\t max_ch = %d\t max_ch_arr = %d\t nest_count = %d\t nest_count_arr = %d\t noise_arr = %lu\t  delay = %i\t delay_arr = %i\t nvar= %u\t \n", aarx, *max_ch ,*max_ch_arr[aarx],nest_count,*nest_count_arr[aarx] ,*noise_amp2_arr[aarx], delay->est_delay >>1, (delay_arr[aarx]->est_delay )>> 1, *nvar);
  }
- printf("\n Exit Pool - Ends \n");
+ printf("\n END Final values \n");
 
  #endif
 
