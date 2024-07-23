@@ -579,7 +579,7 @@ void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const c
   for (int i = 0; i < ue_p->nb_of_pdusessions; i++)
     clear_nas_pdu(&ue_p->pduSession[i].param.nas_pdu);
 
-  uint8_t buffer[RRC_BUF_SIZE] = {0};
+  uint8_t buffer[NR_RRC_BUF_SIZE] = {0};
   // TODO refactor dedicatedNAS_MessageList
   int size = rrc_gNB_encode_RRCReconfiguration(rrc, ue_p, xid, dedicatedNAS_MessageList, buffer, sizeof(buffer), false);
   DevAssert(size > 0 && size <= sizeof(buffer));
@@ -690,10 +690,10 @@ rrc_gNB_modify_dedicatedRRCReconfiguration(
   }
 
   NR_DRB_ToAddModList_t *DRBs = createDRBlist(ue_p, false);
-  uint8_t buffer[RRC_BUF_SIZE];
+  uint8_t buffer[NR_RRC_BUF_SIZE];
   int size = do_RRCReconfiguration(ue_p,
                                    buffer,
-                                   RRC_BUF_SIZE,
+                                   NR_RRC_BUF_SIZE,
                                    xid,
                                    NULL,
                                    DRBs,
@@ -756,10 +756,10 @@ rrc_gNB_generate_dedicatedRRCReconfiguration_release(
     LOG_W(NR_RRC,"dedlicated NAS list is empty\n");
   }
 
-  uint8_t buffer[RRC_BUF_SIZE] = {0};
+  uint8_t buffer[NR_RRC_BUF_SIZE] = {0};
   int size = do_RRCReconfiguration(ue_p,
                                    buffer,
-                                   RRC_BUF_SIZE,
+                                   NR_RRC_BUF_SIZE,
                                    xid,
                                    NULL,
                                    NULL,
@@ -877,12 +877,12 @@ static void rrc_gNB_generate_RRCReestablishment(rrc_gNB_ue_context_t *ue_context
   module_id_t module_id = 0;
   gNB_RRC_INST *rrc = RC.nrrrc[module_id];
   gNB_RRC_UE_t *ue_p = &ue_context_pP->ue_context;
-  uint8_t buffer[RRC_BUF_SIZE] = {0};
+  uint8_t buffer[NR_RRC_BUF_SIZE] = {0};
   uint8_t xid = rrc_gNB_get_next_transaction_identifier(module_id);
   ue_p->xids[xid] = RRC_REESTABLISH;
   const f1ap_served_cell_info_t *cell_info = &du->setup_req->cell[0].info;
   uint32_t ssb_arfcn = get_ssb_arfcn(du);
-  int size = do_RRCReestablishment(ue_context_pP, buffer, RRC_BUF_SIZE, xid, cell_info->nr_pci, ssb_arfcn);
+  int size = do_RRCReestablishment(ue_context_pP, buffer, NR_RRC_BUF_SIZE, xid, cell_info->nr_pci, ssb_arfcn);
 
   LOG_I(NR_RRC, "[RAPROC] UE %04x Logical Channel DL-DCCH, Generating NR_RRCReestablishment (bytes %d)\n", ue_p->rnti, size);
 
@@ -1000,10 +1000,10 @@ static void rrc_gNB_process_RRCReestablishmentComplete(const protocol_ctxt_t *co
 
   uint8_t new_xid = rrc_gNB_get_next_transaction_identifier(ctxt_pP->module_id);
   ue_p->xids[new_xid] = RRC_REESTABLISH_COMPLETE;
-  uint8_t buffer[RRC_BUF_SIZE] = {0};
+  uint8_t buffer[NR_RRC_BUF_SIZE] = {0};
   int size = do_RRCReconfiguration(ue_p,
                                    buffer,
-                                   RRC_BUF_SIZE,
+                                   NR_RRC_BUF_SIZE,
                                    new_xid,
                                    SRBs,
                                    DRBs,
@@ -1044,8 +1044,8 @@ int nr_rrc_reconfiguration_req(rrc_gNB_ue_context_t *const ue_context_pP,
     *masterCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->firstActiveUplinkBWP_Id = ul_bwp_id;
   }
 
-  uint8_t buffer[RRC_BUF_SIZE];
-  int size = do_RRCReconfiguration(ue_p, buffer, RRC_BUF_SIZE, xid, NULL, NULL, NULL, NULL, NULL, NULL, masterCellGroup);
+  uint8_t buffer[NR_RRC_BUF_SIZE];
+  int size = do_RRCReconfiguration(ue_p, buffer, NR_RRC_BUF_SIZE, xid, NULL, NULL, NULL, NULL, NULL, NULL, masterCellGroup);
 
   gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
   nr_rrc_transfer_protected_rrc_message(rrc, ue_p, DCCH, buffer, size);
@@ -2606,8 +2606,8 @@ rrc_gNB_generate_RRCRelease(
 )
 //-----------------------------------------------------------------------------
 {
-  uint8_t buffer[RRC_BUF_SIZE] = {0};
-  int size = do_NR_RRCRelease(buffer, RRC_BUF_SIZE, rrc_gNB_get_next_transaction_identifier(ctxt_pP->module_id));
+  uint8_t buffer[NR_RRC_BUF_SIZE] = {0};
+  int size = do_NR_RRCRelease(buffer, NR_RRC_BUF_SIZE, rrc_gNB_get_next_transaction_identifier(ctxt_pP->module_id));
 
   LOG_I(NR_RRC,
         PROTOCOL_NR_RRC_CTXT_UE_FMT" Logical Channel DL-DCCH, Generate RRCRelease (bytes %d)\n",
@@ -2639,7 +2639,7 @@ int rrc_gNB_generate_pcch_msg(sctp_assoc_t assoc_id, const NR_SIB1_t *sib1, uint
   uint32_t N;  /* N: min(T,nB). total count of PF in one DRX cycle */
   uint32_t Ns = 0;  /* Ns: max(1,nB/T) */
   uint32_t T;  /* DRX cycle */
-  uint8_t buffer[RRC_BUF_SIZE];
+  uint8_t buffer[NR_RRC_BUF_SIZE];
 
   /* get default DRX cycle from configuration */
   Tc = sib1->servingCellConfigCommon->downlinkConfigCommon.pcch_Config.defaultPagingCycle;

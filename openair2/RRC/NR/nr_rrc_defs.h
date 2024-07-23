@@ -115,7 +115,7 @@ typedef enum {
 #define MAX_MEAS_ID                                   7
 
 #define PAYLOAD_SIZE_MAX                              1024
-#define RRC_BUF_SIZE                                  1024
+#define NR_RRC_BUF_SIZE                               4096
 #define UNDEF_SECURITY_MODE                           0xff
 #define NO_SECURITY_MODE                              0x20
 
@@ -156,7 +156,7 @@ typedef struct HANDOVER_INFO_NR_s {
   //AS_Config_t                                       as_config;          /* these two parameters are taken from 36.331 section 10.2.2: HandoverPreparationInformation-r8-IEs */
   //AS_Context_t                                      as_context;         /* They are mandatory for HO */
 
-  uint8_t                                             buf[RRC_BUF_SIZE];  /* ASN.1 encoded handoverCommandMessage */
+  uint8_t                                             buf[NR_RRC_BUF_SIZE];  /* ASN.1 encoded handoverCommandMessage */
   int                                                 size;               /* size of above message in bytes */
 } NR_HANDOVER_INFO;
 
