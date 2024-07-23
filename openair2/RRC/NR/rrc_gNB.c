@@ -955,6 +955,7 @@ static void rrc_gNB_process_RRCReestablishmentComplete(const protocol_ctxt_t *co
   gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
   NR_CellGroupConfig_t *cellGroupConfig = calloc(1, sizeof(NR_CellGroupConfig_t));
 
+  /* TODO just copy from DU */
   cellGroupConfig->spCellConfig = ue_p->masterCellGroup->spCellConfig;
   cellGroupConfig->mac_CellGroupConfig = ue_p->masterCellGroup->mac_CellGroupConfig;
   cellGroupConfig->physicalCellGroupConfig = ue_p->masterCellGroup->physicalCellGroupConfig;
