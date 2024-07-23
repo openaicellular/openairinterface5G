@@ -1342,7 +1342,8 @@ void handle_nr_srs_measurements(const module_id_t module_id,
     nrmac->mac_rrc.positioning_measurement_response(&resp);
 
     //for the moment this is all we need so return
-    //return;
+    NR_SCHED_UNLOCK(&nrmac->sched_lock);
+    return;
   }
   
   NR_UE_info_t *UE = find_nr_UE(&RC.nrmac[module_id]->UE_info, srs_ind->rnti);
