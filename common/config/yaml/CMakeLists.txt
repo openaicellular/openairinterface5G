@@ -1,5 +1,4 @@
-find_package(yaml-cpp REQUIRED)
-
+find_package(yaml-cpp REQUIRED PATHS /usr/lib/aarch64-linux-gnu/pkgconfig/)
 # include(FetchContent)
 
 # FetchContent_Declare(
