@@ -912,15 +912,17 @@ int32_t nrLDPC_coding_init()
   struct rte_bbdev_info info;
   struct active_device *ad = active_devs;
   char *dpdk_dev = NULL; //PCI address of the card
-  char *dpdk_core_list = NULL;
+  char *dpdk_core_list = NULL; // cores used by DPDK for T2
+  char *dpdk_file_prefix = NULL;
   paramdef_t LoaderParams[] = {
-    {"dpdk_dev",    NULL, 0, .strptr = &dpdk_dev,    .defstrval = NULL, TYPE_STRING, 0, NULL},
-    {"dpdk_core_list", NULL, 0, .strptr = &dpdk_core_list, .defstrval = NULL,   TYPE_STRING, 0, NULL}
+    {"dpdk_dev", NULL, 0, .strptr = &dpdk_dev, .defstrval = NULL, TYPE_STRING, 0, NULL},
+    {"dpdk_core_list", NULL, 0, .strptr = &dpdk_core_list, .defstrval = NULL, TYPE_STRING, 0, NULL},
+    {"dpdk_file_prefix", NULL, 0, .strptr = &dpdk_file_prefix, .defstrval = "b6", TYPE_STRING, 0, NULL}
   };
   config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_slot_t2");
   AssertFatal(dpdk_dev!=NULL, "nrLDPC_slot_t2.dpdk_dev was not provided");
   AssertFatal(dpdk_core_list!=NULL, "nrLDPC_slot_t2.dpdk_core_list was not provided");
-  char *argv_re[] = {"bbdev", "-a", dpdk_dev, "-l", dpdk_core_list, "--file-prefix=b6", "--"};
+  char *argv_re[] = {"bbdev", "-a", dpdk_dev, "-l", dpdk_core_list, "--file-prefix", dpdk_file_prefix, "--"};
   // EAL initialization, if already initialized (init in xran lib) try to probe DPDK device
   ret = rte_eal_init(sizeofArray(argv_re), argv_re);
   if (ret < 0) {
