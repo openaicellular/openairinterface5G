@@ -111,6 +111,23 @@ services:
         networks:
             public_net:
                 ipv4_address: 192.168.70.132
+    oai-lmf:
+        container_name: "oai-lmf"
+        image: oaisoftwarealliance/oai-lmf:develop
+        expose:
+            - 80/tcp
+            - 8080/tcp
+        volumes:
+            - ./conf/config.yaml:/openair-lmf/etc/config.yaml
+        environment:
+            - TZ=Europe/Paris
+        depends_on:
+            - mysql
+            - oai-nrf
+            - oai-amf
+        networks:
+            public_net:
+                ipv4_address: 192.168.70.141 
     oai-smf:
         container_name: "oai-smf"
         image: oaisoftwarealliance/oai-smf:develop
