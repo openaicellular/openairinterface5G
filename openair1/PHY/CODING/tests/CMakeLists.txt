@@ -10,13 +10,18 @@ set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/slot_xdma.conf")
 set(NR_ULSIM_OPTION_TO_TEST_LIST
   default_ldpc
   slot_demo
-  slot_xdma
 )
 
 if (ENABLE_LDPC_T2)
   list(APPEND NR_ULSIM_OPTION_TO_TEST_LIST
     t2_offload_nr_ulsim
     #slot_t2
+  )
+endif()
+
+if (ENABLE_LDPC_XDMA)
+  list(APPEND NR_ULSIM_OPTION_TO_TEST_LIST
+  slot_xdma
   )
 endif()
 
@@ -309,13 +314,18 @@ set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/gnb.sa.band78.106prb.rfsim.2x2.s
 set(NR_SOFTMODEM_OPTION_TO_TEST_LIST
   default_ldpc
   slot_demo
-  slot_xdma
 )
 
 if (ENABLE_LDPC_T2)
   list(APPEND NR_SOFTMODEM_OPTION_TO_TEST_LIST
     t2_offload
     #slot_t2
+  )
+endif()
+
+if (ENABLE_LDPC_XDMA)
+  list(APPEND NR_SOFTMODEM_OPTION_TO_TEST_LIST
+  slot_xdma
   )
 endif()
 
@@ -339,8 +349,13 @@ set(slot_xdma "-O" "${CMAKE_CURRENT_SOURCE_DIR}/nrue.uicc.1.slot_xdma.conf")
 set(NR_UESOFTMODEM_OPTION_TO_TEST_LIST
   default_ldpc
   slot_demo
-  slot_xdma
 )
+
+# if (ENABLE_LDPC_XDMA)
+#   list(APPEND NR_UESOFTMODEM_OPTION_TO_TEST_LIST
+#   slot_xdma
+#   )
+# endif()
 
 #if (ENABLE_LDPC_T2)
 #  list(APPEND NR_UESOFTMODEM_OPTION_TO_TEST_LIST
