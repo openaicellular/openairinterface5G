@@ -175,6 +175,7 @@ These modes of operation are supported:
   - Interface with NGAP for the interactions with the AMF
   - Interface with F1AP for CU/DU split deployment option
   - Periodic RRC measurements of serving cell (no A/B events)
+  - F1 Handover
 
 ## gNB X2AP
 
@@ -208,6 +209,7 @@ These modes of operation are supported:
 - Interface with RRC
 - Interface with GTP-u (tunnel creation/handling for F1-U interface)
 - One CU(-CP) can handle multiple DUs
+- Support for intra-CU mobility (across DUs)
 
 ## gNB E1AP
 
