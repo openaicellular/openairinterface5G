@@ -175,13 +175,40 @@ void nr_pdcch_dci_indication(const UE_nr_rxtx_proc_t *proc,
                              nr_phy_data_t *phy_data,
                              const c16_t llr[phy_data->phy_pdcch_config.nb_search_space * max_monOcc * llrSize]);
 
-void nr_ue_csi_im_procedures(PHY_VARS_NR_UE *ue,
-                             const UE_nr_rxtx_proc_t *proc,
-                             c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+void nr_csi_im_symbol_power_estimation(const PHY_VARS_NR_UE *ue,
+                                       const UE_nr_rxtx_proc_t *proc,
+                                       const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
+                                       const int symbol,
+                                       const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                                       nr_csi_symbol_res_t *csi_im_res);
 
-void nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue,
-                             const UE_nr_rxtx_proc_t *proc,
-                             c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+void nr_ue_csi_im_procedures(const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
+                             const nr_csi_symbol_res_t *res,
+                             nr_csi_phy_parms_t *csi_phy_parms);
+
+void nr_csi_slot_init(const PHY_VARS_NR_UE *ue,
+                      const UE_nr_rxtx_proc_t *proc,
+                      const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                      nr_csi_info_t *nr_csi_info,
+                      nr_csi_phy_parms_t *csi_phy_parms);
+
+void nr_ue_csi_rs_symbol_procedures(
+    const PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const nr_csi_phy_parms_t *csi_phy_parms,
+    const int symbol,
+    const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+    c16_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size],
+    nr_csi_symbol_res_t *csi_symb_res);
+
+void nr_ue_csi_rs_procedures(
+    const PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const NR_UE_CSI_RS *csirs_vars,
+    const nr_csi_phy_parms_t *csi_phy_parms,
+    nr_csi_symbol_res_t *res,
+    int32_t csi_rs_ls_estimated_channel[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size]);
 
 int psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data);
 void phy_procedures_nrUE_SL_TX(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_tx_t *phy_data);
