@@ -85,6 +85,11 @@ static const unsigned int gain_table[31] = {100,  112,  126,  141,  158,  178,  
 
 static uint32_t compute_csi_rm_unav_res(const fapi_nr_dl_config_dlsch_pdu_rel15_t *dlsch_config);
 
+void prs_processing(const PHY_VARS_NR_UE *ue,
+                    const UE_nr_rxtx_proc_t *proc,
+                    const int symbol,
+                    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
+
 void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
                            fapi_nr_dci_indication_t *dci_ind,
                            fapi_nr_rx_indication_t *rx_ind,
@@ -1260,24 +1265,14 @@ int pbch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_da
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PBCH, VCD_FUNCTION_OUT);
 
   // Check for PRS slot - section 7.4.1.7.4 in 3GPP rel16 38.211
-  for(int gNB_id = 0; gNB_id < ue->prs_active_gNBs; gNB_id++)
-  {
-    for(int rsc_id = 0; rsc_id < ue->prs_vars[gNB_id]->NumPRSResources; rsc_id++)
-    {
-      prs_config_t *prs_config = &ue->prs_vars[gNB_id]->prs_resource[rsc_id].prs_cfg;
-      for (int i = 0; i < prs_config->PRSResourceRepetition; i++)
-      {
-        if( (((frame_rx*fp->slots_per_frame + nr_slot_rx) - (prs_config->PRSResourceSetPeriod[1] + prs_config->PRSResourceOffset) + prs_config->PRSResourceSetPeriod[0])%prs_config->PRSResourceSetPeriod[0]) == i*prs_config->PRSResourceTimeGap)
-        {
-          for(int j = prs_config->SymbolStart; j < (prs_config->SymbolStart+prs_config->NumPRSSymbols); j++)
-          {
-            nr_slot_fep(ue, fp, proc, (j % fp->symbols_per_slot), rxdataF, link_type_dl);
-          }
-          nr_prs_channel_estimation(gNB_id, rsc_id, i, ue, proc, fp, rxdataF);
-        }
-      } // for i
-    } // for rsc_id
-  } // for gNB_id
+  for (int symbol = 0; symbol < NR_NUMBER_OF_SYMBOLS_PER_SLOT; symbol++) {
+    nr_slot_fep(ue, &ue->frame_parms, proc, symbol, rxdataF, link_type_dl);
+    __attribute__((aligned(32))) c16_t rxdataF_sym[fp->nb_antennas_rx][fp->ofdm_symbol_size];
+    for (int aarx = 0; aarx < fp->nb_antennas_rx; aarx++) {
+      memcpy(rxdataF_sym[aarx], rxdataF[aarx] + symbol * fp->ofdm_symbol_size, sizeof(c16_t) * fp->ofdm_symbol_size);
+    }
+    prs_processing(ue, proc, symbol, rxdataF_sym);
+  }
 
   if ((frame_rx%64 == 0) && (nr_slot_rx==0)) {
     LOG_I(NR_PHY,"============================================\n");
@@ -1481,6 +1476,38 @@ void pdsch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_
 
   LOG_D(PHY," ****** end RX-Chain  for AbsSubframe %d.%d ******  \n", frame_rx%1024, nr_slot_rx);
   UEscopeCopy(ue, commonRxdataF, rxdataF, sizeof(int32_t), ue->frame_parms.nb_antennas_rx, rxdataF_sz, 0);
+}
+
+void prs_processing(const PHY_VARS_NR_UE *ue,
+                    const UE_nr_rxtx_proc_t *proc,
+                    const int symbol,
+                    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
+{
+  int nr_slot_rx = proc->nr_slot_rx;
+  int frame_rx = proc->frame_rx;
+  const NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
+  // Check for PRS slot - section 7.4.1.7.4 in 3GPP rel16 38.211
+  for (int gNB_id = 0; gNB_id < ue->prs_active_gNBs; gNB_id++) {
+    for (int rsc_id = 0; rsc_id < ue->prs_vars[gNB_id]->NumPRSResources; rsc_id++) {
+      const prs_config_t *prs_config = &ue->prs_vars[gNB_id]->prs_resource[rsc_id].prs_cfg;
+      prs_meas_t **prs_meas = ue->prs_vars[gNB_id]->prs_resource[rsc_id].prs_meas;
+      c16_t *ch_est = ue->prs_vars[gNB_id]->prs_resource[rsc_id].ch_est;
+      for (int i = 0; i < prs_config->PRSResourceRepetition; i++) {
+        if ((((frame_rx * fp->slots_per_frame + nr_slot_rx) - (prs_config->PRSResourceSetPeriod[1] + prs_config->PRSResourceOffset)
+              + prs_config->PRSResourceSetPeriod[0])
+             % prs_config->PRSResourceSetPeriod[0])
+            == i * prs_config->PRSResourceTimeGap) {
+          int last_prs_symbol = prs_config->SymbolStart + prs_config->NumPRSSymbols - 1;
+          if ((symbol >= prs_config->SymbolStart) && (symbol <= last_prs_symbol)) {
+            nr_prs_channel_estimation(gNB_id, rsc_id, i, symbol, ue, proc, prs_config, rxdataF, prs_meas, ch_est);
+          }
+          if (symbol == last_prs_symbol) {
+            nr_prs_doa_estimation(gNB_id, rsc_id, ue, proc, prs_config, ch_est, prs_meas);
+          }
+        }
+      } // for i
+    } // for rsc_id
+  } // for gNB_id
 }
 
 // todo:

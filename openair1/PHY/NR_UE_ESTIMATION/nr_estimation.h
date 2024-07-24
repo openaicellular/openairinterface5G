@@ -33,13 +33,25 @@
 #define NR_SYNCH_HYST 1
 
 /* A function to perform the channel estimation of DL PRS signal */
-int nr_prs_channel_estimation(uint8_t gNB_id,
-                              uint8_t rsc_id,
-                              uint8_t rep_num,
-                              PHY_VARS_NR_UE *ue,
+int nr_prs_channel_estimation(const uint8_t gNB_id,
+                              const uint8_t rsc_id,
+                              const uint8_t rep_num,
+                              const int l,
+                              const PHY_VARS_NR_UE *ue,
                               const UE_nr_rxtx_proc_t *proc,
-                              NR_DL_FRAME_PARMS *frame_params,
-                              c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
+                              const prs_config_t *prs_cfg,
+                              const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                              prs_meas_t **prs_meas,
+                              c16_t ch_est_out[ue->frame_parms.ofdm_symbol_size]);
+
+/* Function to perform DOA measurements from PRS estimates */
+void nr_prs_doa_estimation(const uint8_t gNB_id,
+                           const uint8_t rsc_id,
+                           const PHY_VARS_NR_UE *ue,
+                           const UE_nr_rxtx_proc_t *proc,
+                           const prs_config_t *prs_cfg,
+                           c16_t ch_est_in[ue->frame_parms.ofdm_symbol_size],
+                           prs_meas_t **prs_meas);
 
 /* Generic function to find the peak of channel estimation buffer */
 void peak_estimator(int32_t *buffer, int32_t buf_len, int32_t *peak_idx, int32_t *peak_val, int32_t mean_val);

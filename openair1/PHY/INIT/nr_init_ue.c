@@ -150,6 +150,12 @@ void init_nr_prs_ue_vars(PHY_VARS_NR_UE *ue)
 
     for(int k = 0; k < NR_MAX_PRS_RESOURCES_PER_SET; k++)
     {
+      prs_vars[idx]->prs_resource[k].ch_est = malloc16_clear(sizeof(c16_t) * ue->frame_parms.ofdm_symbol_size);
+      AssertFatal((prs_vars[idx]->prs_resource[k].ch_est != NULL),
+                  "%s: PRS channel estimates malloc failed for gNB_id %d\n",
+                  __FUNCTION__,
+                  idx);
+
       prs_vars[idx]->prs_resource[k].prs_meas = malloc16_clear(fp->nb_antennas_rx * sizeof(prs_meas_t *));
       AssertFatal((prs_vars[idx]->prs_resource[k].prs_meas!=NULL), "%s: PRS measurements malloc failed for gNB_id %d\n", __FUNCTION__, idx);
 
@@ -342,6 +348,7 @@ void term_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
         free_and_zero(ue->prs_vars[idx]->prs_resource[k].prs_meas[j]);
       }
       free_and_zero(ue->prs_vars[idx]->prs_resource[k].prs_meas);
+      free_and_zero(ue->prs_vars[idx]->prs_resource[k].ch_est);
     }
 
     free_and_zero(ue->prs_vars[idx]);

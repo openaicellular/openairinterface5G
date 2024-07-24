@@ -244,6 +244,7 @@ typedef struct {
   prs_config_t prs_cfg;
   int32_t reserved;
   prs_meas_t **prs_meas;
+  c16_t *ch_est;
 } NR_PRS_RESOURCE_t;
 
 typedef struct {
