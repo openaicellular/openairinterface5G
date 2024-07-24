@@ -1,0 +1,1842 @@
+diff --git a/fhi_lib/app/Makefile b/fhi_lib/app/Makefile
+index c42d1ff..883df4b 100644
+--- a/fhi_lib/app/Makefile
++++ b/fhi_lib/app/Makefile
+@@ -92,7 +92,12 @@ endif
+ XRAN_LIB_DIR=$(XRAN_DIR)/lib/build
+ LD_FLAGS += -L$(XRAN_LIB_DIR) -lxran
+ 
++ifeq ($(CONFIG_RTE_ARCH_ARM64),n)
+ RTE_LIBS = -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,-lrte_flow_classify -Wl,--whole-archive -Wl,-lrte_pipeline -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_table -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_port -Wl,--no-whole-archive -Wl,-lrte_pdump -Wl,-lrte_distributor -Wl,-lrte_ip_frag -Wl,-lrte_meter -Wl,-lrte_lpm -Wl,--whole-archive -Wl,-lrte_acl -Wl,--no-whole-archive -Wl,-lrte_jobstats -Wl,-lrte_metrics -Wl,-lrte_bitratestats -Wl,-lrte_latencystats -Wl,-lrte_power -Wl,-lrte_efd -Wl,-lrte_bpf -Wl,--whole-archive -Wl,-lrte_cfgfile -Wl,-lrte_gro -Wl,-lrte_gso -Wl,-lrte_hash -Wl,-lrte_member -Wl,-lrte_vhost -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_net -Wl,-lrte_ethdev -Wl,-lrte_bbdev -Wl,-lrte_cryptodev -Wl,-lrte_security -Wl,-lrte_compressdev -Wl,-lrte_eventdev -Wl,-lrte_rawdev -Wl,-lrte_timer -Wl,-lrte_mempool -Wl,-lrte_mempool_ring -Wl,-lrte_ring -Wl,-lrte_pci -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_reorder -Wl,-lrte_sched -Wl,-lrte_kni -Wl,-lrte_common_octeontx -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_bus_dpaa -Wl,-lrte_common_dpaax -Wl,-lrte_stack -Wl,-lrte_bus_fslmc -Wl,-lrte_mempool_bucket -Wl,-lrte_mempool_stack -Wl,-lrte_mempool_dpaa -Wl,-lrte_mempool_dpaa2 -Wl,-lrte_pmd_af_packet -Wl,-lrte_pmd_ark -Wl,-lrte_pmd_iavf -Wl,-lrte_pmd_avp -Wl,-lrte_pmd_axgbe -Wl,-lrte_pmd_bnxt -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_cxgbe -Wl,-lrte_pmd_dpaa -Wl,-lrte_pmd_dpaa2 -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ena -Wl,-lrte_pmd_enic -Wl,-lrte_pmd_fm10k -Wl,-lrte_pmd_failsafe -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_kni -Wl,-lrte_pmd_lio -Wl,-lrte_pmd_nfp -Wl,-lrte_pmd_null -Wl,-lrte_pmd_qede -Wl,-lrte_pmd_ring -Wl,-lrte_pmd_softnic -Wl,-lrte_pmd_tap -Wl,-lrte_pmd_thunderx_nicvf -Wl,-lrte_pmd_vdev_netvsc -Wl,-lrte_pmd_virtio -Wl,-lrte_pmd_vhost -Wl,-lrte_pmd_ifc -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_bus_vmbus -Wl,-lrte_pmd_netvsc -Wl,-lrte_pmd_bbdev_null -Wl,-lrte_pmd_null_crypto -Wl,-lrte_pmd_crypto_scheduler -Wl,-lrte_pmd_dpaa2_sec -Wl,-lrte_pmd_dpaa_sec -Wl,-lrte_pmd_virtio_crypto -Wl,-lrte_pmd_octeontx_zip -Wl,-lrte_pmd_qat -Wl,-lrte_pmd_skeleton_event -Wl,-lrte_pmd_sw_event -Wl,-lrte_pmd_octeontx_ssovf -Wl,-lrte_pmd_dpaa_event -Wl,-lrte_pmd_dpaa2_event -Wl,-lrte_mempool_octeontx -Wl,-lrte_pmd_octeontx -Wl,-lrte_pmd_opdl_event -Wl,-lrte_rawdev_skeleton -Wl,-lrte_rawdev_dpaa2_cmdif -Wl,-lrte_rawdev_dpaa2_qdma -Wl,-lrte_bus_ifpga -Wl,--no-whole-archive -Wl,-lrt -Wl,-lm -Wl,-lnuma -Wl,-ldl -Wl,
++else
++RTE_LIBS = -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,-lrte_flow_classify -Wl,--whole-archive -Wl,-lrte_pipeline -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_table -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_port -Wl,--no-whole-archive -Wl,-lrte_pdump -Wl,-lrte_distributor -Wl,-lrte_ip_frag -Wl,-lrte_meter -Wl,-lrte_lpm -Wl,--whole-archive -Wl,-lrte_acl -Wl,--no-whole-archive -Wl,-lrte_jobstats -Wl,-lrte_metrics -Wl,-lrte_bitratestats -Wl,-lrte_latencystats -Wl,-lrte_power -Wl,-lrte_efd -Wl,-lrte_bpf -Wl,--whole-archive -Wl,-lrte_cfgfile -Wl,-lrte_gro -Wl,-lrte_gso -Wl,-lrte_hash -Wl,-lrte_member -Wl,-lrte_vhost -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_net -Wl,-lrte_ethdev -Wl,-lrte_bbdev -Wl,-lrte_cryptodev -Wl,-lrte_security -Wl,-lrte_compressdev -Wl,-lrte_eventdev -Wl,-lrte_rawdev -Wl,-lrte_timer -Wl,-lrte_mempool -Wl,-lrte_mempool_ring -Wl,-lrte_ring -Wl,-lrte_pci -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_reorder -Wl,-lrte_sched -Wl,-lrte_kni -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_bus_dpaa -Wl,-lrte_bus_fslmc -Wl,-lrte_mempool_bucket -Wl,-lrte_stack -Wl,-lrte_mempool_stack -Wl,-lrte_mempool_dpaa -Wl,-lrte_mempool_dpaa2 -Wl,-lrte_pmd_af_packet -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_dpaa -Wl,-lrte_pmd_dpaa2 -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_failsafe -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_kni -Wl,-lrte_pmd_null -Wl,-lrte_pmd_ring -Wl,-lrte_pmd_tap -Wl,-lrte_pmd_vdev_netvsc -Wl,-lrte_pmd_virtio -Wl,-lrte_pmd_vhost -Wl,-lrte_pmd_bbdev_null -Wl,-lrte_pmd_null_crypto -Wl,-lrte_pmd_crypto_scheduler -Wl,-lrte_pmd_dpaa2_sec -Wl,-lrte_pmd_dpaa_sec -Wl,-lrte_pmd_virtio_crypto -Wl,-lrte_pmd_qat -Wl,-lrte_pmd_skeleton_event -Wl,-lrte_pmd_sw_event -Wl,-lrte_common_dpaax  -Wl,-lrte_pmd_dpaa_event -Wl,-lrte_pmd_dpaa2_event -Wl,--no-whole-archive -Wl,-lrt -Wl,-lm -Wl,-ldl
++endif
++
+ LD_FLAGS += $(RTE_LIBS)
+ 
+ ifeq ($(MLOG),1)
+diff --git a/fhi_lib/app/src/sample-app.c b/fhi_lib/app/src/sample-app.c
+index d88e18f..ad2166e 100644
+--- a/fhi_lib/app/src/sample-app.c
++++ b/fhi_lib/app/src/sample-app.c
+@@ -32,6 +32,7 @@
+ #include <sys/stat.h>
+ #include <unistd.h>
+ #include <getopt.h>  // for getopt
++#include <rte_cycles.h>
+ 
+ 
+ #include "common.h"
+@@ -288,6 +289,9 @@ void xran_fh_rx_srs_callback(void *pCallbackTag, xran_status_t status)
+ //-------------------------------------------------------------------------------------------
+ unsigned long timer_get_ticks(void)
+ {
++#if defined(RTE_ARCH_ARM64) && !defined(CONFIG_RTE_ARM_EAL_RDTSC_USE_PMU)
++	return rte_rdtsc();
++#else
+     unsigned long ret;
+     union
+     {
+@@ -305,6 +309,7 @@ unsigned long timer_get_ticks(void)
+ 
+      ret = ((unsigned long)tsc.tsc_64);
+      return ret;
++#endif
+ }
+ 
+ //-------------------------------------------------------------------------------------------
+diff --git a/fhi_lib/build.sh b/fhi_lib/build.sh
+index 22859b5..575bcc5 100755
+--- a/fhi_lib/build.sh
++++ b/fhi_lib/build.sh
+@@ -70,11 +70,12 @@ echo "LIBXRANSO = ${LIBXRANSO}"
+ echo "MLOG      = ${MLOG}"
+ 
+ cd $XRAN_FH_LIB_DIR
++make clean
+ make $COMMAND_LINE MLOG=${MLOG} LIBXRANSO=${LIBXRANSO} #DEBUG=1 VERBOSE=1
+ 
+-echo 'Building xRAN Test Application'
+-cd $XRAN_FH_APP_DIR
+-make $COMMAND_LINE MLOG=${MLOG} #DEBUG=1 VERBOSE=1
++#echo 'Building xRAN Test Application'
++#cd $XRAN_FH_APP_DIR
++#make $COMMAND_LINE MLOG=${MLOG} #DEBUG=1 VERBOSE=1
+ 
+ if [ -z ${GTEST_ROOT+x} ];
+ then
+diff --git a/fhi_lib/lib/Makefile b/fhi_lib/lib/Makefile
+index 579a0c6..8e4feed 100644
+--- a/fhi_lib/lib/Makefile
++++ b/fhi_lib/lib/Makefile
+@@ -23,11 +23,11 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
+ ##############################################################
+ #  Tools configuration
+ ##############################################################
+-CC  := icc
+-CPP := icpc
++CC  := gcc
++CPP := g++
+ AS := as
+ AR := ar
+-LD := icc
++LD := gcc
+ OBJDUMP := objdump
+ 
+ ifeq ($(SHELL),cmd.exe)
+@@ -61,6 +61,7 @@ RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
+ API_DIR := $(PROJECT_DIR)/api
+ SRC_DIR := $(PROJECT_DIR)/src
+ ETH_DIR := $(PROJECT_DIR)/ethernet
++LOG_INC := $(LOG_DIR)
+ 
+ ifeq ($(MLOG),1)
+ ifeq ($(MLOG_DIR),)
+@@ -88,6 +89,13 @@ CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
+ 	$(SRC_DIR)/xran_bfp_cplane32.cpp \
+ 	$(SRC_DIR)/xran_bfp_cplane64.cpp
+ 
++ifeq ($(CONFIG_RTE_ARCH_ARM64),n)
++else
++ARM_FLAGS = -DRTE_ARCH_64 -DRTE_ARCH_ARM64 -DRTE_MACHINE_CPUFLAG_NEON  -DRTE_MACHINE_CPUFLAG_CRC32 
++CC_FLAGS += $(ARM_FLAGS) -mtls-dialect=trad
++CPP_FLAGS += $(ARM_FLAGS) -g -fPIC -O2
++endif
++
+ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
+ 	-fdata-sections \
+ 	-ffunction-sections \
+@@ -95,14 +103,20 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
+         -fPIC \
+ 	-Wall \
+ 	-Wimplicit-function-declaration \
+-	-g -O3 -wd1786
++	-g -O2 \
++	-march=armv8.2-a+crc+crypto \
++        -mcpu=neoverse-n1
+ 
+-CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
++#CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
+                 -no-prec-div -fp-model fast=2 -fPIC \
+                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
+         -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
+ 
+-INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
++INC := -I$(LOG_INC) -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
++INC += -I$(LOG_INC)/common/utils
++INC += -I$(LOG_INC)/common/utils/T
++INC += -I$(LOG_INC)/common/utils/LOG
++INC += -I$(LOG_INC)/openair2/COMMON
+ DEF :=
+ ifeq ($(MLOG),1)
+ 	INC  += -I$(MLOG_DIR)/source
+@@ -121,14 +135,15 @@ PROJECT_OBJ_DIR := build/obj
+ CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
+ CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
+ AS_OBJS := $(patsubst %.s,%.o,$(AS_SRC))
+-OBJS    := $(CC_OBJS) $(CPP_OBJS) $(AS_OBJS) $(LIBS)
++OBJS    := $(CC_OBJS) $(AS_OBJS) $(LIBS)
+ DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS))))
+ 
+ CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
+ CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
+ 
+ AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
+-CPP_COMP       := -O3 -xcore-avx512 -restrict -g -fasm-blocks
++#CPP_COMP       := -O3 -xcore-avx512 -restrict -g
++CPP_COMP       := -O3 -g
+ CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
+ CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
+ 
+@@ -160,7 +175,7 @@ $(CPP_DEPS) :
+ 	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+ 
+ .PHONY : generate_deps
+-generate_deps : clear_dep $(CC_DEPS) $(CPP_DEPS)
++generate_deps : clear_dep $(CC_DEPS)
+ 
+ 
+ .PHONY : echo_start_build
+@@ -211,10 +226,10 @@ welcome_line :
+ 
+ debug :  all
+ release :  all
+-$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
++$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(AS_OBJTARGETS) $(CPP_OBJTARGETS) 
+ 	@echo [AR]    $(subst $(BUILDDIR)/,,$@)
+ ifeq ($(XRAN_LIB_SO),)
+ 	@$(AR) $(AR_FLAGS) $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+ else
+-	@$(CC) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS) -shared -fPIC -o $@
++	@$(CC) $(CC_OBJTARGETS) $(AS_OBJTARGETS) -shared -fPIC -o $@
+ endif
+diff --git a/fhi_lib/lib/api/xran_compression.hpp b/fhi_lib/lib/api/xran_compression.hpp
+index 01f49c0..bd74ddb 100644
+--- a/fhi_lib/lib/api/xran_compression.hpp
++++ b/fhi_lib/lib/api/xran_compression.hpp
+@@ -18,7 +18,89 @@
+ 
+ #pragma once
+ #include <stdint.h>
++#ifndef RTE_ARCH_ARM64
+ #include <immintrin.h>
++#elif defined(__arm__) || defined(__aarch64__)
++
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/sse2.h>
++#include <simde/x86/avx2.h>
++#include <simde/x86/avx512.h>
++
++#define _mm512_mask_shuffle_i64x2 simde_mm512_mask_shuffle_i64x2
++
++#define _mm512_extracti64x2_epi64 simde_mm512_extracti64x2_epi64
++static simde__m128i
++simde_mm512_extracti64x2_epi64 (simde__m512i a, int imm8)
++    SIMDE_REQUIRE_CONSTANT_RANGE(imm8, 0, 3) {
++  simde__m512i_private a_ = simde__m512i_to_private(a);
++
++  return a_.m128i[imm8 & 3];
++}
++
++#define  _mm_mask_storeu_epi8 simde_mm_mask_storeu_epi8
++static void
++simde_mm_mask_storeu_epi8(uint8_t mem_addr[HEDLEY_ARRAY_PARAM(16)], simde__mmask16 mask, simde__m128i a) {
++    simde__m128i_private a_ = simde__m128i_to_private(a);
++
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(a_.u8) / sizeof(a_.u8[0])) ; i++) {
++      if ((mask >> i) & 1)
++        mem_addr[i] = a_.u8[i];
++    }
++}
++
++#define _mm256_mask_storeu_epi8(mem_addr, k, a) simde_mm256_mask_storeu_epi8((uint8_t *)mem_addr, k, a)
++static void
++simde_mm256_mask_storeu_epi8(uint8_t mem_addr[HEDLEY_ARRAY_PARAM(32)], simde__mmask32 mask, simde__m256i a) {
++    simde__m256i_private a_ = simde__m256i_to_private(a);
++
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(a_.u8) / sizeof(a_.u8[0])) ; i++) {
++      if ((mask >> i) & 1)
++        mem_addr[i] = a_.u8[i];
++    }
++}
++
++#define _mm512_mask_storeu_epi16 simde_mm512_mask_storeu_epi16
++static void
++simde_mm512_mask_storeu_epi16(int16_t mem_addr[HEDLEY_ARRAY_PARAM(16)], simde__mmask32 mask, simde__m512i a) {
++    simde__m512i_private a_ = simde__m512i_to_private(a);
++
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(a_.i16) / sizeof(a_.i16[0])) ; i++) {
++      if ((mask >> i) & 1)
++        mem_addr[i] = a_.i16[i];
++    }
++}
++
++#define _mm512_mask_storeu_epi64(mem_addr, k, a) simde_mm512_mask_storeu_epi64((uint64_t *)mem_addr, k, a)
++ static void
++simde_mm512_mask_storeu_epi64(uint64_t mem_addr[HEDLEY_ARRAY_PARAM(8)], simde__mmask8 mask, simde__m512i a) {
++    simde__m512i_private a_ = simde__m512i_to_private(a);
++
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(a_.u64) / sizeof(a_.u64[0])) ; i++) {
++      if ((mask >> i) & 1)
++        mem_addr[i] = a_.u64[i];
++    }
++}
++
++#define _mm512_mask_reduce_max_epi32 simde_mm512_mask_reduce_max_epi32
++static int simde_mm512_mask_reduce_max_epi32(simde__mmask16 k, simde__m512i a) {
++    simde__m512i_private
++      a_ = simde__m512i_to_private(a);
++    int _max = 0;
++
++    SIMDE_VECTORIZE
++      for (size_t i = 0; i < (sizeof(a_.i32) / sizeof(a_.i32[0])); i++) {
++        _max = ((k >> i) & 1) ? ((a_.i32[i] > _max) ? a_.i32[i] : _max) : _max;
++      }
++
++    return _max;
++}
++
++#endif // x86_64 || i386
+ 
+ // This configuration file sets global constants and macros which are
+ // of general use throughout the project.
+diff --git a/fhi_lib/lib/api/xran_fh_o_du.h b/fhi_lib/lib/api/xran_fh_o_du.h
+index 6365f27..161d973 100644
+--- a/fhi_lib/lib/api/xran_fh_o_du.h
++++ b/fhi_lib/lib/api/xran_fh_o_du.h
+@@ -331,6 +331,8 @@ struct xran_io_cfg {
+     int32_t  core;            /**< reservd */
+     int32_t  system_core;     /**< reservd */
+     uint64_t pkt_proc_core;  /**< worker mask */
++    uint64_t pkt_dump_core;  /**< worker mask */
++    int32_t pkt_dump_mode;      /**< Pkt dump on or off */
+     int32_t  pkt_aux_core;    /**< reservd */
+     int32_t  timing_core;     /**< core used by xRAN */
+     int32_t  port[XRAN_VF_MAX];  /**< VFs ports */
+diff --git a/fhi_lib/lib/ethernet/ethdi.c b/fhi_lib/lib/ethernet/ethdi.c
+index 873db7b..8074d64 100644
+--- a/fhi_lib/lib/ethernet/ethdi.c
++++ b/fhi_lib/lib/ethernet/ethdi.c
+@@ -61,6 +61,9 @@
+ #include <rte_mbuf.h>
+ #include <rte_timer.h>
+ 
++
++
++
+ #include "ethernet.h"
+ #include "ethdi.h"
+ #include "xran_fh_o_du.h"
+@@ -71,9 +74,21 @@
+ 
+ #define BURST_RX_IO_SIZE 48
+ 
++
+ struct xran_ethdi_ctx g_ethdi_ctx = { 0 };
+ enum xran_if_state xran_if_current_state = XRAN_STOPPED;
+ 
++
++#define RTE_ETH_PCAP_SNAPSHOT_LEN 65535
++static unsigned char tx_pcap_data[RTE_ETHER_MAX_JUMBO_FRAME_LEN];
++static struct timeval start_time;
++static uint64_t start_cycles;
++static uint64_t hz;
++
++
++//static int open_single_tx_pcap(const char *pcap_filename, pcap_dumper_t **dumper);
++
++
+ struct rte_mbuf *xran_ethdi_mbuf_alloc(void)
+ {
+     return rte_pktmbuf_alloc(_eth_mbuf_pool);
+@@ -230,11 +245,40 @@ static void check_port_link_status(uint8_t portid)
+     }
+ }
+ 
++static int open_single_tx_pcap(const char *pcap_filename, pcap_dumper_t **dumper)
++{
++	pcap_t *tx_pcap;
++
++	/*
++	 * We need to create a dummy empty pcap_t to use it
++	 * with pcap_dump_open(). We create big enough an Ethernet
++	 * pcap holder.
++	 */
++	tx_pcap = pcap_open_dead(DLT_EN10MB, RTE_ETH_PCAP_SNAPSHOT_LEN);
++	if (tx_pcap == NULL) {
++		print_err("Couldn't create dead pcap\n");
++		return -1;
++	}
++
++	/* The dumper is created using the previous pcap_t reference */
++	*dumper = pcap_dump_open(tx_pcap, pcap_filename);
++	if (*dumper == NULL) {
++		pcap_close(tx_pcap);
++		print_err("Couldn't open %s for writing.\n",
++			pcap_filename);
++		return -1;
++	}
++
++	//pcap_close(tx_pcap);
++	
++	return 0;
++}
++
+ 
+ int32_t
+ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
+     int *lcore_id, struct rte_ether_addr *p_o_du_addr,
+-    struct rte_ether_addr *p_ru_addr)
++    struct rte_ether_addr *p_ru_addr, uint32_t mtuSize)
+ {
+     uint16_t port[XRAN_VF_MAX];
+     struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
+@@ -294,8 +338,18 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
+         nWorkerCore = nWorkerCore << 1;
+     }
+ 
+-    printf("total cores %d c_mask 0x%lx core %d [id] system_core %d [id] pkt_proc_core 0x%lx [mask] pkt_aux_core %d [id] timing_core %d [id]\n",
+-        coreNum, c_mask, io_cfg->core, io_cfg->system_core, io_cfg->pkt_proc_core, io_cfg->pkt_aux_core, io_cfg->timing_core);
++	if(io_cfg->pkt_dump_mode) { 
++		nWorkerCore = 1L;
++		for (i = 0; i < coreNum; i++) {
++	        if (nWorkerCore & (uint64_t)io_cfg->pkt_dump_core) {
++	            c_mask |= nWorkerCore;
++	        }
++	        nWorkerCore = nWorkerCore << 1;
++	    }
++	}
++
++    printf("total cores %d c_mask 0x%lx core %d [id] system_core %d [id] pkt_proc_core 0x%lx [mask] pkt_proc_core 0x%lx [mask] pkt_aux_core %d [id] timing_core %d [id]\n",
++        coreNum, c_mask, io_cfg->core, io_cfg->system_core, io_cfg->pkt_proc_core, io_cfg->pkt_dump_core, io_cfg->pkt_aux_core, io_cfg->timing_core);
+ 
+     snprintf(core_mask, sizeof(core_mask), "-c 0x%lx", c_mask);
+ 
+@@ -352,7 +406,7 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
+ 
+                 RTE_ETH_FOREACH_MATCHING_DEV(port_id, io_cfg->dpdk_dev[i], &iterator){
+                         port[i] = port_id;
+-                        xran_init_port(port[i]);
++                        xran_init_port(port[i], mtuSize);
+                 }
+             } else {
+                 printf("no DPDK port provided\n");
+@@ -365,6 +419,13 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
+                 snprintf(ring_name, RTE_DIM(ring_name), "%s_%d", "rx_ring_up", i);
+                 ctx->rx_ring[i] = rte_ring_create(ring_name, NUM_MBUFS_RING,
+                     rte_lcore_to_socket_id(*lcore_id), RING_F_SC_DEQ);
++				
++				if(io_cfg->pkt_dump_mode) { 
++
++					snprintf(ring_name, RTE_DIM(ring_name), "%s_%d", "pkt_dump_ring_up", i);
++					ctx->pkt_dump_ring[i] = rte_ring_create(ring_name, NUM_MBUFS_RING,
++						rte_lcore_to_socket_id(*lcore_id), RING_F_SC_DEQ);	
++				}
+             }else {
+                 snprintf(ring_name, RTE_DIM(ring_name), "%s_%d", "tx_ring_cp", i);
+                 ctx->tx_ring[i] = rte_ring_create(ring_name, NUM_MBUFS_RING,
+@@ -372,7 +433,14 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
+                 snprintf(ring_name, RTE_DIM(ring_name), "%s_%d", "rx_ring_cp", i);
+                 ctx->rx_ring[i] = rte_ring_create(ring_name, NUM_MBUFS_RING,
+                     rte_lcore_to_socket_id(*lcore_id), RING_F_SC_DEQ);
++				if(io_cfg->pkt_dump_mode) { 
++
++					snprintf(ring_name, RTE_DIM(ring_name), "%s_%d", "pkt_dump_ring_cp", i);
++	                ctx->pkt_dump_ring[i] = rte_ring_create(ring_name, NUM_MBUFS_RING,
++	                    rte_lcore_to_socket_id(*lcore_id), RING_F_SC_DEQ);	
++				}
+             }
++			
+             if(io_cfg->dpdk_dev[i]){
+                 check_port_link_status(port[i]);
+             }
+@@ -411,10 +479,57 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
+         }
+     }
+ 
++    if(io_cfg->pkt_dump_mode) { 
++
++	    if (open_single_tx_pcap("XRAN.pcap", &ctx->dumper) < 0)
++		    rte_panic("failed to open tx_pcap");
++
++	    gettimeofday(&start_time, NULL);
++	    start_cycles = rte_get_timer_cycles();
++	    hz = rte_get_timer_hz();
++    }
++
+     return 1;
+ }
+ 
+-static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r)
++
++static inline struct rte_mbuf *mcast_out_pkt(struct rte_mbuf *pkt, int use_clone)
++{
++    struct rte_mbuf *hdr;
++
++    /* Create new mbuf for the header. */
++
++    if (unlikely ((hdr = rte_pktmbuf_alloc(_eth_mbuf_pool_pktdump)) == NULL))
++        return NULL;
++
++    /* If requested, then make a new clone packet. */
++
++    if (use_clone != 0 && unlikely ((pkt = rte_pktmbuf_clone(pkt, _eth_mbuf_pool_pktdump)) == NULL)) {
++        rte_pktmbuf_free(hdr);
++        return NULL;
++    }
++
++    /* prepend new header */
++
++    hdr->next = pkt;
++
++    /* update header's fields */
++
++    hdr->pkt_len = (uint16_t)(hdr->data_len + pkt->pkt_len);
++    hdr->nb_segs = (pkt->nb_segs + 1);
++
++    /* copy metadata from source packet */
++
++    hdr->port = pkt->port;
++    hdr->vlan_tci = pkt->vlan_tci;
++    hdr->hash = pkt->hash;
++    rte_mbuf_sanity_check(hdr,  1);
++
++    return hdr;
++}
++
++
++static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r, int pkt_dump_mode)
+ {
+     struct rte_mbuf *mbufs[BURST_SIZE];
+     uint16_t dequeued, sent = 0;
+@@ -424,26 +539,134 @@ static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r)
+ 
+     dequeued = rte_ring_dequeue_burst(r, (void **)mbufs, BURST_SIZE,
+             &remaining);
+-    if (!dequeued)
+-        return 0;   /* Nothing to send. */
++
++	if (!dequeued) {
++		return 0;   /* Nothing to send. */
++	}
++
++	if(pkt_dump_mode == 1) {
++		struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
++		struct rte_mbuf *mbuf;
++		
++		for(i=0;i < dequeued ;i++) {
++			print_inf("PCAP pktdump Clone i:%d, len :%d\n", i, rte_pktmbuf_pkt_len(mbufs[i]));
++			if(rte_pktmbuf_pkt_len(mbufs[i])) {
++				
++				mbuf = mcast_out_pkt(mbufs[i],0);
++
++				if(unlikely(mbuf == NULL)) {
++				        print_dbg("mbuf Clone failed pktdump port:%d, count:%d\n",port, i);
++				}
++				else {
++					
++					if (rte_ring_enqueue(ctx->pkt_dump_ring[port], mbuf ) == 0) {
++						print_inf("PCAP pktdump Enq Success port:%d, count:%d\n",port, i);
++					}
++					else {
++						print_err("PCAP pktdump Enq failed port:%d, count:%d\n",port, i);
++					}
++				}
++
++			}
++		}
++	}
+ 
+     while (1) {     /* When tx queue is full it is trying again till succeed */
+         t1 = MLogTick();
++
+         sent += rte_eth_tx_burst(port, 0, &mbufs[sent], dequeued - sent);
+ 
+         MLogTask(PID_RADIO_ETH_TX_BURST, t1, MLogTick());
+ 
+-        if (sent == dequeued)
++        if (sent == dequeued) {
++			print_dbg("Tx Burst:%d, Remain:%d pkts\n",sent , remaining );
+             return remaining;
++        }
+     }
+ }
+ 
++
++static inline void calculate_timestamp(struct timeval *ts) 
++{
++	uint64_t cycles;
++	struct timeval cur_time;
++
++	cycles = rte_get_timer_cycles() - start_cycles;
++	cur_time.tv_sec = cycles / hz;
++	cur_time.tv_usec = (cycles % hz) * 1e6 / hz;
++	timeradd(&start_time, &cur_time, ts);
++}
++
++/* Copy data from mbuf chain to a buffer suitable for writing to a PCAP file. */
++static void eth_pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf)
++{
++	uint16_t data_len = 0;
++
++	while (mbuf) {
++		rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void *),
++			mbuf->data_len);
++
++		data_len += mbuf->data_len;
++		mbuf = mbuf->next;
++	}
++}
++
++
++void pcap_tx_dumper (struct rte_mbuf * mbuf, pcap_dumper_t *dumper)
++{
++	struct pcap_pkthdr header;
++	calculate_timestamp(&header.ts);
++	header.len = mbuf->pkt_len;
++	header.caplen = header.len;
++
++	if (likely(mbuf->nb_segs == 1)) {
++				pcap_dump((u_char *)dumper, &header,
++					  rte_pktmbuf_mtod(mbuf, void*));
++	} 
++	else {
++		if (mbuf->pkt_len <= RTE_ETHER_MAX_JUMBO_FRAME_LEN) {
++			eth_pcap_gather_data(tx_pcap_data, mbuf);
++			pcap_dump((u_char *)dumper, &header,
++				  tx_pcap_data);
++		} else {
++			print_inf("Dropping PCAP packet. Size (%d) > max jumbo size (%d).",
++				mbuf->pkt_len,
++				RTE_ETHER_MAX_JUMBO_FRAME_LEN);
++		}
++	}
++
++	pcap_dump_flush(dumper);
++
++}
++
++
++uint16_t eth_pcap_tx_dumper(void)
++{
++	struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
++	struct rte_mbuf *mbufs[BURST_SIZE];
++	uint16_t dequeued, sent = 0;
++	uint32_t remaining;
++	int port_id = 0;
++
++	for (port_id = 0; port_id < XRAN_VF_MAX && port_id < (ctx->io_cfg.num_vfs); port_id++){
++		
++		while(rte_ring_dequeue(ctx->pkt_dump_ring[port_id],(void**)mbufs)==0) {
++		//rte_pktmbuf_dump(stdout,mbufs[0], rte_pktmbuf_pkt_len(mbufs[0]));
++		    pcap_tx_dumper(mbufs[0],ctx->dumper);
++		
++		    rte_pktmbuf_free(mbufs[0]);
++		}
++	}
++
++}
++
++
+ int32_t process_dpdk_io(void)
+ {
+     struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
+     struct xran_io_cfg * cfg = &(xran_ethdi_get_ctx()->io_cfg);
+     int32_t* port = &cfg->port[0];
+-    int port_id = 0;
++    int port_id = 0, i;
+ 
+     rte_timer_manage();
+ 
+@@ -455,16 +678,46 @@ int32_t process_dpdk_io(void)
+         /* RX */
+         const uint16_t rxed = rte_eth_rx_burst(port[port_id], 0, mbufs, BURST_RX_IO_SIZE);
+         if (rxed != 0){
++			
++		if(cfg->pkt_dump_mode == 2) {
++				struct rte_mbuf *mbuf;
++				
++				for(i=0;i < rxed ;i++) {
++					//print_inf("pktdump Rx Clone i:%d, len :%d\n", i, rte_pktmbuf_pkt_len(mbufs[i]));
++					if(rte_pktmbuf_pkt_len(mbufs[i])) {
++						
++						mbuf = mcast_out_pkt(mbufs[i],0);
++			
++						if(unlikely(mbuf == NULL)) {
++								print_err("pktdump Rx mbuf Clone failed port:%d, count:%d\n",port, i);
++						}
++						else {
++							
++							if (rte_ring_enqueue(ctx->pkt_dump_ring[port_id], mbuf ) == 0) {
++								print_inf("Rx pktdump Enq Success port:%d, count:%d\n",port, i);
++							}
++							else {
++								print_err("pktdump Rx Enq failed port:%d, count:%d\n",port, i);
++							}
++						}
++			
++					}
++				}
++			}
++		
+             unsigned enq_n = 0;
+             long t1 = MLogTick();
+             enq_n =  rte_ring_enqueue_burst(ctx->rx_ring[port_id], (void*)mbufs, rxed, NULL);
+             if(rxed - enq_n)
+                 rte_panic("error enq\n");
++
++			print_dbg("Rx Burst:%d, Enq:%d pkts\n",rxed , enq_n );
+             MLogTask(PID_RADIO_RX_VALIDATE, t1, MLogTick());
+         }
+ 
+         /* TX */
+-        const uint16_t sent = xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id]);
++        const uint16_t sent = xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id], cfg->pkt_dump_mode);
++
+ 
+         if (XRAN_STOPPED == xran_if_current_state)
+             return -1;
+diff --git a/fhi_lib/lib/ethernet/ethdi.h b/fhi_lib/lib/ethernet/ethdi.h
+index 1e5d4f5..a467e00 100644
+--- a/fhi_lib/lib/ethernet/ethdi.h
++++ b/fhi_lib/lib/ethernet/ethdi.h
+@@ -46,6 +46,9 @@ extern "C" {
+ #include <rte_pdump.h>
+ #endif
+ 
++
++#include <pcap.h>
++
+ #include "ethernet.h"
+ #include "xran_fh_o_du.h"
+ 
+@@ -101,6 +104,8 @@ struct xran_ethdi_ctx
+     struct xran_worker_config pkt_wrk_cfg[RTE_MAX_LCORE];
+ 
+     unsigned pkt_stats[PKT_LAST + 1];
++
++    pcap_dumper_t *dumper;
+ };
+ 
+ enum {
+@@ -125,7 +130,7 @@ int xran_register_ethertype_handler(uint16_t ethertype, ethertype_handler callba
+ 
+ int32_t xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
+     int *lcore_id, struct rte_ether_addr *p_o_du_addr,
+-    struct rte_ether_addr *p_ru_addr);
++    struct rte_ether_addr *p_ru_addr, uint32_t mtuSize);
+ 
+ struct rte_mbuf *xran_ethdi_mbuf_alloc(void);
+ int32_t xran_ethdi_mbuf_send(struct rte_mbuf *mb, uint16_t ethertype, uint16_t vf_id);
+@@ -133,6 +138,8 @@ int32_t xran_ethdi_mbuf_send_cp(struct rte_mbuf *mb, uint16_t ethertype, uint16_
+ int32_t xran_ethdi_filter_packet(struct rte_mbuf *pkt, uint64_t rx_time);
+ int32_t process_dpdk_io(void);
+ 
++uint16_t eth_pcap_tx_dumper(void);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/fhi_lib/lib/ethernet/ethernet.c b/fhi_lib/lib/ethernet/ethernet.c
+index 0df06c7..c3b197f 100644
+--- a/fhi_lib/lib/ethernet/ethernet.c
++++ b/fhi_lib/lib/ethernet/ethernet.c
+@@ -72,6 +72,7 @@ struct rte_mempool *_eth_mbuf_pool_inderect = NULL;
+ struct rte_mempool *_eth_mbuf_pool_rx     = NULL;
+ struct rte_mempool *_eth_mbuf_pool_small  = NULL;
+ struct rte_mempool *_eth_mbuf_pool_big    = NULL;
++struct rte_mempool *_eth_mbuf_pool_pktdump    = NULL;
+ 
+ struct rte_mempool *socket_direct_pool    = NULL;
+ struct rte_mempool *socket_indirect_pool  = NULL;
+@@ -194,6 +195,10 @@ void xran_init_mbuf_pool(void)
+ #endif
+         _eth_mbuf_pool_rx = rte_pktmbuf_pool_create("mempool_rx", NUM_MBUFS,
+                 MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());
++
++        _eth_mbuf_pool_pktdump = rte_pktmbuf_pool_create("mempool_pktdump", 16383,
++                MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());
++
+         _eth_mbuf_pool_small = rte_pktmbuf_pool_create("mempool_small",
+                 NUM_MBUFS, MBUF_CACHE, 0, MBUF_POOL_ELM_SMALL, rte_socket_id());
+         _eth_mbuf_pool_big = rte_pktmbuf_pool_create("mempool_big",
+@@ -202,6 +207,7 @@ void xran_init_mbuf_pool(void)
+         _eth_mbuf_pool = rte_mempool_lookup("mempool");
+         _eth_mbuf_pool_inderect = rte_mempool_lookup("mempool_indirect");
+         _eth_mbuf_pool_rx = rte_mempool_lookup("mempool_rx");
++		_eth_mbuf_pool_pktdump = rte_mempool_lookup("mempool_pktdump");
+         _eth_mbuf_pool_small = rte_mempool_lookup("mempool_small");
+         _eth_mbuf_pool_big = rte_mempool_lookup("mempool_big");
+     }
+@@ -209,10 +215,14 @@ void xran_init_mbuf_pool(void)
+         rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
+ #ifdef XRAN_ATTACH_MBUF
+     if (_eth_mbuf_pool_inderect == NULL)
+-        rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
++        rte_panic("Cannot create mbuf pool indirect: %s\n", rte_strerror(rte_errno));
+ #endif
+     if (_eth_mbuf_pool_rx == NULL)
+-        rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
++        rte_panic("Cannot create mbuf poo rx l: %s\n", rte_strerror(rte_errno));
++
++	if (_eth_mbuf_pool_pktdump == NULL)
++        rte_panic("Cannot create mbuf pool pktdump: %s\n", rte_strerror(rte_errno));
++		
+     if (_eth_mbuf_pool_small == NULL)
+         rte_panic("Cannot create small mbuf pool: %s\n", rte_strerror(rte_errno));
+     if (_eth_mbuf_pool_big == NULL)
+@@ -226,7 +236,7 @@ void xran_init_mbuf_pool(void)
+ }
+ 
+ /* Init NIC port, then start the port */
+-void xran_init_port(int p_id)
++void xran_init_port(int p_id, uint32_t mtuSize)
+ {
+     static uint16_t nb_rxd = BURST_SIZE;
+     static uint16_t nb_txd = BURST_SIZE;
+@@ -251,6 +261,11 @@ void xran_init_port(int p_id)
+     const char *drv_name = "";
+     int sock_id = rte_eth_dev_socket_id(p_id);
+ 
++    if(mtuSize <=1500) {
++	    rxmode.offloads &= ~DEV_RX_OFFLOAD_JUMBO_FRAME;
++	    rxmode.max_rx_pkt_len = RTE_ETHER_MAX_LEN;
++    }
++    
+     rte_eth_dev_info_get(p_id, &dev_info);
+     if (dev_info.driver_name)
+         drv_name = dev_info.driver_name;
+diff --git a/fhi_lib/lib/ethernet/ethernet.h b/fhi_lib/lib/ethernet/ethernet.h
+index bc4bffb..ed4b011 100644
+--- a/fhi_lib/lib/ethernet/ethernet.h
++++ b/fhi_lib/lib/ethernet/ethernet.h
+@@ -65,6 +65,7 @@ extern struct rte_mempool *_eth_mbuf_pool_small;
+ extern struct rte_mempool *_eth_mbuf_pool_big;
+ extern struct rte_mempool *socket_direct_pool;
+ extern struct rte_mempool *socket_indirect_pool;
++extern struct rte_mempool *_eth_mbuf_pool_pktdump;
+ 
+ /* Do NOT change the order of this enum and below
+  * - need to be in sync with the table of handlers in testue.c */
+@@ -119,7 +120,7 @@ struct ethdi_hdr {
+ 
+ void xran_init_mbuf_pool(void);
+ 
+-void xran_init_port(int port);
++void xran_init_port(int port, uint32_t mtuSize);
+ 
+ void xran_add_eth_hdr_vlan(struct rte_ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb);
+ 
+diff --git a/fhi_lib/lib/src/xran_bfp_cplane16.cpp b/fhi_lib/lib/src/xran_bfp_cplane16.cpp
+index 4f668ae..37abe5e 100644
+--- a/fhi_lib/lib/src/xran_bfp_cplane16.cpp
++++ b/fhi_lib/lib/src/xran_bfp_cplane16.cpp
+@@ -28,7 +28,6 @@
+ #include "xran_bfp_utils.hpp"
+ #include <complex>
+ #include <algorithm>
+-#include <immintrin.h>
+ 
+ 
+ namespace BFP_CPlane_16
+diff --git a/fhi_lib/lib/src/xran_bfp_cplane32.cpp b/fhi_lib/lib/src/xran_bfp_cplane32.cpp
+index e091620..b6637c5 100644
+--- a/fhi_lib/lib/src/xran_bfp_cplane32.cpp
++++ b/fhi_lib/lib/src/xran_bfp_cplane32.cpp
+@@ -28,7 +28,6 @@
+ #include "xran_bfp_utils.hpp"
+ #include <complex>
+ #include <algorithm>
+-#include <immintrin.h>
+ 
+ 
+ namespace BFP_CPlane_32
+diff --git a/fhi_lib/lib/src/xran_bfp_cplane64.cpp b/fhi_lib/lib/src/xran_bfp_cplane64.cpp
+index 1238494..e8599bf 100644
+--- a/fhi_lib/lib/src/xran_bfp_cplane64.cpp
++++ b/fhi_lib/lib/src/xran_bfp_cplane64.cpp
+@@ -28,7 +28,6 @@
+ #include "xran_bfp_utils.hpp"
+ #include <complex>
+ #include <algorithm>
+-#include <immintrin.h>
+ 
+ 
+ namespace BFP_CPlane_64
+diff --git a/fhi_lib/lib/src/xran_bfp_cplane8.cpp b/fhi_lib/lib/src/xran_bfp_cplane8.cpp
+index f11abe0..a9be3ac 100644
+--- a/fhi_lib/lib/src/xran_bfp_cplane8.cpp
++++ b/fhi_lib/lib/src/xran_bfp_cplane8.cpp
+@@ -28,7 +28,6 @@
+ #include "xran_bfp_utils.hpp"
+ #include <complex>
+ #include <algorithm>
+-#include <immintrin.h>
+ 
+ 
+ namespace BFP_CPlane_8
+diff --git a/fhi_lib/lib/src/xran_bfp_ref.cpp b/fhi_lib/lib/src/xran_bfp_ref.cpp
+index 84a6962..7634513 100644
+--- a/fhi_lib/lib/src/xran_bfp_ref.cpp
++++ b/fhi_lib/lib/src/xran_bfp_ref.cpp
+@@ -28,7 +28,7 @@
+ #include "xran_bfp_utils.hpp"
+ #include <complex>
+ #include <algorithm>
+-#include <limits.h>
++#include <limits>
+ 
+ static int16_t saturateAbs(int16_t inVal)
+ {
+diff --git a/fhi_lib/lib/src/xran_bfp_utils.hpp b/fhi_lib/lib/src/xran_bfp_utils.hpp
+index 6f22139..0bea89c 100644
+--- a/fhi_lib/lib/src/xran_bfp_utils.hpp
++++ b/fhi_lib/lib/src/xran_bfp_utils.hpp
+@@ -25,8 +25,117 @@
+  **/
+ 
+ #pragma once
++
++#if !defined(RTE_ARCH_ARM64)
++
+ #include <immintrin.h>
+ 
++#elif defined(__arm__) || defined(__aarch64__)
++
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/sse2.h>
++#include <simde/x86/avx2.h>
++#include <simde/x86/avx512.h>
++
++#define __lzcnt16(X) (simde_x_clz32((unsigned short)(X)) - 16)
++
++#define _mm256_sllv_epi16 simde_mm256_sllv_epi16
++static simde__m256i
++simde_mm256_sllv_epi16 (simde__m256i a, simde__m256i b) {
++  simde__m256i_private
++    a_ = simde__m256i_to_private(a),
++    b_ = simde__m256i_to_private(b),
++    r_;
++
++  #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
++    r_.u16 = HEDLEY_REINTERPRET_CAST(__typeof__(r_.u16), (b_.u16 < 16)) & (a_.u16 << b_.u16);
++  #else
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(r_.u16) / sizeof(r_.u16[0])) ; i++) {
++      r_.u16[i] = (b_.u16[i] < 16) ? HEDLEY_STATIC_CAST(uint16_t, (a_.u16[i] << b_.u16[i])) : 0;
++    }
++  #endif
++
++  return simde__m256i_from_private(r_);
++}
++
++#define _mm512_lzcnt_epi32 simde_mm512_lzcnt_epi32
++static simde__m512i
++simde_mm512_lzcnt_epi32(simde__m512i a) {
++    simde__m512i_private
++      r_,
++      a_ = simde__m512i_to_private(a);
++
++      SIMDE_VECTORIZE
++      for (size_t i = 0; i < (sizeof(r_.i32) / sizeof(r_.i32[0])); i++) {
++        r_.i32[i] = (HEDLEY_UNLIKELY(a_.i32[i] == 0) ? HEDLEY_STATIC_CAST(int32_t, sizeof(int32_t) * CHAR_BIT) : HEDLEY_STATIC_CAST(int32_t, simde_x_clz32(HEDLEY_STATIC_CAST(uint32_t, a_.i32[i]))));
++      }
++
++    return simde__m512i_from_private(r_);
++}
++
++#define _mm512_reduce_max_epi32 simde_mm512_reduce_max_epi32
++static int simde_mm512_reduce_max_epi32(simde__m512i a) {
++    simde__m512i_private
++      a_ = simde__m512i_to_private(a);
++    int _max = 0;
++
++    SIMDE_VECTORIZE
++      for (size_t i = 0; i < (sizeof(a_.i32) / sizeof(a_.i32[0])); i++) {
++        _max = (a_.i32[i] > _max) ? a_.i32[i] : _max;
++      }
++
++    return _max;
++}
++
++#define _mm256_mask_storeu_epi64(mem_addr, k, a) simde_mm256_mask_storeu_epi64((uint64_t *)mem_addr, k, a)
++static void
++simde_mm256_mask_storeu_epi64(uint64_t mem_addr[HEDLEY_ARRAY_PARAM(8)], simde__mmask8 mask, simde__m256i a) {
++    simde__m256i_private a_ = simde__m256i_to_private(a);
++
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(a_.u64) / sizeof(a_.u64[0])) ; i++) {
++      if ((mask >> i) & 1)
++        mem_addr[i] = a_.u64[i];
++    }
++}
++
++#define _mm512_permutex_epi64 simde_mm512_permutex_epi64
++static simde__m512i simde_mm512_permutex_epi64(simde__m512i a, const int imm) {
++    simde__m512i_private r_;
++    simde__m512i_private a_ = simde__m512i_to_private(a);
++
++    //Shuffles int64 elements in a within 256-bit lanes using the control in imm, and stores the result.
++
++    // Process each 256-line separatelly
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(r_.i64) / sizeof(r_.i64[0]) / 2) ; i++) {
++      r_.i64[i] = a_.i64[(imm << (i * 2)) & 3];
++    }
++
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(r_.i64) / sizeof(r_.i64[0]) / 2) ; i++) {
++      r_.i64[4 + i] = a_.i64[4 + ((imm << (i * 2)) & 3)];
++    }
++
++    return simde__m512i_from_private(r_);
++}
++
++#define _mm256_cvtepi16_epi8 simde_mm256_cvtepi16_epi8
++static simde__m128i simde_mm256_cvtepi16_epi8(simde__m256i a) {
++    simde__m128i_private r_;
++    simde__m256i_private a_ = simde__m256i_to_private(a);
++
++    //Convert packed 16-bit integers in a to packed 8-bit integers with truncation, and return the results.
++    SIMDE_VECTORIZE
++    for (size_t i = 0 ; i < (sizeof(r_.u8) / sizeof(r_.u8[0])) ; i++) {
++      r_.u8[i] = (uint8_t)a_.u16[i];
++    }
++
++    return simde__m128i_from_private(r_);
++}
++#endif // x86_64 || i386
++
+ namespace BlockFloatCompander
+ {
+   /// Define function signatures for byte packing functions
+diff --git a/fhi_lib/lib/src/xran_common.c b/fhi_lib/lib/src/xran_common.c
+index c4cb3fb..f8f5818 100644
+--- a/fhi_lib/lib/src/xran_common.c
++++ b/fhi_lib/lib/src/xran_common.c
+@@ -192,6 +192,7 @@ int process_mbuf(struct rte_mbuf *pkt)
+         return MBUF_FREE;
+     }
+ 
++#if 0
+     valid_res = xran_pkt_validate(NULL,
+                                 pkt,
+                                 iq_samp_buf,
+@@ -213,6 +214,7 @@ int process_mbuf(struct rte_mbuf *pkt)
+         print_dbg("valid_res is wrong [%d] ant %u (%u : %u : %u : %u) seq %u num_bytes %d\n", valid_res, Ant_ID, frame_id, subframe_id, slot_id, symb_id, seq.seq_id, num_bytes);
+         return MBUF_FREE;
+     }
++#endif
+ 
+     if (Ant_ID >= p_x_ctx->srs_cfg.eAxC_offset && p_x_ctx->fh_init.srsEnable) {
+         /* SRS packet has ruportid = 2*num_eAxc + ant_id */
+@@ -528,7 +530,15 @@ int send_cpmsg(void *pHandle, struct rte_mbuf *mbuf,struct xran_cp_gen_params *p
+ 
+     pCnt->tx_counter++;
+     pCnt->tx_bytes_counter += rte_pktmbuf_pkt_len(mbuf);
+-    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriRtcid_to_vf(dir, cc_id, ru_port_id));
++
++    if (xran_ethdi_get_ctx()->io_cfg.num_vfs > 1) {
++	    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriRtcid_to_vf(dir, cc_id, ru_port_id));
++    }
++    else {
++	    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriPcid_to_vf(dir, cc_id, ru_port_id));
++    }
++
++	
+     for(i=0; i<nsection; i++)
+         xran_cp_add_section_info(pHandle, dir, cc_id, ru_port_id,
+                 (slot_id + subframe_id*SLOTNUM_PER_SUBFRAME)%XRAN_MAX_SECTIONDB_CTX,
+@@ -611,7 +621,7 @@ int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struc
+         return (-1);
+     }
+ #if 0
+-    printf("%d:%d:%d:%d - filter=%d, startSym=%d[%d:%d], numSym=%d, occasions=%d, freqOff=%d\n",
++    print_inf("%d:%d:%d:%d - filter=%d, startSym=%d[%d:%d], numSym=%d, occasions=%d, freqOff=%d\n",
+                 frame_id, subframe_id, slot_id, prach_port_id,
+                 pPrachCPConfig->filterIdx,
+                 pPrachCPConfig->startSymId,
+@@ -735,9 +745,10 @@ int32_t ring_processing_func(void)
+     /* UP first */
+ 
+     for (i = 0; i < ctx->io_cfg.num_vfs && i < (XRAN_VF_MAX - 1); i = i+2){
+-        if (process_ring(ctx->rx_ring[i]))
+-            return 0;
+-
++        process_ring(ctx->rx_ring[i]);
++        if(ctx->io_cfg.num_vfs > 1) {
++	  process_ring(ctx->rx_ring[i+1]);
++	}
+         /* CP next */
+         if(ctx->io_cfg.id == O_RU) /* process CP only on O-RU */
+             if (process_ring(ctx->rx_ring[i+1]))
+diff --git a/fhi_lib/lib/src/xran_common.h b/fhi_lib/lib/src/xran_common.h
+index 694e711..f833aff 100644
+--- a/fhi_lib/lib/src/xran_common.h
++++ b/fhi_lib/lib/src/xran_common.h
+@@ -348,6 +348,7 @@ uint8_t xran_get_num_ant_elm(void *pHandle);
+ enum xran_category xran_get_ru_category(void *pHandle);
+ 
+ struct xran_device_ctx *xran_dev_get_ctx(void);
++int xran_is_prach_slot(uint32_t subframe_id, uint32_t slot_id);
+ 
+ int xran_register_cb_mbuf2ring(xran_ethdi_mbuf_send_fn mbuf_send_cp, xran_ethdi_mbuf_send_fn mbuf_send_up);
+ 
+diff --git a/fhi_lib/lib/src/xran_compression.cpp b/fhi_lib/lib/src/xran_compression.cpp
+index 721cbe9..451740c 100644
+--- a/fhi_lib/lib/src/xran_compression.cpp
++++ b/fhi_lib/lib/src/xran_compression.cpp
+@@ -29,7 +29,6 @@
+ #include "xran_compression.h"
+ #include <complex>
+ #include <algorithm>
+-#include <immintrin.h>
+ #include <limits.h>
+ #include <cstring>
+ 
+diff --git a/fhi_lib/lib/src/xran_cp_api.c b/fhi_lib/lib/src/xran_cp_api.c
+index 9122337..84c76d2 100644
+--- a/fhi_lib/lib/src/xran_cp_api.c
++++ b/fhi_lib/lib/src/xran_cp_api.c
+@@ -410,7 +410,7 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination
+     memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
+     memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
+ 
+-    print_dbg("%s comp %d\n", __FUNCTION__, bfwCompMeth);
++    print_dbg("comp %d\n", bfwCompMeth);
+     print_dbg("bfwNumPerRb %d bfwiqWidth %d\n", bfwNumPerRb, bfwiqWidth);
+ 
+     if(p_ext1_dst)
+@@ -420,7 +420,7 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination
+ 
+     /* create extType=1 section for each RB */
+     for (idxRb = 0; idxRb < rbNum; idxRb++) {
+-        print_dbg("%s RB %d\n", __FUNCTION__, idxRb);
++        print_dbg("RB %d\n", idxRb);
+ 
+         if(total_len >= ext1_dst_len){
+             print_err("p_ext1_dst overflow\n");
+@@ -585,7 +585,7 @@ static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
+ 
+     total_len = 0;
+ 
+-    print_dbg("%s %d\n", __FUNCTION__, last_flag);
++    print_dbg("last_flag:%d\n", last_flag);
+ 
+     parm_size = sizeof(struct xran_cp_radioapp_section_ext1);
+     ext1 = (struct xran_cp_radioapp_section_ext1 *)rte_pktmbuf_append(mbuf, parm_size);
+@@ -1106,6 +1106,11 @@ static int xran_prepare_section0_hdr(
+     return (XRAN_STATUS_SUCCESS);
+ }
+ 
++#ifdef RTE_ARCH_ARM64
++// Lower compiler optimizations on ARM target to make this function works correctly
++#pragma GCC push_options
++#pragma GCC optimize ("O1")
++#endif
+ /**
+  * @brief Fill the section body of type 1 in C-Plane packet
+  *  Extension is not supported.
+@@ -1146,6 +1151,10 @@ static int xran_prepare_section1(
+ 
+     return (XRAN_STATUS_SUCCESS);
+ }
++#ifdef RTE_ARCH_ARM64
++#pragma GCC pop_options
++#endif
++
+ /**
+  * @brief Fill the section header of type 1 in C-Plane packet
+  *
+@@ -1167,6 +1176,13 @@ static int xran_prepare_section1_hdr(
+     return (XRAN_STATUS_SUCCESS);
+ }
+ 
++
++#ifdef RTE_ARCH_ARM64
++// Lower compiler optimizations on ARM target to make this function works correctly
++#pragma GCC push_options
++#pragma GCC optimize ("O1")
++#endif
++
+ /**
+  * @brief Fill the section body of type 3 in C-Plane packet
+  *  Extension is not supported.
+@@ -1210,6 +1226,11 @@ static int xran_prepare_section3(
+ 
+     return (XRAN_STATUS_SUCCESS);
+ }
++#ifdef RTE_ARCH_ARM64
++#pragma GCC pop_options
++#endif
++
++				
+ /**
+  * @brief Fill the section header of type 3 in C-Plane packet
+  *
+@@ -1295,11 +1316,12 @@ int xran_append_control_section(struct rte_mbuf *mbuf, struct xran_cp_gen_params
+             print_err("Fail to allocate the space for section[%d]!", i);
+             return (XRAN_STATUS_RESOURCE);
+         }
+-        print_dbg("%s %d ef %d\n", __FUNCTION__, i, params->sections[i].info.ef);
+-        ret = xran_prepare_section_func((void *)section,
++        print_dbg("%d ef %d\n", i, params->sections[i].info.ef);
++
++	    ret = xran_prepare_section_func((void *)section,
+                             (void *)&params->sections[i]);
+         if(ret < 0){
+-            print_err("%s %d\n", __FUNCTION__, ret);
++            print_err("ret: %d\n", ret);
+             return (ret);
+         }
+         totalen += section_size;
+@@ -1317,6 +1339,11 @@ int xran_append_control_section(struct rte_mbuf *mbuf, struct xran_cp_gen_params
+     return (totalen);
+ }
+ 
++#ifdef RTE_ARCH_ARM64
++// Lower compiler optimizations on ARM target to make this function works correctly
++#pragma GCC push_options
++#pragma GCC optimize ("O1")
++#endif
+ /**
+  * @brief fill the information of a radio application header in a C-Plane packet
+  *
+@@ -1364,6 +1391,10 @@ static inline int xran_prepare_radioapp_common_header(
+     return (XRAN_STATUS_SUCCESS);
+ }
+ 
++#ifdef RTE_ARCH_ARM64
++#pragma GCC pop_options
++#endif
++
+ /**
+  * @brief add a radio application header in a C-Plane packet
+  *
+@@ -1474,7 +1505,7 @@ int xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
+ 
+     ret = xran_append_radioapp_header(mbuf, params);
+     if(ret < 0) {
+-        print_err("%s %d\n", __FUNCTION__, ret);
++	print_err("%s %d\n", __FUNCTION__, ret);
+         return (ret);
+     }
+     payloadlen += ret;
+diff --git a/fhi_lib/lib/src/xran_main.c b/fhi_lib/lib/src/xran_main.c
+index 17acc2a..65d728a 100644
+--- a/fhi_lib/lib/src/xran_main.c
++++ b/fhi_lib/lib/src/xran_main.c
+@@ -199,6 +199,7 @@ void tti_ota_cb(struct rte_timer *tim, void *arg);
+ void tti_to_phy_cb(struct rte_timer *tim, void *arg);
+ void xran_timer_arm_ex(struct rte_timer *tim, void* CbFct, void *CbArg, unsigned tim_lcore);
+ 
++int xran_pcap_dumper_thread(void *args);
+ 
+ // Return SFN at current second start, 10 bits, [0, 1023]
+ static inline uint16_t xran_getSfnSecStart(void)
+@@ -609,6 +610,7 @@ static inline int8_t xran_check_updl_seqid(void *pHandle, uint8_t cc_id, uint8_t
+ 
+ uint32_t xran_slotid_convert(uint16_t slot_id, uint16_t dir) //dir = 0, from PHY slotid to xran spec slotid as defined in 5.3.2, dir=1, from xran slotid to phy slotid
+ {
++    return slot_id;
+ #ifdef FCN_ADAPT
+     return slot_id;
+ #endif
+@@ -1037,8 +1039,12 @@ int xran_cp_create_and_send_section(void *pHandle, uint8_t ru_port_id, int dir,
+             struct rte_ether_hdr *const h = (void *)rte_pktmbuf_prepend(mbuf, sizeof(*h));
+             pCnt->tx_counter++;
+             pCnt->tx_bytes_counter += rte_pktmbuf_pkt_len(mbuf);
+-            p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriRtcid_to_vf(dir, cc_id, ru_port_id));
+-
++	    if (xran_ethdi_get_ctx()->io_cfg.num_vfs > 1) {
++		    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriRtcid_to_vf(dir, cc_id, ru_port_id));
++	    }
++	    else {
++		    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriPcid_to_vf(dir, cc_id, ru_port_id));
++	    }
+             /*for(i=0; i<nsection; i++)*/
+                 xran_cp_add_section_info(pHandle,
+                         dir, cc_id, ru_port_id,
+@@ -2584,13 +2590,15 @@ int32_t xran_init(int argc, char *argv[],
+                            p_io_cfg,
+                            &lcore_id,
+                            (struct rte_ether_addr *)p_xran_fh_init->p_o_du_addr,
+-                           (struct rte_ether_addr *)p_xran_fh_init->p_o_ru_addr);
++                           (struct rte_ether_addr *)p_xran_fh_init->p_o_ru_addr,
++			   p_xran_dev_ctx->fh_init.mtu);
+     else
+         xran_ethdi_init_dpdk_io(p_xran_fh_init->filePrefix,
+                            p_io_cfg,
+                            &lcore_id,
+                            (struct rte_ether_addr *)p_xran_fh_init->p_o_ru_addr,
+-                           (struct rte_ether_addr *)p_xran_fh_init->p_o_du_addr);
++                           (struct rte_ether_addr *)p_xran_fh_init->p_o_du_addr,
++			   p_xran_dev_ctx->fh_init.mtu);
+ 
+     for(i = 0; i < 10; i++ )
+         rte_timer_init(&tti_to_phy_timer[i]);
+@@ -2647,8 +2655,11 @@ int32_t xran_sector_get_instances (void * pDevHandle, uint16_t nNumInstances,
+     for (i = 0; i < nNumInstances; i++) {
+ 
+         /* Allocate Memory for CC handles */
++#if !defined(RTE_ARCH_ARM64)
+         pCcHandle = (XranSectorHandleInfo *) _mm_malloc( /*"xran_cc_handles",*/ sizeof (XranSectorHandleInfo), 64);
+-
++#else
++        pCcHandle = (XranSectorHandleInfo *) rte_malloc( "xran_cc_handles", sizeof (XranSectorHandleInfo), 64);
++#endif
+         if(pCcHandle == NULL)
+             return XRAN_STATUS_RESOURCE;
+ 
+@@ -3004,6 +3015,9 @@ int32_t xran_open(void *pHandle, struct xran_fh_config* pConf)
+     int32_t  lcore_id = 0;
+     struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
+     struct xran_fh_config *pFhCfg;
++	uint64_t nWorkerCore = 1LL;
++	uint32_t coreNum	 = sysconf(_SC_NPROCESSORS_CONF);
++		
+     pFhCfg = &(p_xran_dev_ctx->fh_cfg);
+ 
+     memcpy(pFhCfg, pConf, sizeof(struct xran_fh_config));
+@@ -3084,11 +3098,12 @@ int32_t xran_open(void *pHandle, struct xran_fh_config* pConf)
+         if (rte_eal_remote_launch(xran_timing_source_thread, xran_dev_get_ctx(), xran_ethdi_get_ctx()->io_cfg.timing_core))
+             rte_panic("thread_run() failed to start\n");
+ 
++
++
+         /* Start packet processing thread */
+         if(xran_ethdi_get_ctx()->io_cfg.pkt_proc_core){
+             /* start pkt workers */
+-            uint64_t nWorkerCore = 1LL;
+-            uint32_t coreNum     = sysconf(_SC_NPROCESSORS_CONF);
++
+             for (i = 0; i < coreNum; i++) {
+                 if (nWorkerCore & (uint64_t)xran_ethdi_get_ctx()->io_cfg.pkt_proc_core) {
+                     if (rte_eal_remote_launch(ring_processing_thread, NULL, i))
+@@ -3098,10 +3113,28 @@ int32_t xran_open(void *pHandle, struct xran_fh_config* pConf)
+                     xran_ethdi_get_ctx()->pkt_wrk_cfg[i].state = 1;
+                     if(p_xran_dev_ctx->pkt_proc_core_id == 0)
+                        p_xran_dev_ctx->pkt_proc_core_id = i;
++
++					break;
+                 }
+                 nWorkerCore = nWorkerCore << 1;
+             }
+         }
++
++		/* Start packet dump thread */
++		if(xran_ethdi_get_ctx()->io_cfg.pkt_dump_core){
++			nWorkerCore = 1LL;
++
++			for (i = 0; i < coreNum; i++) {
++				if (nWorkerCore & (uint64_t)xran_ethdi_get_ctx()->io_cfg.pkt_dump_core) {
++
++					if (rte_eal_remote_launch(xran_pcap_dumper_thread, NULL, i))
++						rte_panic("xran_pcap_dumper_thread() failed to start\n");
++					break;
++				}
++				nWorkerCore = nWorkerCore << 1;
++			}
++		}
++
+     } else if(pConf->log_level){
+             printf("Eth port was not open. Processing thread was not started\n");
+     }
+@@ -3109,6 +3142,36 @@ int32_t xran_open(void *pHandle, struct xran_fh_config* pConf)
+     return 0;
+ }
+ 
++
++int xran_pcap_dumper_thread(void *args)
++{
++
++	struct sched_param sched_param;
++	int res = 0;
++
++	memset(&sched_param, 0, sizeof(struct sched_param));
++
++	printf("%s [CPU %2d] [PID: %6d]\n", __FUNCTION__,  rte_lcore_id(), getpid());
++	sched_param.sched_priority = XRAN_THREAD_DEFAULT_PRIO;
++	if ((res = pthread_setschedparam(pthread_self(), SCHED_FIFO, &sched_param))){
++		printf("priority is not changed: coreId = %d, result1 = %d\n",rte_lcore_id(), res);
++	}
++	
++	while(1){
++
++		eth_pcap_tx_dumper();
++
++		if (XRAN_STOPPED == xran_if_current_state)
++			break;
++
++	}
++
++    printf("Closing pcap_dumper thread...\n");
++    return res;
++
++}
++
++
+ int32_t xran_start(void *pHandle)
+ {
+     struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
+diff --git a/fhi_lib/lib/src/xran_printf.h b/fhi_lib/lib/src/xran_printf.h
+index 8649b01..5646ae5 100644
+--- a/fhi_lib/lib/src/xran_printf.h
++++ b/fhi_lib/lib/src/xran_printf.h
+@@ -32,9 +32,9 @@ extern "C" {
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+-#define PRINTF_LOG_OK
+-#define PRINTF_INF_OK
+-#define PRINTF_ERR_OK
++//#define PRINTF_LOG_OK
++//#define PRINTF_INF_OK
++//#define PRINTF_ERR_OK
+ //#define PRINTF_DBG_OK
+ 
+ #ifndef WIN32
+diff --git a/fhi_lib/lib/src/xran_timer.c b/fhi_lib/lib/src/xran_timer.c
+index 0b86f8e..dddc2c9 100644
+--- a/fhi_lib/lib/src/xran_timer.c
++++ b/fhi_lib/lib/src/xran_timer.c
+@@ -29,6 +29,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <stdint.h>
++#include <rte_cycles.h>
+ 
+ #include "xran_timer.h"
+ #include "xran_printf.h"
+@@ -134,9 +135,13 @@ void timing_adjust_gps_second(struct timespec* p_time)
+ }
+ uint64_t xran_tick(void)
+ {
++#if defined(RTE_ARCH_ARM64) && !defined(CONFIG_RTE_ARM_EAL_RDTSC_USE_PMU)
++	return (rte_rdtsc() *80);
++#else
+     uint32_t hi, lo;
+     __asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+     return ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
++#endif
+ }
+ 
+ unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick)
+diff --git a/fhi_lib/test/common/common.cpp b/fhi_lib/test/common/common.cpp
+index 82fb28e..62593fa 100644
+--- a/fhi_lib/test/common/common.cpp
++++ b/fhi_lib/test/common/common.cpp
+@@ -108,7 +108,9 @@ unsigned long tsc_recovery()
+ #ifndef _WIN64
+     constexpr auto ns_per_sec = 1E9;
+ 
+-    struct timespec sleeptime = {.tv_nsec = __syscall_slong_t(5E8) };
++    struct timespec sleeptime = {
++        .tv_sec = 0,
++        .tv_nsec = __syscall_slong_t(5E8) };
+ 
+     struct timespec t_start, t_end;
+ 
+@@ -148,6 +150,9 @@ unsigned long tsc_recovery()
+ 
+ unsigned long tsc_tick()
+ {
++#if defined(RTE_ARCH_ARM64)
++	return rte_rdtsc();
++#endif
+ #ifndef _WIN64
+     unsigned long hi, lo;
+ 
+diff --git a/fhi_lib/test/common/common.hpp b/fhi_lib/test/common/common.hpp
+index 9b01b06..ff401ae 100644
+--- a/fhi_lib/test/common/common.hpp
++++ b/fhi_lib/test/common/common.hpp
+@@ -20,8 +20,14 @@
+ #include <string>
+ #include <utility>
+ #include <vector>
+-
++#if defined(__arm__) || defined(__aarch64__)
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/sse2.h>
++#include <simde/x86/avx2.h>
++#include <simde/x86/avx512.h>
++#else
+ #include <immintrin.h>
++#endif
+ #include <malloc.h>
+ 
+ #define _BBLIB_DPDK_
+@@ -29,9 +35,12 @@
+ #ifdef _BBLIB_DPDK_
+ #include <rte_config.h>
+ #include <rte_malloc.h>
++#include <rte_cycles.h>
+ #endif
+ 
++#ifdef  TEST_XRAN
+ #include "gtest/gtest.h"
++#endif
+ 
+ #include "common_typedef_xran.h"
+ 
+@@ -69,6 +78,9 @@ struct reading_input_file_exception : public std::exception
+     }
+ };
+ 
++template <typename F, typename ... Args>
++std::pair<double, double> run_benchmark(F function, Args ... args);
++
+ /*!
+     \brief Attach current process to the selected core.
+     \param [in] cpu Core number.
+@@ -140,6 +152,7 @@ unsigned long tsc_tick();
+     values, e.g. 1, 0.001, 5e-05, etc. or filename. Depends on the get type test framework can either
+     read the value or load data from the file - and it happens automatically (*pff* MAGIC!).
+ */
++#ifdef TEST_XRAN
+ class KernelTests : public testing::TestWithParam<unsigned>
+ {
+ public:
+@@ -587,11 +600,19 @@ std::pair<double, double> run_benchmark(F function, Args ... args)
+     std::vector<long> results((unsigned long) BenchmarkParameters::repetition);
+ 
+     for(unsigned int outer_loop = 0; outer_loop < BenchmarkParameters::repetition; outer_loop++) {
++#if !defined(RTE_ARCH_ARM64)
+         const auto start_time =  __rdtsc();
++#else
++        const auto start_time =  rte_rdtsc();
++#endif
+         for (unsigned int inner_loop = 0; inner_loop < BenchmarkParameters::loop; inner_loop++) {
+                 function(args ...);
+         }
++#if !defined(RTE_ARCH_ARM64)
+         const auto end_time = __rdtsc();
++#else
++        const auto end_time = rte_rdtsc();
++#endif
+         results.push_back(end_time - start_time);
+     }
+ 
+@@ -631,6 +652,7 @@ void assert_array_near(const T* reference, const T* actual, const int size, cons
+     }
+ }
+ 
++/*
+ template <>
+ void assert_array_near<complex_float>(const complex_float* reference, const complex_float* actual, const int size, const double precision)
+ {
+@@ -641,7 +663,7 @@ void assert_array_near<complex_float>(const complex_float* reference, const comp
+         ASSERT_NEAR(reference[index].im, actual[index].im, precision)
+                              <<"The wrong number is IM, index: "<< index;
+     }
+-}
++}*/
+ 
+ /*!
+     \brief Assert average diff of two arrays. It calls ASSERT_GT to check the average.
+@@ -827,5 +849,6 @@ T* generate_random_real_numbers(const long size, const unsigned alignment, const
+ 
+     return generate_random_numbers<T, std::uniform_real_distribution<T>>(size, alignment, distribution);
+ }
++#endif
+ 
+ #endif //XRANLIB_COMMON_HPP
+diff --git a/fhi_lib/test/common/common_typedef_xran.h b/fhi_lib/test/common/common_typedef_xran.h
+index 9e84bd3..65621f5 100644
+--- a/fhi_lib/test/common/common_typedef_xran.h
++++ b/fhi_lib/test/common/common_typedef_xran.h
+@@ -88,7 +88,7 @@ typedef enum{
+     CPU_GENERIC, /*!< C */
+     SSE4_2,      /*!< SSE4_2 */
+     AVX,         /*!< AVX */
+-    AVX2,        /*!< AVX2 */
++    AVX_2,        /*!< AVX2 */
+     AVX_512,     /*!< AVX512 */
+ }instruction_cpu_support;
+ 
+diff --git a/fhi_lib/test/common/xran_lib_wrap.hpp b/fhi_lib/test/common/xran_lib_wrap.hpp
+index c92abc7..1e75e07 100644
+--- a/fhi_lib/test/common/xran_lib_wrap.hpp
++++ b/fhi_lib/test/common/xran_lib_wrap.hpp
+@@ -476,8 +476,9 @@ public:
+         m_dpdk_dev_up = get_globalcfg<std::string>(XRAN_UT_KEY_GLOBALCFG_IO, "dpdk_dev_up");
+         m_dpdk_dev_cp = get_globalcfg<std::string>(XRAN_UT_KEY_GLOBALCFG_IO, "dpdk_dev_cp");
+         m_xranInit.io_cfg.num_vfs = 2;
+-        m_xranInit.io_cfg.dpdk_dev[XRAN_UP_VF]  = (m_dpdk_dev_up == "") ? NULL : (char *)&m_dpdk_dev_up;
+-        m_xranInit.io_cfg.dpdk_dev[XRAN_CP_VF]  = (m_dpdk_dev_cp == "") ? NULL : (char *)&m_dpdk_dev_cp;
++        m_xranInit.io_cfg.dpdk_dev[XRAN_UP_VF]  = (m_dpdk_dev_up == "") ? NULL : (char *)&m_dpdk_dev_up[0];
++        m_xranInit.io_cfg.dpdk_dev[XRAN_CP_VF]  = (m_dpdk_dev_cp == "") ? NULL : (char *)&m_dpdk_dev_cp[0];
++	    std::cout << "UP_VF [" << m_xranInit.io_cfg.dpdk_dev[XRAN_UP_VF] << "], CP_VF [" << m_xranInit.io_cfg.dpdk_dev[XRAN_CP_VF] << "]" << std::endl;
+ 
+         m_xranInit.io_cfg.core              = get_globalcfg<int>(XRAN_UT_KEY_GLOBALCFG_IO, "core");
+         m_xranInit.io_cfg.system_core       = get_globalcfg<int>(XRAN_UT_KEY_GLOBALCFG_IO, "system_core");
+diff --git a/fhi_lib/test/test_xran/Makefile b/fhi_lib/test/test_xran/Makefile
+index d5709b8..eb7fed5 100644
+--- a/fhi_lib/test/test_xran/Makefile
++++ b/fhi_lib/test/test_xran/Makefile
+@@ -22,12 +22,12 @@
+ ##############################################################
+ #  Tools configuration
+ ##############################################################
+-CC  := icc
+-CXX := icpc
+-CPP := icpc
++CC  := gcc
++CXX := g++
++CPP := g++
+ AS := as
+ AR := ar
+-LD := icc
++LD := gcc
+ OBJDUMP := objdump
+ 
+ ifeq ($(SHELL),cmd.exe)
+@@ -48,12 +48,27 @@ ifeq ($(MLOG_DIR),)
+     MLOG_DIR=$(XRAN_DIR)/../mlog
+ endif
+ 
++GTEST_ROOT=/opt/gtest/gtest-1.7.0
+ RTE_TARGET ?= x86_64-native-linuxapp-icc
+ 
++ifeq ($(MESON_BUILD),)
++
++#RTE_LIBS = -L/usr/local/lib/aarch64-linux-gnu -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,--whole-archive -L$ENV{RTE_SDK}/$ENV{RTE_TARGET}/lib -Wl,--allow-multiple-definition -Wl,-Bstatic -lrte_kvargs -lrte_net -lrte_ethdev -lrte_timer -lrte_pci -lrte_eal -lrte_cmdline -lrte_bus_vdev -lrte_rcu -lrte_telemetry -lrte_common_mlx5 -lrte_pmd_mlx5 -lpcap -Wl,-Bdynamic -Wl,--no-whole-archive -lmlx5 -libverbs -lrte_mbuf -lrte_ring -lrte_mempool -lrte_mempool_ring -lrte_bus_pci -ldl -lbsd -ldbus-1 -lrte_node -lrte_graph -lrte_bpf -lrte_flow_classify -lrte_pipeline -lrte_table -lrte_port -lrte_fib -lrte_ipsec -lrte_vhost -lrte_stack -lrte_security -lrte_sched -lrte_reorder -lrte_rib -lrte_rawdev -lrte_pdump -lrte_power -lrte_member -lrte_lpm -lrte_latencystats -lrte_kni -lrte_jobstats -lrte_ip_frag -lrte_gso -lrte_gro -lrte_eventdev -lrte_efd -lrte_distributor -lrte_cryptodev -lrte_compressdev -lrte_cfgfile -lrte_bitratestats -lrte_bbdev -lrte_acl -lrte_hash -lrte_metrics -lrte_meter
++
++RTE_LIBS = -L/usr/local/lib/aarch64-linux-gnu -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,--whole-archive -L$ENV{RTE_SDK}/$ENV{RTE_TARGET}/lib -Wl,--allow-multiple-definition -Wl,-Bstatic -lrte_kvargs -lrte_net -lrte_ethdev -lrte_timer -lrte_pci -lrte_eal -lrte_cmdline -lrte_bus_vdev -lrte_rcu -lrte_telemetry -lrte_common_mlx5 -lrte_pmd_mlx5 -lpcap -Wl,-Bdynamic -Wl,--no-whole-archive -lmlx5 -libverbs -lrte_mbuf -lrte_ring -lrte_mempool -lrte_mempool_ring -lrte_bus_pci -ldl -lbsd -ldbus-1
++
++#RTE_LIBS = -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,-lrte_flow_classify -Wl,--whole-archive -Wl,-lrte_pipeline -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_table -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_port -Wl,--no-whole-archive -Wl,-lrte_pdump -Wl,-lrte_distributor -Wl,-lrte_ip_frag -Wl,-lrte_meter -Wl,-lrte_lpm -Wl,--whole-archive -Wl,-lrte_acl -Wl,--no-whole-archive -Wl,-lrte_jobstats -Wl,-lrte_metrics -Wl,-lrte_bitratestats -Wl,-lrte_latencystats -Wl,-lrte_power -Wl,-lrte_efd -Wl,-lrte_bpf -Wl,--whole-archive -Wl,-lrte_cfgfile -Wl,-lrte_gro -Wl,-lrte_gso -Wl,-lrte_hash -Wl,-lrte_member -Wl,-lrte_vhost -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_net -Wl,-lrte_ethdev -Wl,-lrte_bbdev -Wl,-lrte_cryptodev -Wl,-lrte_security -Wl,-lrte_compressdev -Wl,-lrte_eventdev -Wl,-lrte_rawdev -Wl,-lrte_timer -Wl,-lrte_mempool -Wl,-lrte_mempool_ring -Wl,-lrte_ring -Wl,-lrte_pci -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_reorder -Wl,-lrte_sched -Wl,-lrte_kni -Wl,-lrte_common_octeontx -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_bus_dpaa -Wl,-lrte_common_dpaax -Wl,-lrte_stack -Wl,-lrte_bus_fslmc -Wl,-lrte_mempool_bucket -Wl,-lrte_mempool_stack -Wl,-lrte_mempool_dpaa -Wl,-lrte_mempool_dpaa2 -Wl,-lrte_pmd_af_packet -Wl,-lrte_pmd_ark -Wl,-lrte_pmd_iavf -Wl,-lrte_pmd_avp -Wl,-lrte_pmd_axgbe -Wl,-lrte_pmd_bnxt -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_cxgbe -Wl,-lrte_pmd_dpaa -Wl,-lrte_pmd_dpaa2 -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ena -Wl,-lrte_pmd_enic -Wl,-lrte_pmd_fm10k -Wl,-lrte_pmd_failsafe -Wl,-lrte_pmd_kni -Wl,-lrte_pmd_nfp -Wl,-lrte_pmd_null -Wl,-lrte_pmd_qede -Wl,-lrte_pmd_ring  -Wl,-lrte_pmd_tap  -Wl,-lrte_pmd_vdev_netvsc -Wl,-lrte_pmd_virtio -Wl,-lrte_pmd_vhost -Wl,-lrte_pmd_ifc -Wl,-lrte_bus_vmbus -Wl,-lrte_pmd_netvsc -Wl,-lrte_pmd_bbdev_null -Wl,-lrte_pmd_null_crypto -Wl,-lrte_pmd_crypto_scheduler -Wl,-lrte_pmd_dpaa2_sec -Wl,-lrte_pmd_dpaa_sec -Wl,-lrte_pmd_virtio_crypto -Wl,-lrte_pmd_qat -Wl,-lrte_pmd_skeleton_event -Wl,-lrte_pmd_sw_event -Wl,-lrte_pmd_dpaa_event -Wl,-lrte_pmd_dpaa2_event -Wl,-lrte_mempool_octeontx -Wl,-lrte_pmd_octeontx -Wl,-lrte_pmd_opdl_event -Wl,-lrte_rawdev_skeleton -Wl,-lrte_rawdev_dpaa2_cmdif -Wl,-lrte_rawdev_dpaa2_qdma -Wl,-lrte_bus_ifpga -Wl,--no-whole-archive -Wl,-lrt -Wl,-lm -Wl,-lnuma -Wl,-ldl -Wl,
+ RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
++else
++#RTE_LIBS = $(shell PKG_CONFIG_PATH=$(RTE_SDK)/build/meson-uninstalled pkg-config --static --libs libdpdk)
++RTE_LIBS =-Wl,--whole-archive -Wl,--as-needed -Wl,--no-whole-archive -pthread -L$(RTE_SDK)/$(RTE_TARGET)/drivers -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,--whole-archive -L/usr//usr/lib64 -l:librte_common_cpt.a -l:librte_common_dpaax.a -l:librte_common_iavf.a -l:librte_common_octeontx.a -l:librte_common_octeontx2.a -l:librte_common_sfc_efx.a -l:librte_bus_dpaa.a -l:librte_bus_fslmc.a -l:librte_bus_ifpga.a -l:librte_bus_pci.a -l:librte_bus_vdev.a -l:librte_bus_vmbus.a -l:librte_common_mlx5.a -l:librte_common_qat.a -l:librte_mempool_bucket.a -l:librte_mempool_dpaa.a -l:librte_mempool_dpaa2.a -l:librte_mempool_octeontx.a -l:librte_mempool_octeontx2.a -l:librte_mempool_ring.a -l:librte_mempool_stack.a -l:librte_net_af_packet.a -l:librte_net_ark.a -l:librte_net_atlantic.a -l:librte_net_avp.a -l:librte_net_axgbe.a -l:librte_net_bond.a -l:librte_net_bnx2x.a -l:librte_net_bnxt.a -l:librte_net_cxgbe.a -l:librte_net_dpaa.a -l:librte_net_dpaa2.a -l:librte_net_e1000.a -l:librte_net_ena.a -l:librte_net_enetc.a -l:librte_net_enic.a -l:librte_net_failsafe.a -l:librte_net_fm10k.a -l:librte_net_i40e.a -l:librte_net_hinic.a -l:librte_net_hns3.a -l:librte_net_iavf.a -l:librte_net_ice.a -l:librte_net_igc.a -l:librte_net_ixgbe.a -l:librte_net_kni.a -l:librte_net_liquidio.a -l:librte_net_memif.a -l:librte_net_mlx4.a -l:librte_net_mlx5.a -l:librte_net_netvsc.a -l:librte_net_nfp.a -l:librte_net_null.a -l:librte_net_octeontx.a -l:librte_net_octeontx2.a -l:librte_net_pfe.a -l:librte_net_qede.a -l:librte_net_ring.a -l:librte_net_sfc.a -l:librte_net_softnic.a -l:librte_net_tap.a -l:librte_net_thunderx.a -l:librte_net_vdev_netvsc.a -l:librte_net_vhost.a -l:librte_net_virtio.a -l:librte_net_vmxnet3.a -l:librte_raw_dpaa2_cmdif.a -l:librte_raw_dpaa2_qdma.a -l:librte_raw_ioat.a -l:librte_raw_ntb.a -l:librte_raw_octeontx2_dma.a -l:librte_raw_octeontx2_ep.a -l:librte_raw_skeleton.a -l:librte_crypto_bcmfs.a -l:librte_crypto_caam_jr.a -l:librte_crypto_ccp.a -l:librte_crypto_dpaa_sec.a -l:librte_crypto_dpaa2_sec.a -l:librte_crypto_nitrox.a -l:librte_crypto_null.a -l:librte_crypto_octeontx.a -l:librte_crypto_octeontx2.a -l:librte_crypto_openssl.a -l:librte_crypto_scheduler.a -l:librte_crypto_virtio.a -l:librte_compress_octeontx.a -l:librte_compress_zlib.a -l:librte_regex_mlx5.a -l:librte_regex_octeontx2_regex.a -l:librte_vdpa_ifc.a -l:librte_vdpa_mlx5.a -l:librte_event_dpaa.a -l:librte_event_dpaa2.a -l:librte_event_octeontx2.a -l:librte_event_opdl.a -l:librte_event_skeleton.a -l:librte_event_sw.a -l:librte_event_dsw.a -l:librte_event_octeontx.a -l:librte_baseband_null.a -l:librte_baseband_turbo_sw.a -l:librte_baseband_fpga_lte_fec.a -l:librte_baseband_fpga_5gnr_fec.a -l:librte_baseband_acc100.a -l:librte_node.a -l:librte_graph.a -l:librte_bpf.a -l:librte_flow_classify.a -l:librte_pipeline.a -l:librte_table.a -l:librte_port.a -l:librte_fib.a -l:librte_ipsec.a -l:librte_vhost.a -l:librte_stack.a -l:librte_security.a -l:librte_sched.a -l:librte_reorder.a -l:librte_rib.a -l:librte_regexdev.a -l:librte_rawdev.a -l:librte_pdump.a -l:librte_power.a -l:librte_member.a -l:librte_lpm.a -l:librte_latencystats.a -l:librte_kni.a -l:librte_jobstats.a -l:librte_ip_frag.a -l:librte_gso.a -l:librte_gro.a -l:librte_eventdev.a -l:librte_efd.a -l:librte_distributor.a -l:librte_cryptodev.a -l:librte_compressdev.a -l:librte_cfgfile.a -l:librte_bitratestats.a -l:librte_bbdev.a -l:librte_acl.a -l:librte_timer.a -l:librte_hash.a -l:librte_metrics.a -l:librte_cmdline.a -l:librte_pci.a -l:librte_ethdev.a -l:librte_meter.a -l:librte_net.a -l:librte_mbuf.a -l:librte_mempool.a -l:librte_rcu.a -l:librte_ring.a -l:librte_eal.a -l:librte_telemetry.a -l:librte_kvargs.a -lmlx5 -lcrypto -lmlx4 -lelf -lrte_node -lrte_graph -lrte_bpf -lrte_flow_classify -lrte_pipeline -lrte_table -lrte_port -lrte_fib -lrte_ipsec -lrte_vhost -lrte_stack -lrte_security -lrte_sched -lrte_reorder -lrte_rib -lrte_regexdev -lrte_rawdev -lrte_pdump -lrte_power -lrte_member -lrte_lpm -lrte_latencystats -lrte_kni -lrte_jobstats -lrte_ip_frag -lrte_gso -lrte_gro -lrte_eventdev -lrte_efd -lrte_distributor -lrte_cryptodev -lrte_compressdev -lrte_cfgfile -lrte_bitratestats -lrte_bbdev -lrte_acl -lrte_timer -lrte_hash -lrte_metrics -lrte_cmdline -lrte_pci -lrte_ethdev -lrte_meter -lrte_net -lrte_mbuf -lrte_mempool -lrte_rcu -lrte_ring -lrte_eal -lrte_telemetry -lrte_kvargs -Wl,--no-whole-archive -lm -ldl -lnuma -libverbs -lpthread -lz
++RTE_INC := $(shell PKG_CONFIG_PATH=$(RTE_SDK)/build/meson-uninstalled pkg-config --cflags-only-I libdpdk)
++endif
++
+ 
+ # Where to find user code.
+ COMMON_TEST_DIR = $(XRAN_DIR)/test/common
++XRAN_TEST_DIR = $(XRAN_DIR)/test/test_xran
+ USER_DIR = $(XRAN_DIR)/lib/src
+ USER_ETH = $(XRAN_DIR)/lib/ethernet
+ USER_API = $(XRAN_DIR)/lib/api
+@@ -64,7 +79,9 @@ USER_API = $(XRAN_DIR)/lib/api
+ CPPFLAGS += -isystem $(GTEST_ROOT)/include
+ 
+ # Flags passed to the C++ compiler.
+-CXXFLAGS += -g -std=gnu++11 -Wall -Wextra -pthread -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
++CXXFLAGS += -g -std=c++14 -Wall -Wextra -pthread -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I$(COMMON_TEST_DIR) -I$(RTE_INC)
++ARM_FLAGS = -march=armv8.2-a+crc+crypto -mcpu=neoverse-n1 -mtune=native -DRTE_ARCH_64 -DRTE_ARCH_ARM64 -DRTE_MACHINE_CPUFLAG_NEON  -DRTE_MACHINE_CPUFLAG_CRC32 -DTEST_XRAN
++CXXFLAGS += $(ARM_FLAGS) -mtls-dialect=trad
+ 
+ # All tests produced by this Makefile.  Remember to add new tests you
+ # created to the list.
+@@ -75,17 +92,13 @@ TESTS = unittests
+ GTEST_HEADERS = $(GTEST_ROOT)/include/gtest/*.h \
+                 $(GTEST_ROOT)/include/gtest/internal/*.h
+ 
+-#RTE_LIBS = -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,--whole-archive -Wl,-lrte_mempool_ring -Wl,-lrte_pci -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_net -Wl,-lrte_distributor -Wl,-lrte_reorder -Wl,-lrte_kni -Wl,-lrte_pipeline -Wl,-lrte_table -Wl,-lrte_port -Wl,-lrte_timer -Wl,-lrte_hash -Wl,-lrte_jobstats -Wl,-lrte_lpm -Wl,-lrte_power -Wl,-lrte_acl -Wl,-lrte_meter -Wl,-lrte_sched -Wl,-lm -Wl,-lrt -Wl,-lrte_vhost -Wl,--start-group -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_ip_frag -Wl,-lrte_ethdev -Wl,-lrte_cryptodev -Wl,-lrte_mempool -Wl,-lrte_ring -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_cfgfile -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_pmd_virtio -Wl,-lrte_pmd_cxgbe -Wl,-lrte_pmd_enic -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_fm10k -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ring -Wl,-lrte_pmd_af_packet -Wl,-lrte_pmd_null -Wl,-lrte_pdump  -Wl,-lrt -Wl,-lm -Wl,-ldl -Wl,--end-group -Wl,--no-whole-archive
+-RTE_LIBS = -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,-lrte_flow_classify -Wl,--whole-archive -Wl,-lrte_pipeline -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_table -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_port -Wl,--no-whole-archive -Wl,-lrte_pdump -Wl,-lrte_distributor -Wl,-lrte_ip_frag -Wl,-lrte_meter -Wl,-lrte_lpm -Wl,--whole-archive -Wl,-lrte_acl -Wl,--no-whole-archive -Wl,-lrte_jobstats -Wl,-lrte_metrics -Wl,-lrte_bitratestats -Wl,-lrte_latencystats -Wl,-lrte_power -Wl,-lrte_efd -Wl,-lrte_bpf -Wl,--whole-archive -Wl,-lrte_cfgfile -Wl,-lrte_gro -Wl,-lrte_gso -Wl,-lrte_hash -Wl,-lrte_member -Wl,-lrte_vhost -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_net -Wl,-lrte_ethdev -Wl,-lrte_bbdev -Wl,-lrte_cryptodev -Wl,-lrte_security -Wl,-lrte_compressdev -Wl,-lrte_eventdev -Wl,-lrte_rawdev -Wl,-lrte_timer -Wl,-lrte_mempool -Wl,-lrte_mempool_ring -Wl,-lrte_ring -Wl,-lrte_pci -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_reorder -Wl,-lrte_sched -Wl,-lrte_kni -Wl,-lrte_common_octeontx -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_bus_dpaa -Wl,-lrte_common_dpaax -Wl,-lrte_stack -Wl,-lrte_bus_fslmc -Wl,-lrte_mempool_bucket -Wl,-lrte_mempool_stack -Wl,-lrte_mempool_dpaa -Wl,-lrte_mempool_dpaa2 -Wl,-lrte_pmd_af_packet -Wl,-lrte_pmd_ark -Wl,-lrte_pmd_iavf -Wl,-lrte_pmd_avp -Wl,-lrte_pmd_axgbe -Wl,-lrte_pmd_bnxt -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_cxgbe -Wl,-lrte_pmd_dpaa -Wl,-lrte_pmd_dpaa2 -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ena -Wl,-lrte_pmd_enic -Wl,-lrte_pmd_fm10k -Wl,-lrte_pmd_failsafe -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_kni -Wl,-lrte_pmd_lio -Wl,-lrte_pmd_nfp -Wl,-lrte_pmd_null -Wl,-lrte_pmd_qede -Wl,-lrte_pmd_ring -Wl,-lrte_pmd_softnic -Wl,-lrte_pmd_tap -Wl,-lrte_pmd_thunderx_nicvf -Wl,-lrte_pmd_vdev_netvsc -Wl,-lrte_pmd_virtio -Wl,-lrte_pmd_vhost -Wl,-lrte_pmd_ifc -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_bus_vmbus -Wl,-lrte_pmd_netvsc -Wl,-lrte_pmd_bbdev_null -Wl,-lrte_pmd_null_crypto -Wl,-lrte_pmd_crypto_scheduler -Wl,-lrte_pmd_dpaa2_sec -Wl,-lrte_pmd_dpaa_sec -Wl,-lrte_pmd_virtio_crypto -Wl,-lrte_pmd_octeontx_zip -Wl,-lrte_pmd_qat -Wl,-lrte_pmd_skeleton_event -Wl,-lrte_pmd_sw_event -Wl,-lrte_pmd_octeontx_ssovf -Wl,-lrte_pmd_dpaa_event -Wl,-lrte_pmd_dpaa2_event -Wl,-lrte_mempool_octeontx -Wl,-lrte_pmd_octeontx -Wl,-lrte_pmd_opdl_event -Wl,-lrte_rawdev_skeleton -Wl,-lrte_rawdev_dpaa2_cmdif -Wl,-lrte_rawdev_dpaa2_qdma -Wl,-lrte_bus_ifpga -Wl,--no-whole-archive -Wl,-lrt -Wl,-lm -Wl,-lnuma -Wl,-ldl -Wl,
+-
+ CFLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations \
+ 	-fdata-sections \
+ 	-ffunction-sections \
+ 	-g \
+ 	-Wall \
+ 	-Wimplicit-function-declaration  \
+-	-wd1786 \
+-	-I$(USER_DIR) -I$(USER_API) -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I$(RTE_INC)
++	-I$(USER_DIR) -I$(USER_API) -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I$(RTE_INC) 
+ 
+ C_SRC = \
+ 	$(USER_ETH)/ethdi.c    \
+@@ -105,14 +118,14 @@ C_SRC = \
+ 
+ CC_SRC = \
+ 	$(COMMON_TEST_DIR)/xranlib_unit_test_main.cc \
+-	c_plane_tests.cc \
+-	chain_tests.cc \
+-	prach_functional.cc \
+-	prach_performance.cc \
+-	u_plane_functional.cc \
+-	init_sys_functional.cc \
+-	compander_functional.cc \
+-	unittests.cc
++	$(XRAN_TEST_DIR)/c_plane_tests.cc 
++#	chain_tests.cc \
++#	prach_functional.cc \
++#	prach_performance.cc \
++#	u_plane_functional.cc \
++#	init_sys_functional.cc \
++#	compander_functional.cc \
++#	unittests.cc
+ 
+ #	u_plane_performance.cc \
+ 
+@@ -130,36 +143,90 @@ CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
+ 
+ CPPFLAGS += -I$(USER_DIR) -I$(USER_API) 
+ 
+-CPP_COMP = -O3 -xcore-avx512 -restrict -g -fasm-blocks
++CPP_COMP = -O1 -g 
++
++ifeq ($(GEN_ASM), 1)
++CPP_ASMS := $(patsubst %.cpp,%.asm,$(CPP_SRC))
++CPP_SNC_ASMS := $(patsubst %.cpp,%.asm,$(CPP_SRC_SNC))
++CPP_COMP += -qopt-report=5 -qopt-matmul -qopt-report-phase=all
++endif
++
++PROJECT_DEP_FILE := $(TESTS).dep
++
++ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
++GENERATE_DEPS :=
++else
++C_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(C_SRC)))
++CC_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CC_SRC)))
++CPP_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CPP_SRC)))
++GENERATE_DEPS := generate_deps
++endif
++
+ 
+ # House-keeping build targets.
+-all : echo_start_build $(TESTS)
++all : echo_start_build $(GENERATE_DEPS) $(TESTS)
+ 
+ clean :
+ 	@echo [CLEAN]
+-	rm -f $(TESTS) *.o $(COMMON_TEST_DIR)/*.o $(USER_DIR)/*.o $(USER_ETH)/*.o
++	@$(RM) -f $(TESTS) *.o $(COMMON_TEST_DIR)/*.o $(USER_DIR)/*.o $(USER_ETH)/*.o \
++	*.asm $(COMMON_TEST_DIR)/*.asm $(USER_DIR)/*.asm $(USER_ETH)/*.asm \
++	*.asm $(COMMON_TEST_DIR)/*.asm2 $(USER_DIR)/*.asm2 $(USER_ETH)/*.asm2 \
++	*.optrpt $(COMMON_TEST_DIR)/*.optrpt $(USER_DIR)/*.optrpt $(USER_ETH)/*.optrpt;\
++	$(RM) $(PROJECT_DEP_FILE)
+ 
+-.PHONY: xclean 
++.PHONY: xclean
+ xclean: clean
+ 
++.PHONY : clear_dep
++clear_dep:
++	@$(RM) $(PROJECT_DEP_FILE)
++	@echo [DEP] $(PROJECT_DEP_FILE)
++
++$(C_DEPS) :
++	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CFLAGS)  >> $(PROJECT_DEP_FILE)
++
++$(CC_DEPS) :
++	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cc,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) >> $(PROJECT_DEP_FILE)
++
++$(CPP_DEPS) :
++	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) $(CPP_COMP) >> $(PROJECT_DEP_FILE)
++
++
++.PHONY : generate_deps
++generate_deps : clear_dep $(C_DEPS) $(CC_DEPS) $(CPP_DEPS) 
++
++ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
++
++include $(PROJECT_DEP_FILE)
++
++endif
++
+ .PHONY : echo_start_build
+ echo_start_build :
+ 	@echo Build Tests with
+ 	@echo $(USER_DIR)
+ 	@echo $(USER_API)
+ 
+-$(CC_OBJS) :
++$(CC_OBJS) : $(CC_SRC)
+ 	@echo "[CC] $@"
+ 	@$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) -o"$@" $(patsubst %.o,%.cc,$@)
+ 
+-$(CPP_OBJS) :
++$(CPP_ASMS) :
++	@echo "[CPP->ASM] $@"
++	@$(CXX) -S $(CPPFLAGS) $(CXXFLAGS) $(CPP_COMP) -fsource-asm -save-temps -o"$@" $(patsubst %.asm,%.cpp,$@)
++	@cat $@ | grep -v '^..LN' |grep -v '	.loc' > $@2
++
++$(CPP_OBJS) : $(CPP_ASMS)
+ 	@echo "[CPP] $@"
+ 	@$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $(CPP_COMP) -o"$@" $(patsubst %.o,%.cpp,$@)
+ 
++
++
+ $(C_OBJS) :
+ 	@echo "[C] $@"
++	@echo $(CC) -c $(CFLAGS) -o"$@" $(patsubst %.o,%.c,$@)
+ 	@$(CC) -c $(CFLAGS) -o"$@" $(patsubst %.o,%.c,$@)
+ 
+-unittests : $(CC_OBJS) $(CPP_OBJS) $(C_OBJS) $(GTEST_ROOT)/libgtest.a
++$(TESTS) : $(CC_OBJS) $(CPP_OBJS) $(C_OBJS) $(GTEST_ROOT)/libgtest.a
+ 	@echo "[LD] $@"
+-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -L$(MLOG_DIR)/bin -Wl, $(RTE_LIBS) -lpthread -lnuma $^ -o $@
++	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -L$(MLOG_DIR)/bin  $(RTE_LIBS) -lpthread -lnuma $^ -o $@
+diff --git a/fhi_lib/test/test_xran/conf.json b/fhi_lib/test/test_xran/conf.json
+index c6bef2c..1840e5a 100644
+--- a/fhi_lib/test/test_xran/conf.json
++++ b/fhi_lib/test/test_xran/conf.json
+@@ -1,28 +1,28 @@
+ {
+     "GLOBAL": {
+         "io_cfg": {
+-            "dpdk_dev_up":          "",
+-            "dpdk_dev_cp":          "",
++            "dpdk_dev_up":          "0001:01:00.2",
++            "dpdk_dev_cp":          "0001:01:00.3",
+             "bbdev_mode":           "none",
+             "system_core":          0,
+-            "core":                 5,
+-            "pkt_proc_core":        6,
+-            "timing_core":          7,
+-            "pkt_aux_core":         0,
++            "core":                 1,
++            "pkt_proc_core":        2,
++            "timing_core":          1,
++            "pkt_aux_core":         1,
+             "dpdkBasebandFecMode":  0,
+             "dpdkBasebandDevice":   "",
+             "mtu":                  9600,
+-            "o_du_macaddr":         "00:11:22:33:44:66",
+-            "o_ru_macaddr":         "00:11:22:33:44:55",
++            "o_du_macaddr":         "e2:93:88:bd:61:f3",
++            "o_ru_macaddr":         "08:c0:eb:9e:2f:bb",
+             "cp_vlan_tag":          1,
+             "up_vlan_tag":          2
+             },
+ 
+         "eAxCId_cfg": {
+-            "bit_cuPortId":         4,
+-            "bit_bandSectorId":     4,
+-            "bit_ccId":             4,
+-            "bit_ruPortId":         4
++            "bit_cuPortId":         0,
++            "bit_bandSectorId":     0,
++            "bit_ccId":             0,
++            "bit_ruPortId":         0
+             },
+ 
+         "prach_cfg": {
+@@ -38,33 +38,33 @@
+             "duplex":           "TDD",
+             "slot_config":      "slotcfg_0",
+             "sub6":             true,
+-            "mu":               0,
+-            "num_cc":           6,
+-            "num_eaxc":         8,
+-            "ant_elm_trx":      32,
+-            "chbw_dl":          20,
+-            "chbw_ul":          20,
++            "mu":               1,
++            "num_cc":           1,
++            "num_eaxc":         1,
++            "ant_elm_trx":      2,
++            "chbw_dl":          100,
++            "chbw_ul":          100,
+             "iq_width":         16,
+             "comp_meth":        0,
+-            "fft_size":         1024,
+-            "totalBfWeights":   64,
+-            "Tadv_cp_dl":       0,
+-            "T2a_min_cp_dl":    0,
+-            "T2a_max_cp_dl":    0,
+-            "T2a_min_cp_ul":    0,
+-            "T2a_max_cp_ul":    0,
+-            "T2a_min_up":       0,
+-            "T2a_max_up":       0,
+-            "Ta3_min":          0,
+-            "Ta3_max":          0,
+-            "T1a_min_cp_dl":    0,
+-            "T1a_max_cp_dl":    0,
+-            "T1a_min_cp_ul":    0,
+-            "T1a_max_cp_ul":    0,
+-            "T1a_min_up":       0,
+-            "T1a_max_up":       0,
+-            "Ta4_min":          0,
+-            "Ta4_max":          0
++            "fft_size":         4096,
++            "totalBfWeights":   32,
++            "Tadv_cp_dl":       125,
++            "T2a_min_cp_dl":    285,
++            "T2a_max_cp_dl":    429,
++            "T2a_min_cp_ul":    285,
++            "T2a_max_cp_ul":    429,
++            "T2a_min_up":       125,
++            "T2a_max_up":       428,
++            "Ta3_min":          130,
++            "Ta3_max":          170,
++            "T1a_min_cp_dl":    285,
++            "T1a_max_cp_dl":    470,
++            "T1a_min_cp_ul":    285,
++            "T1a_max_cp_ul":    429,
++            "T1a_min_up":       125,
++            "T1a_max_up":       350,
++            "Ta4_min":          110,
++            "Ta4_max":          180
+             },
+         "slotcfg_0": {
+             "desc":     "DDDSUUDDDD_644",

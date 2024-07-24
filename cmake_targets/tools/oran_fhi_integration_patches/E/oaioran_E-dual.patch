@@ -1,0 +1,487 @@
+diff --git a/fhi_lib/lib/Makefile b/fhi_lib/lib/Makefile
+index de141bf..0c136b5 100644
+--- a/fhi_lib/lib/Makefile
++++ b/fhi_lib/lib/Makefile
+@@ -23,12 +23,50 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
+ ##############################################################
+ #  Tools configuration
+ ##############################################################
+-CC  := icc
+-CPP := icpc
+-AS := as
+-AR := ar
+-LD := icc
+-OBJDUMP := objdump
++# Default target architecture and compiler
++TARGET ?= x86
++COMPILER ?= gcc
++
++# Architecture and compiler-specific tools and flags
++ifeq ($(TARGET), x86)
++    ifeq ($(COMPILER), gcc)
++        CC := gcc
++        CPP := g++
++        LD := gcc
++        CFLAGS += -m64 -msse4.2
++        LDFLAGS +=
++    else ifeq ($(COMPILER), icc)
++        CC := icc
++        CPP := icpc
++        LD := icc
++        CFLAGS += -xSSE4.2
++        LDFLAGS +=
++    else
++        $(error Unsupported compiler: $(COMPILER))
++    endif
++else ifeq ($(TARGET), armv7)
++    ifeq ($(COMPILER), gcc)
++        CC := gcc
++        CPP := g++
++        LD := gcc
++        CFLAGS += -marm -march=armv7-a -mfpu=neon
++        LDFLAGS +=
++    else
++        $(error Unsupported compiler: $(COMPILER))
++    endif
++else ifeq ($(TARGET), armv8)
++    ifeq ($(COMPILER), gcc)
++        CC := gcc
++        CPP := g++
++        LD := gcc
++        CFLAGS += -march=armv8-a
++        LDFLAGS +=
++    else
++        $(error Unsupported compiler: $(COMPILER))
++    endif
++else
++    $(error Unsupported target architecture: $(TARGET))
++endif
+ 
+ ifeq ($(SHELL),cmd.exe)
+ MD := mkdir.exe -p
+@@ -57,7 +95,8 @@ endif
+ 
+ RTE_TARGET ?= x86_64-native-linux-icc
+ 
+-RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
++#RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
++RTE_INC := $(pkgconf --cflags-only-I libdpdk)
+ API_DIR := $(PROJECT_DIR)/api
+ SRC_DIR := $(PROJECT_DIR)/src
+ ETH_DIR := $(PROJECT_DIR)/ethernet
+@@ -88,6 +127,7 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
+ 	$(SRC_DIR)/xran_main.c \
+ 	$(SRC_DIR)/xran_delay_measurement.c
+ 
++ifeq ($(TARGET), x86)
+ CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
+ 	$(SRC_DIR)/xran_bfp_ref.cpp \
+ 	$(SRC_DIR)/xran_bfp_cplane8.cpp \
+@@ -97,13 +137,20 @@ CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
+ 	$(SRC_DIR)/xran_bfp_uplane_9b16rb.cpp \
+ 	$(SRC_DIR)/xran_bfp_uplane.cpp \
+ 	$(SRC_DIR)/xran_mod_compression.cpp
++else
++CPP_SRC = 
++endif
+ 
++ifeq ($(TARGET), x86)
+ CPP_SRC_SNC = $(SRC_DIR)/xran_compression_snc.cpp \
+ 	$(SRC_DIR)/xran_bfp_cplane8_snc.cpp \
+ 	$(SRC_DIR)/xran_bfp_cplane16_snc.cpp \
+ 	$(SRC_DIR)/xran_bfp_cplane32_snc.cpp \
+ 	$(SRC_DIR)/xran_bfp_cplane64_snc.cpp \
+ 	$(SRC_DIR)/xran_bfp_uplane_snc.cpp
++else
++CPP_SRC_SNC = 
++endif
+ 
+ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
+ 	-fdata-sections \
+@@ -112,12 +159,21 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
+         -fPIC \
+ 	-Wall \
+ 	-Wimplicit-function-declaration \
+-	-g -O3 -wd1786 -mcmodel=large
++	-g -O3 
+ 
++ifeq ($(TARGET), x86)
++	CC_FLAGS += -wd1786 -mcmodel=large
++endif
++
++ifeq ($(TARGET), x86)
+ CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
+                 -no-prec-div -fp-model fast=2 -fPIC \
+                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
+         -Werror -Wno-unused-variable -std=c++14 -mcmodel=large
++else
++CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe \
++        -Werror -Wno-unused-variable -std=c++14
++endif
+ 
+ INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
+ DEF :=
+@@ -150,8 +206,13 @@ CPP_SNC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS_SNC))
+ 
+ AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
+ #-qopt-report=5 -qopt-matmul -qopt-report-phase=all
++ifeq ($(TARGET), x86)
+ CPP_COMP       := -O3 -DNDEBUG  -xcore-avx512 -fPIE -restrict -fasm-blocks
+ CPP_COMP_SNC   := -O3 -DNDEBUG -march=icelake-server -fPIE -restrict -fasm-blocks
++else
++CPP_COMP       := -O3 -DNDEBUG -fPIE -Wrestrict
++CPP_COMP_SNC   := -O3 -DNDEBUG -march=icelake-server -fPIE -Wrestrict
++endif
+ CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
+ CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
+ CPP_FLAGS_FULL_SNC := $(CPP_FLAGS) $(CPP_COMP_SNC) $(INC) $(DEF)
+diff --git a/fhi_lib/lib/api/xran_pkt_cp.h b/fhi_lib/lib/api/xran_pkt_cp.h
+index 531c51f..1173485 100644
+--- a/fhi_lib/lib/api/xran_pkt_cp.h
++++ b/fhi_lib/lib/api/xran_pkt_cp.h
+@@ -233,6 +233,15 @@ struct xran_cp_radioapp_section_ext2 {
+  *      Only be used for LTE TM2-4 and not for other LTE TMs nor NR.
+  *      The structure is reordered for byte order conversion.
+  */
++#include <stdint.h>
++#if defined(__arm__) || defined(__aarch64__)
++#include <arm_neon.h>
++typedef int32x4_t simd_data_t;
++#else
++#include <xmmintrin.h>
++typedef __m128i simd_data_t;
++#endif
++
+ union xran_cp_radioapp_section_ext3_first {
+     /* 16 bytes, need to convert byte order for two parts - 8/8 bytes */
+     struct{
+@@ -255,9 +264,9 @@ union xran_cp_radioapp_section_ext3_first {
+     uint64_t    reserved2:16;
+     }all_bits;
+ 
+-    struct{
+-        __m128i     data_field1;
+-    }data_field;
++    struct {
++        simd_data_t data_field1;
++    } data_field;
+     } __attribute__((__packed__));
+ 
+ #define xran_cp_radioapp_sec_ext3_Res1           0
+diff --git a/fhi_lib/lib/ethernet/ethdi.c b/fhi_lib/lib/ethernet/ethdi.c
+index b6ba257..582fec1 100644
+--- a/fhi_lib/lib/ethernet/ethdi.c
++++ b/fhi_lib/lib/ethernet/ethdi.c
+@@ -37,7 +37,10 @@
+ #include <sys/time.h>
+ #include <time.h>
+ #include <unistd.h>
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ #include <rte_config.h>
+ #include <rte_common.h>
+ #include <rte_log.h>
+diff --git a/fhi_lib/lib/ethernet/ethernet.c b/fhi_lib/lib/ethernet/ethernet.c
+index 0930665..a80631d 100644
+--- a/fhi_lib/lib/ethernet/ethernet.c
++++ b/fhi_lib/lib/ethernet/ethernet.c
+@@ -37,7 +37,10 @@
+ #include <sys/types.h>
+ #include <stdlib.h>
+ #include <math.h>
++#if defined(__arm__) && defined(__aarch64__)
++#elsif
+ #include <immintrin.h>
++#endif
+ #include <rte_config.h>
+ #include <rte_common.h>
+ #include <rte_log.h>
+diff --git a/fhi_lib/lib/src/xran_app_frag.c b/fhi_lib/lib/src/xran_app_frag.c
+index cb526ee..90b2860 100644
+--- a/fhi_lib/lib/src/xran_app_frag.c
++++ b/fhi_lib/lib/src/xran_app_frag.c
+@@ -27,7 +27,10 @@
+ #include <stdio.h>
+ #include <stddef.h>
+ #include <errno.h>
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ #include <rte_mbuf.h>
+ #include <rte_memcpy.h>
+ #include <rte_mempool.h>
+diff --git a/fhi_lib/lib/src/xran_cb_proc.c b/fhi_lib/lib/src/xran_cb_proc.c
+index b35d55c..2e7ec05 100644
+--- a/fhi_lib/lib/src/xran_cb_proc.c
++++ b/fhi_lib/lib/src/xran_cb_proc.c
+@@ -25,7 +25,10 @@
+ 
+ #include <unistd.h>
+ #include <stdio.h>
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ #include <rte_common.h>
+ #include <rte_eal.h>
+ #include <rte_errno.h>
+diff --git a/fhi_lib/lib/src/xran_common.c b/fhi_lib/lib/src/xran_common.c
+index baa673f..aeb5889 100644
+--- a/fhi_lib/lib/src/xran_common.c
++++ b/fhi_lib/lib/src/xran_common.c
+@@ -31,7 +31,10 @@
+ #include <sys/time.h>
+ #include <time.h>
+ #include <pthread.h>
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ #include <rte_mbuf.h>
+ 
+ #include "xran_common.h"
+diff --git a/fhi_lib/lib/src/xran_common.h b/fhi_lib/lib/src/xran_common.h
+index 3ed75cd..d61fe7f 100644
+--- a/fhi_lib/lib/src/xran_common.h
++++ b/fhi_lib/lib/src/xran_common.h
+@@ -221,7 +221,7 @@ int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struc
+ struct xran_eaxcid_config *xran_get_conf_eAxC(void *pHandle);
+ int xran_register_cb_mbuf2ring(xran_ethdi_mbuf_send_fn mbuf_send_cp, xran_ethdi_mbuf_send_fn mbuf_send_up);
+ 
+-uint16_t xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
++//uint16_t xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
+ uint8_t xran_get_seqid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
+ int32_t ring_processing_func(void* arg);
+ int xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx);
+diff --git a/fhi_lib/lib/src/xran_cp_api.c b/fhi_lib/lib/src/xran_cp_api.c
+index 02ba81c..7de2b27 100644
+--- a/fhi_lib/lib/src/xran_cp_api.c
++++ b/fhi_lib/lib/src/xran_cp_api.c
+@@ -25,7 +25,11 @@
+  * @author Intel Corporation
+  *
+  **/
++#if defined(__arm__) && defined(__aarch64__)
++#include <arm_neon.h>
++#elsif
+ #include <immintrin.h>
++#endif
+ #include <rte_branch_prediction.h>
+ #include <rte_malloc.h>
+ 
+@@ -821,7 +825,11 @@ xran_prepare_sectionext_3(struct rte_mbuf *mbuf, struct xran_sectionext3_info *p
+                          | (params->layerId << xran_cp_radioapp_sec_ext3_LayerId)
+                          | (params->numLayers << xran_cp_radioapp_sec_ext3_NumLayers);
+         data_fourth_byte  = params->beamIdAP1;
++#if defined(__arm__) || defined(__aarch64__)
++        ext3_f->data_field.data_field1 = (int32x4_t){data_first_byte, data_second_byte, data_third_byte, data_fourth_byte};
++#else
+         ext3_f->data_field.data_field1 = _mm_set_epi32(data_fourth_byte, data_third_byte, data_second_byte, data_first_byte);
++#endif
+ 
+         /* convert byte order */
+         tmp = (uint64_t *)ext3_f;
+diff --git a/fhi_lib/lib/src/xran_cp_proc.c b/fhi_lib/lib/src/xran_cp_proc.c
+index e40ce72..b2c6ea6 100644
+--- a/fhi_lib/lib/src/xran_cp_proc.c
++++ b/fhi_lib/lib/src/xran_cp_proc.c
+@@ -35,7 +35,10 @@
+ #include <stdio.h>
+ #include <pthread.h>
+ #include <malloc.h>
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ 
+ #include <rte_common.h>
+ #include <rte_eal.h>
+diff --git a/fhi_lib/lib/src/xran_delay_measurement.c b/fhi_lib/lib/src/xran_delay_measurement.c
+index 931aceb..a3b53fc 100644
+--- a/fhi_lib/lib/src/xran_delay_measurement.c
++++ b/fhi_lib/lib/src/xran_delay_measurement.c
+@@ -23,7 +23,10 @@
+  * @author Intel Corporation
+  **/
+ #define _GNU_SOURCE
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ #include <assert.h>
+ #include <err.h>
+ #include <arpa/inet.h>
+diff --git a/fhi_lib/lib/src/xran_dev.c b/fhi_lib/lib/src/xran_dev.c
+index fef64c8..c335e75 100644
+--- a/fhi_lib/lib/src/xran_dev.c
++++ b/fhi_lib/lib/src/xran_dev.c
+@@ -35,7 +35,10 @@
+ #include <stdio.h>
+ #include <pthread.h>
+ #include <malloc.h>
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ #include <rte_common.h>
+ #include <rte_eal.h>
+ #include <rte_errno.h>
+diff --git a/fhi_lib/lib/src/xran_main.c b/fhi_lib/lib/src/xran_main.c
+index 89dcc1f..f02d815 100644
+--- a/fhi_lib/lib/src/xran_main.c
++++ b/fhi_lib/lib/src/xran_main.c
+@@ -35,7 +35,11 @@
+ #include <stdio.h>
+ #include <pthread.h>
+ #include <malloc.h>
++#if defined(__arm__) || defined(__aarch64__)
++#include <arm_neon.h>
++#else
+ #include <immintrin.h>
++#endif
+ 
+ #include <rte_common.h>
+ #include <rte_eal.h>
+@@ -1837,8 +1841,13 @@ xran_spawn_workers(void)
+         nWorkerCore = nWorkerCore << 1;
+     }
+ 
++#if defined(__arm__) || defined(__aarch64__)
++    icx_cpu = 0;
++#else
+     extern int _may_i_use_cpu_feature(unsigned __int64);
+     icx_cpu = _may_i_use_cpu_feature(_FEATURE_AVX512IFMA52);
++#endif
++
+ 
+     printf("O-XU      %d\n", eth_ctx->io_cfg.id);
+     printf("HW        %d\n", icx_cpu);
+diff --git a/fhi_lib/lib/src/xran_mem_mgr.c b/fhi_lib/lib/src/xran_mem_mgr.c
+index 3e401e6..566490d 100644
+--- a/fhi_lib/lib/src/xran_mem_mgr.c
++++ b/fhi_lib/lib/src/xran_mem_mgr.c
+@@ -35,7 +35,11 @@
+ #include <stdio.h>
+ #include <pthread.h>
+ #include <malloc.h>
++#if defined(__arm__) || defined(__aarch64__)
++#include <arm_neon.h>
++#else
+ #include <immintrin.h>
++#endif
+ 
+ #include <rte_common.h>
+ #include <rte_eal.h>
+diff --git a/fhi_lib/lib/src/xran_rx_proc.c b/fhi_lib/lib/src/xran_rx_proc.c
+index 36bd72c..2aff66d 100644
+--- a/fhi_lib/lib/src/xran_rx_proc.c
++++ b/fhi_lib/lib/src/xran_rx_proc.c
+@@ -35,7 +35,11 @@
+ #include <stdio.h>
+ #include <pthread.h>
+ #include <malloc.h>
++#if defined(__arm__) || defined(__aarch64__)
++#include <arm_neon.h>
++#else
+ #include <immintrin.h>
++#endif
+ 
+ #include <rte_common.h>
+ #include <rte_eal.h>
+diff --git a/fhi_lib/lib/src/xran_timer.c b/fhi_lib/lib/src/xran_timer.c
+index b13101a..9e9041c 100644
+--- a/fhi_lib/lib/src/xran_timer.c
++++ b/fhi_lib/lib/src/xran_timer.c
+@@ -29,7 +29,10 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <stdint.h>
++#if defined(__arm__) && defined(__aarch64__)
++#elsif
+ #include <immintrin.h>
++#endif
+ #include "xran_timer.h"
+ #include "xran_printf.h"
+ #include "xran_mlog_lnx.h"
+@@ -141,12 +144,31 @@ void timing_adjust_gps_second(struct timespec* p_time)
+ 
+     return;
+ }
++
++#if defined(__x86_64__)
+ uint64_t xran_tick(void)
+ {
+-    uint32_t hi, lo;
++    uint32_t lo, hi;
+     __asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+     return ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
+ }
++#elif defined(__aarch64__)
++#include <sys/time.h>
++uint64_t xran_tick(void) {
++    struct timeval tv;
++    gettimeofday(&tv, NULL);
++    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
++}
++#elif defined(__arm__)
++#include <time.h>
++uint64_t xran_tick(void) {
++    struct timespec ts;
++    clock_gettime(CLOCK_MONOTONIC, &ts);
++    return (uint64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
++}
++#else
++#error "Unsupported architecture"
++#endif
+ 
+ unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick)
+ {
+diff --git a/fhi_lib/lib/src/xran_transport.c b/fhi_lib/lib/src/xran_transport.c
+index 881f6f6..dbea6a8 100644
+--- a/fhi_lib/lib/src/xran_transport.c
++++ b/fhi_lib/lib/src/xran_transport.c
+@@ -27,7 +27,10 @@
+ 
+ #include <stdint.h>
+ #include <endian.h>
++#if defined(__arm__) || defined(__aarch64__)
++#else
+ #include <immintrin.h>
++#endif
+ #include <rte_common.h>
+ #include <rte_config.h>
+ 
+diff --git a/fhi_lib/lib/src/xran_tx_proc.c b/fhi_lib/lib/src/xran_tx_proc.c
+index 3cfb2be..eb02195 100644
+--- a/fhi_lib/lib/src/xran_tx_proc.c
++++ b/fhi_lib/lib/src/xran_tx_proc.c
+@@ -35,7 +35,11 @@
+ #include <stdio.h>
+ #include <pthread.h>
+ #include <malloc.h>
++#if defined(__arm__) || defined(__aarch64__)
++#include <arm_neon.h>
++#else
+ #include <immintrin.h>
++#endif
+ 
+ #include <rte_common.h>
+ #include <rte_eal.h>
+diff --git a/fhi_lib/lib/src/xran_up_api.c b/fhi_lib/lib/src/xran_up_api.c
+index 397853a..b3e86ea 100644
+--- a/fhi_lib/lib/src/xran_up_api.c
++++ b/fhi_lib/lib/src/xran_up_api.c
+@@ -25,7 +25,10 @@
+  *
+  **/
+ #include <inttypes.h>
++#if defined(__arm__) && defined(__aarch64__)
++#elsif
+ #include <immintrin.h>
++#endif
+ #include <rte_mbuf.h>
+ 
+ #include "xran_fh_o_du.h"
