@@ -84,10 +84,21 @@ int force_rlf(char *buf, int debug, telnet_printfunc_t prnt)
   return 0;
 }
 
+/**
+ * Send UE to RRC_IDLE
+ */
+int force_RRC_IDLE(char *buf, int debug, telnet_printfunc_t prnt)
+{
+  NR_UE_RRC_INST_t *rrc = get_NR_UE_rrc_inst(0);
+  nr_rrc_going_to_IDLE(rrc, OTHER, NULL);
+  return 0;
+}
+
 /* Telnet shell command definitions */
 static telnetshell_cmddef_t cicmds[] = {
   {"sync_state", "[UE_ID(int,opt)]", get_sync_state},
   {"force_rlf", "", force_rlf},
+  {"force_RRC_IDLE", "", force_RRC_IDLE},
   {"", "", NULL},
 };
 
