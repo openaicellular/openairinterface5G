@@ -822,7 +822,8 @@ static void cuup_notify_reestablishment(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue_p)
     return;
   /* loop through active DRBs */
   for (int drb_id = 1; drb_id <= MAX_DRBS_PER_UE; drb_id++) {
-    if (ue_p->established_drbs[drb_id - 1].status == DRB_INACTIVE)
+    drb_t *drb = get_drb(ue_p, drb_id);
+    if (drb->status == DRB_INACTIVE)
       continue;
     /* fetch an existing PDU session for this DRB */
     rrc_pdu_session_param_t *pdu = find_pduSession_from_drbId(ue_p, drb_id);
@@ -843,13 +844,11 @@ static void cuup_notify_reestablishment(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue_p)
     DRB_nGRAN_to_mod_t *drb_e1 = &pdu_e1->DRBnGRanModList[pdu_e1->numDRB2Modify];
     drb_e1->id = drb_id;
     drb_e1->numDlUpParam = 1;
-    drb_t *drbs = &ue_p->established_drbs[drb_id];
-    memcpy(&drb_e1->DlUpParamList[0].tlAddress, &drbs->du_tunnel_config.addr.buffer, sizeof(uint8_t) * 4);
-    drb_e1->DlUpParamList[0].teId = drbs->du_tunnel_config.teid;
+    memcpy(&drb_e1->DlUpParamList[0].tlAddress, &drb->du_tunnel_config.addr.buffer, sizeof(uint8_t) * 4);
+    drb_e1->DlUpParamList[0].teId = drb->du_tunnel_config.teid;
     /* PDCP configuration */
     bearer_context_pdcp_config_t *pdcp_config = &drb_e1->pdcp_config;
-    drb_t *rrc_drb = get_drb(ue_p, drb_id);
-    set_bearer_context_pdcp_config(pdcp_config, rrc_drb, rrc->configuration.um_on_default_drb);
+    set_bearer_context_pdcp_config(pdcp_config, drb, rrc->configuration.um_on_default_drb);
     pdcp_config->pDCP_Reestablishment = true;
     /* increase DRB to modify counter */
     pdu_e1->numDRB2Modify += 1;
