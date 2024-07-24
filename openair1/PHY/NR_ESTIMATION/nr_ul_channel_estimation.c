@@ -46,29 +46,30 @@
 #define dBc(x,y) (dB_fixed(((int32_t)(x))*(x) + ((int32_t)(y))*(y)))
 
 /* Generic function to find the peak of channel estimation buffer */
-int32_t nr_est_toa_ns_srs(NR_DL_FRAME_PARMS *frame_parms,
+int nr_est_toa_ns_srs(NR_DL_FRAME_PARMS *frame_parms,
 		          uint8_t N_arx,
 		          uint8_t N_ap,
-			  int32_t srs_estimated_channel_freq[N_arx][N_ap][frame_parms->ofdm_symbol_size],
-			  int16_t *srs_toa_ns)
+              uint8_t N_symb_srs,
+			  int32_t srs_estimated_channel_freq[N_arx][N_ap][frame_parms->ofdm_symbol_size * N_symb_srs],
+			  int32_t *srs_toa_ns)
 {
 
-  int32_t chF_interpol[N_ap][NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size] __attribute__((aligned(32)));
+  int32_t chF_interpol[N_ap][NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size * N_symb_srs] __attribute__((aligned(32)));
   int32_t chT_interpol[N_ap][NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size] __attribute__((aligned(32)));
   memset(chF_interpol,0,sizeof(chF_interpol));
   memset(chT_interpol,0,sizeof(chT_interpol));
 
   int32_t max_val = 0, max_idx = 0, abs_val = 0, mean_val = 0;
 
-  int16_t start_offset = (NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size)-(frame_parms->ofdm_symbol_size>>1);
+  int16_t start_offset = (NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size * N_symb_srs)-((N_symb_srs*frame_parms->ofdm_symbol_size)>>1);
 
   for (int arx_index = 0; arx_index < N_arx; arx_index++) {
   
     for (int ap_index = 0; ap_index < N_ap; ap_index++) {
     
       // Place SRS channel estimates in FFT shifted format for oversampling
-      memcpy((int16_t *)&chF_interpol[ap_index][0], &srs_estimated_channel_freq[arx_index][ap_index][0], (frame_parms->ofdm_symbol_size>>1) * sizeof(int32_t));
-      memcpy((int16_t *)&chF_interpol[ap_index][start_offset], &srs_estimated_channel_freq[arx_index][ap_index][frame_parms->ofdm_symbol_size>>1], (frame_parms->ofdm_symbol_size>>1) * sizeof(int32_t));
+      memcpy((int16_t *)&chF_interpol[ap_index][0], &srs_estimated_channel_freq[arx_index][ap_index][0], ((N_symb_srs*frame_parms->ofdm_symbol_size)>>1) * sizeof(int32_t));
+      memcpy((int16_t *)&chF_interpol[ap_index][start_offset], &srs_estimated_channel_freq[arx_index][ap_index][(N_symb_srs*frame_parms->ofdm_symbol_size)>>1], ((N_symb_srs*frame_parms->ofdm_symbol_size)>>1) * sizeof(int32_t));
       
       // Convert to time domain oversampled
       freq2time(frame_parms->ofdm_symbol_size*NR_SRS_IDFT_OVERSAMP_FACTOR,
@@ -76,15 +77,15 @@ int32_t nr_est_toa_ns_srs(NR_DL_FRAME_PARMS *frame_parms,
 		(int16_t*) chT_interpol[ap_index]);
     }
 
-
+    max_val = 0, max_idx = 0, mean_val = 0;
     for(int k = 0; k < NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size; k++) {
       abs_val = 0;
       for (int p_index = 0; p_index < N_ap; p_index++) 
-	abs_val += squaredMod(((c16_t*)chT_interpol[p_index])[k]);
-      mean_val += (abs_val - mean_val)/(k+1);
-      if(abs_val > max_val) {
-	  max_val = abs_val;
-	  max_idx = k;
+	      abs_val += squaredMod(((c16_t*)chT_interpol[p_index])[k]);
+        mean_val += (abs_val - mean_val)/(k+1);
+        if(abs_val > max_val) {
+          max_val = abs_val;
+          max_idx = k;
       }
     }
 
@@ -92,12 +93,14 @@ int32_t nr_est_toa_ns_srs(NR_DL_FRAME_PARMS *frame_parms,
       max_idx = max_idx - NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size;
 
     // Check for detection threshold
-    LOG_D(PHY, "SRS ToA estimator (RX ant %d): max_val %d, mean_val %d, max_idx %d\n", arx_index, max_val, mean_val, max_idx);
+    
+    LOG_D(PHY, "SRS ToA before (RX ant %d): max_val %d, mean_val %d, max_idx %d\n", arx_index, max_val, mean_val, max_idx);
     if ((mean_val != 0) && (max_val / mean_val > 10)) {
       srs_toa_ns[arx_index] = (max_idx*1e9)/(NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->samples_per_frame*100);
     } else {
       srs_toa_ns[arx_index] = 0xFFFF;
     }
+    //LOG_D(PHY, "SRS ToA estimator (RX ant %d): toa %d ns\n",arx_index,srs_toa_ns[arx_index]);
   }
 
   // Add T tracer to log these chF and chT
@@ -119,9 +122,9 @@ int32_t nr_est_toa_ns_srs(NR_DL_FRAME_PARMS *frame_parms,
     T_BUFFER(chT_interpol[0][0], NR_SRS_IDFT_OVERSAMP_FACTOR*frame_parms->ofdm_symbol_size * sizeof(int32_t)));
   */
 
-  // return toa of first antenna for backward compatibility
-  return srs_toa_ns[0];
+  return 0;
 }
+
 
 __attribute__((always_inline)) inline c16_t c32x16cumulVectVectWithSteps(c16_t *in1,
                                                                          int *offset1,
