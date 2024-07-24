@@ -51,7 +51,7 @@ rrc_pdu_session_param_t *find_pduSession_from_drbId(gNB_RRC_UE_t *ue, int drb_id
 
 drb_t *get_drb(gNB_RRC_UE_t *ue, uint8_t drb_id)
 {
-  DevAssert(drb_id > 0 && drb_id < 32);
+  DevAssert(drb_id > 0 && drb_id <= 32);
   DevAssert(ue != NULL);
 
   return &ue->established_drbs[drb_id - 1];
