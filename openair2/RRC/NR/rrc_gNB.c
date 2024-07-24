@@ -1355,6 +1355,10 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
     goto fallback_rrc_setup;
   }
 
+  if (UE->ho_context != NULL) {
+    AssertFatal(false, "not implemented: should abort handover\n");
+  }
+
   /* TODO: start timer in ITTI and drop UE if it does not come back */
 
   // update with new RNTI, and update secondary UE association
@@ -2207,6 +2211,10 @@ static void rrc_CU_process_ue_context_release_request(MessageDef *msg_p)
   if (!ue_context_p) {
     LOG_E(RRC, "could not find UE context for CU UE ID %u, aborting transaction\n", req->gNB_CU_ue_id);
     return;
+  }
+
+  if (ue_context_p->ue_context.ho_context != NULL) {
+    AssertFatal(false, "not implemented: should abort handover\n");
   }
 
   /* TODO: marshall types correctly */
