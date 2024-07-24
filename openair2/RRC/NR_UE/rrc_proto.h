@@ -42,7 +42,7 @@
 #include "common/utils/ocp_itti/intertask_interface.h"
 
 NR_UE_RRC_INST_t *nr_rrc_init_ue(char* uecap_file, int nb_inst, int num_ant_tx);
-
+NR_UE_RRC_INST_t* get_NR_UE_rrc_inst(int instance);
 void init_nsa_message (NR_UE_RRC_INST_t *rrc, char* reconfig_file, char* rbconfig_file);
 
 void process_nsa_message(NR_UE_RRC_INST_t *rrc, nsa_message_t nsa_message_type, void *message, int msg_len);
