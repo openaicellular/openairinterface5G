@@ -686,13 +686,15 @@ static int fill_BEARER_CONTEXT_SETUP_REQUEST(e1ap_bearer_setup_req_t *const bear
         ieC6_1_1_1->qoS_Flow_Identifier = k->qfi;
         /* QoS Characteristics */
         qos_characteristics_t *qos_char_in = &k->qos_params.qos_characteristics;
-        if (qos_char_in->qos_type == non_dynamic) { // non Dynamic 5QI
-          ieC6_1_1_1->qoSFlowLevelQoSParameters.qoS_Characteristics.present = E1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
-          asn1cCalloc(ieC6_1_1_1->qoSFlowLevelQoSParameters.qoS_Characteristics.choice.non_Dynamic_5QI, non_Dynamic_5QI);
+        E1AP_QoSFlowLevelQoSParameters_t *e1ap_qosparam = &ieC6_1_1_1->qoSFlowLevelQoSParameters;
+        E1AP_QoS_Characteristics_t *e1ap_qoschar = &e1ap_qosparam->qoS_Characteristics;
+        if (qos_char_in->qos_type == non_dynamic_5qi) { // non Dynamic 5QI
+          e1ap_qoschar->present = E1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
+          asn1cCalloc(e1ap_qoschar->choice.non_Dynamic_5QI, non_Dynamic_5QI);
           non_Dynamic_5QI->fiveQI = qos_char_in->non_dynamic.fiveqi;
         } else { // dynamic 5QI
-          ieC6_1_1_1->qoSFlowLevelQoSParameters.qoS_Characteristics.present = E1AP_QoS_Characteristics_PR_dynamic_5QI;
-          asn1cCalloc(ieC6_1_1_1->qoSFlowLevelQoSParameters.qoS_Characteristics.choice.dynamic_5QI, dynamic_5QI);
+          e1ap_qoschar->present = E1AP_QoS_Characteristics_PR_dynamic_5QI;
+          asn1cCalloc(e1ap_qoschar->choice.dynamic_5QI, dynamic_5QI);
           dynamic_5QI->qoSPriorityLevel = qos_char_in->dynamic.qos_priority_level;
           dynamic_5QI->packetDelayBudget = qos_char_in->dynamic.packet_delay_budget;
           dynamic_5QI->packetErrorRate.pER_Scalar = qos_char_in->dynamic.packet_error_rate.per_scalar;
@@ -700,22 +702,18 @@ static int fill_BEARER_CONTEXT_SETUP_REQUEST(e1ap_bearer_setup_req_t *const bear
         }
         /* QoS Retention Priority */
         ngran_allocation_retention_priority_t *rent_priority_in = &k->qos_params.alloc_reten_priority;
-        ieC6_1_1_1->qoSFlowLevelQoSParameters.nGRANallocationRetentionPriority.priorityLevel = rent_priority_in->priority_level;
-        ieC6_1_1_1->qoSFlowLevelQoSParameters.nGRANallocationRetentionPriority.pre_emptionCapability =
-            rent_priority_in->preemption_capability;
-        ieC6_1_1_1->qoSFlowLevelQoSParameters.nGRANallocationRetentionPriority.pre_emptionVulnerability =
-            rent_priority_in->preemption_vulnerability;
+        E1AP_NGRANAllocationAndRetentionPriority_t *e1ap_rent_priority = &e1ap_qosparam->nGRANallocationRetentionPriority;
+        e1ap_rent_priority->priorityLevel = rent_priority_in->priority_level;
+        e1ap_rent_priority->pre_emptionCapability = rent_priority_in->preemption_capability;
+        e1ap_rent_priority->pre_emptionVulnerability = rent_priority_in->preemption_vulnerability;
 
         gbr_qos_flow_information_t *gbr_qos_info = k->qos_params.gbr_qos_flow_info;
+        E1AP_GBR_QoSFlowInformation_t *e1ap_gbr_qosinfo = e1ap_qosparam->gBR_QoS_Flow_Information;
         if (gbr_qos_info != NULL) {
-          asn_long2INTEGER(&(ieC6_1_1_1->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->maxFlowBitRateDownlink),
-                           (gbr_qos_info->mbr_dl));
-          asn_long2INTEGER(&(ieC6_1_1_1->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->maxFlowBitRateUplink),
-                           (gbr_qos_info->mbr_ul));
-          asn_long2INTEGER(&(ieC6_1_1_1->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->guaranteedFlowBitRateDownlink),
-                           (gbr_qos_info->gbr_dl));
-          asn_long2INTEGER(&(ieC6_1_1_1->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->guaranteedFlowBitRateUplink),
-                           (gbr_qos_info->gbr_ul));
+          asn_long2INTEGER(&(e1ap_gbr_qosinfo->maxFlowBitRateDownlink), (gbr_qos_info->mbr_dl));
+          asn_long2INTEGER(&(e1ap_gbr_qosinfo->maxFlowBitRateUplink), (gbr_qos_info->mbr_ul));
+          asn_long2INTEGER(&(e1ap_gbr_qosinfo->guaranteedFlowBitRateDownlink), (gbr_qos_info->gbr_dl));
+          asn_long2INTEGER(&(e1ap_gbr_qosinfo->guaranteedFlowBitRateUplink), (gbr_qos_info->gbr_ul));
         }
       }
 
@@ -733,31 +731,28 @@ static int fill_BEARER_CONTEXT_SETUP_REQUEST(e1ap_bearer_setup_req_t *const bear
           &drb_to_setup_item_ng_ran_extIEs->extensionValue.choice.QoSFlowLevelQoSParameters.qoS_Characteristics;
 
       /* setup DRB characteristics */
-      get_drb_characteristics(j->qosFlows,
-                              j->numQosFlow2Setup,
-                              j->qosFlows[0].qos_params.qos_characteristics.qos_type,
-                              &(j->dRB_QoS));
-      if (j->qosFlows[0].qos_params.qos_characteristics.qos_type == non_dynamic) {
+      get_drb_characteristics(j->qosFlows, j->numQosFlow2Setup, &(j->dRB_QoS));
+      qos_characteristics_t *drb_QoS_char_in = &j->dRB_QoS.qos_characteristics;
+      if (drb_QoS_char_in->qos_type == non_dynamic_5qi) {
         drb_QoS_char->present = E1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
-        drb_QoS_char->choice.non_Dynamic_5QI->fiveQI = j->dRB_QoS.qos_characteristics.non_dynamic.fiveqi;
+        drb_QoS_char->choice.non_Dynamic_5QI->fiveQI = drb_QoS_char_in->non_dynamic.fiveqi;
       } else {
         drb_QoS_char->present = E1AP_QoS_Characteristics_PR_dynamic_5QI;
-        drb_QoS_char->choice.dynamic_5QI->qoSPriorityLevel = j->dRB_QoS.qos_characteristics.dynamic.qos_priority_level;
-        drb_QoS_char->choice.dynamic_5QI->packetDelayBudget = j->dRB_QoS.qos_characteristics.dynamic.packet_delay_budget;
-        drb_QoS_char->choice.dynamic_5QI->packetErrorRate.pER_Exponent =
-            j->dRB_QoS.qos_characteristics.dynamic.packet_error_rate.per_exponent;
-        drb_QoS_char->choice.dynamic_5QI->packetErrorRate.pER_Scalar =
-            j->dRB_QoS.qos_characteristics.dynamic.packet_error_rate.per_scalar;
+        drb_QoS_char->choice.dynamic_5QI->qoSPriorityLevel = drb_QoS_char_in->dynamic.qos_priority_level;
+        drb_QoS_char->choice.dynamic_5QI->packetDelayBudget = drb_QoS_char_in->dynamic.packet_delay_budget;
+        drb_QoS_char->choice.dynamic_5QI->packetErrorRate.pER_Exponent = drb_QoS_char_in->dynamic.packet_error_rate.per_exponent;
+        drb_QoS_char->choice.dynamic_5QI->packetErrorRate.pER_Scalar = drb_QoS_char_in->dynamic.packet_error_rate.per_scalar;
       }
 
       /* GBR Info for DRB */
       E1AP_GBR_QoSFlowInformation_t *drb_QoS_gbr_info =
           drb_to_setup_item_ng_ran_extIEs->extensionValue.choice.QoSFlowLevelQoSParameters.gBR_QoS_Flow_Information;
-      if (j->dRB_QoS.gbr_qos_flow_info) {
-        asn_long2INTEGER(&(drb_QoS_gbr_info->guaranteedFlowBitRateDownlink), (j->dRB_QoS.gbr_qos_flow_info->gbr_dl));
-        asn_long2INTEGER(&(drb_QoS_gbr_info->guaranteedFlowBitRateUplink), (j->dRB_QoS.gbr_qos_flow_info->gbr_ul));
-        asn_long2INTEGER(&(drb_QoS_gbr_info->maxFlowBitRateDownlink), (j->dRB_QoS.gbr_qos_flow_info->mbr_dl));
-        asn_long2INTEGER(&(drb_QoS_gbr_info->maxFlowBitRateUplink), (j->dRB_QoS.gbr_qos_flow_info->mbr_ul));
+      gbr_qos_flow_information_t *drb_QoS_gbr_info_in = j->dRB_QoS.gbr_qos_flow_info;
+      if (drb_QoS_gbr_info_in) {
+        asn_long2INTEGER(&(drb_QoS_gbr_info->guaranteedFlowBitRateDownlink), (drb_QoS_gbr_info_in->gbr_dl));
+        asn_long2INTEGER(&(drb_QoS_gbr_info->guaranteedFlowBitRateUplink), (drb_QoS_gbr_info_in->gbr_ul));
+        asn_long2INTEGER(&(drb_QoS_gbr_info->maxFlowBitRateDownlink), (drb_QoS_gbr_info_in->mbr_dl));
+        asn_long2INTEGER(&(drb_QoS_gbr_info->maxFlowBitRateUplink), (drb_QoS_gbr_info_in->mbr_ul));
       }
       /* todo: ngran allocation retention priority for DRB still needs to be implemented */
     }
@@ -1055,13 +1050,14 @@ void extract_BEARER_CONTEXT_SETUP_REQUEST(const E1AP_E1AP_PDU_t *pdu, e1ap_beare
               qos_flow->qfi = qos2Setup->qoS_Flow_Identifier;
 
               qos_characteristics_t *qos_char = &qos_flow->qos_params.qos_characteristics;
-              if (qos2Setup->qoSFlowLevelQoSParameters.qoS_Characteristics.present == E1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
-                qos_char->qos_type = non_dynamic;
-                qos_char->non_dynamic.fiveqi =
-                    qos2Setup->qoSFlowLevelQoSParameters.qoS_Characteristics.choice.non_Dynamic_5QI->fiveQI;
+              E1AP_QoSFlowLevelQoSParameters_t *e1ap_qosparam = &qos2Setup->qoSFlowLevelQoSParameters;
+              E1AP_QoS_Characteristics_t *e1ap_qoschar = &e1ap_qosparam->qoS_Characteristics;
+              if (e1ap_qoschar->present == E1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
+                qos_char->qos_type = non_dynamic_5qi;
+                qos_char->non_dynamic.fiveqi = e1ap_qoschar->choice.non_Dynamic_5QI->fiveQI;
               } else {
-                E1AP_Dynamic5QIDescriptor_t *dynamic5QI = qos2Setup->qoSFlowLevelQoSParameters.qoS_Characteristics.choice.dynamic_5QI;
-                qos_char->qos_type = dynamic;
+                E1AP_Dynamic5QIDescriptor_t *dynamic5QI = e1ap_qoschar->choice.dynamic_5QI;
+                qos_char->qos_type = dynamic_5qi;
                 qos_char->dynamic.qos_priority_level = dynamic5QI->qoSPriorityLevel;
                 qos_char->dynamic.packet_delay_budget = dynamic5QI->packetDelayBudget;
                 qos_char->dynamic.packet_error_rate.per_scalar = dynamic5QI->packetErrorRate.pER_Scalar;
@@ -1069,11 +1065,10 @@ void extract_BEARER_CONTEXT_SETUP_REQUEST(const E1AP_E1AP_PDU_t *pdu, e1ap_beare
               }
 
               ngran_allocation_retention_priority_t *rent_priority = &qos_flow->qos_params.alloc_reten_priority;
-              rent_priority->priority_level = qos2Setup->qoSFlowLevelQoSParameters.nGRANallocationRetentionPriority.priorityLevel;
-              rent_priority->preemption_capability =
-                  qos2Setup->qoSFlowLevelQoSParameters.nGRANallocationRetentionPriority.pre_emptionCapability;
-              rent_priority->preemption_vulnerability =
-                  qos2Setup->qoSFlowLevelQoSParameters.nGRANallocationRetentionPriority.pre_emptionVulnerability;
+              E1AP_NGRANAllocationAndRetentionPriority_t *e1ap_rent_priority = &e1ap_qosparam->nGRANallocationRetentionPriority;
+              rent_priority->priority_level = e1ap_rent_priority->priorityLevel;
+              rent_priority->preemption_capability = e1ap_rent_priority->pre_emptionCapability;
+              rent_priority->preemption_vulnerability = e1ap_rent_priority->pre_emptionVulnerability;
 
               gbr_qos_flow_information_t *gbr_qos_info = qos_flow->qos_params.gbr_qos_flow_info;
               E1AP_GBR_QoSFlowInformation_t *gbr_qos2setup = qos2Setup->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information;
@@ -1100,10 +1095,10 @@ void extract_BEARER_CONTEXT_SETUP_REQUEST(const E1AP_E1AP_PDU_t *pdu, e1ap_beare
                     qos_characteristics_t *drb_qos = &drb->dRB_QoS.qos_characteristics;
 
                     if (drbqos2Setup->present == E1AP_QoS_Characteristics_PR_non_Dynamic_5QI) { // non-dynamic
-                      drb_qos->qos_type = non_dynamic;
+                      drb_qos->qos_type = non_dynamic_5qi;
                       drb_qos->non_dynamic.fiveqi = drbqos2Setup->choice.non_Dynamic_5QI->fiveQI;
                     } else if (drbqos2Setup->present == E1AP_QoS_Characteristics_PR_dynamic_5QI) { // dynamic
-                      drb_qos->qos_type = dynamic;
+                      drb_qos->qos_type = dynamic_5qi;
                       drb_qos->dynamic.qos_priority_level = drbqos2Setup->choice.dynamic_5QI->qoSPriorityLevel;
                       drb_qos->dynamic.packet_delay_budget = drbqos2Setup->choice.dynamic_5QI->packetDelayBudget;
                       drb_qos->dynamic.packet_error_rate.per_exponent =

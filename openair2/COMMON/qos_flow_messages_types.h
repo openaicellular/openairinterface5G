@@ -23,8 +23,56 @@
 #define QOSFLOW_MESSAGES_TYPES_H_
 
 #define STANDARIZED_5QI_NUM 26
+#define FIVEQI_1 1
+#define FIVEQI_2 2
+#define FIVEQI_3 3
+#define FIVEQI_4 4
+#define FIVEQI_65 65
+#define FIVEQI_66 66
+#define FIVEQI_67 67
+#define FIVEQI_71 71
+#define FIVEQI_72 72
+#define FIVEQI_73 73
+#define FIVEQI_74 74
+#define FIVEQI_76 76
+#define FIVEQI_5 5
+#define FIVEQI_6 6
+#define FIVEQI_7 7
+#define FIVEQI_8 8
+#define FIVEQI_9 9
+#define FIVEQI_69 69
+#define FIVEQI_70 70
+#define FIVEQI_79 79
+#define FIVEQI_80 80
+#define FIVEQI_82 82
+#define FIVEQI_83 83
+#define FIVEQI_84 84
+#define FIVEQI_85 85
+#define FIVEQI_86 86
+#define PRIORITY_20 20
+#define PRIORITY_40 40
+#define PRIORITY_30 30
+#define PRIORITY_50 50
+#define PRIORITY_7 7
+#define PRIORITY_20 20
+#define PRIORITY_15 15
+#define PRIORITY_56 56
+#define PRIORITY_10 10
+#define PRIORITY_60 60
+#define PRIORITY_70 70
+#define PRIORITY_80 80
+#define PRIORITY_90 90
+#define PRIORITY_5 5
+#define PRIORITY_55 55
+#define PRIORITY_65 65
+#define PRIORITY_68 68
+#define PRIORITY_19 19
+#define PRIORITY_22 22
+#define PRIORITY_24 24
+#define PRIORITY_21 21
+#define PRIORITY_18 18
 
-typedef enum { non_dynamic, dynamic } fiveQI_type_t;
+typedef enum { non_dynamic_5qi, dynamic_5qi } fiveQI_t;
 typedef enum { gbr, non_gbr, delay_critical_gbr } qos_flow_type_t;
 
 typedef enum preemption_capability_e {
@@ -53,7 +101,7 @@ typedef struct qos_characteristics_s {
       } packet_error_rate;
     } dynamic;
   };
-  fiveQI_type_t qos_type;
+  fiveQI_t qos_type;
 } qos_characteristics_t;
 
 typedef struct ngran_allocation_retention_priority_s {

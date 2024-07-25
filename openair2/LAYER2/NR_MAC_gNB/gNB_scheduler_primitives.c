@@ -3280,7 +3280,7 @@ bool nr_mac_add_lcid(NR_UE_sched_ctrl_t* sched_ctrl, const nr_lc_config_t *c)
   void *base = seq_arr_front(&sched_ctrl->lc_config);
   size_t nmemb = seq_arr_size(&sched_ctrl->lc_config);
   size_t size = sizeof(*c);
-  /*todo: the reordering is not needed here??*/
+
   qsort(base, nmemb, size, cmp_lc_config);
   return true;
 }

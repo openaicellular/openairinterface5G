@@ -254,43 +254,45 @@ uint64_t get_5QI_id(uint64_t fiveqi)
   AssertFatal(1 == 0, "Invalid 5QI value\n");
 }
 
-static int qos_cmp(const void *a, const void *b, void *qostype)
+int get_non_dynamic_priority(int fiveqi)
 {
-  fiveQI_type_t qos_type = *((fiveQI_type_t *)qostype);
-  long priority1 = 0, priority2 = 0;
-  if (qos_type == non_dynamic) { // non-dynamic
-    priority1 =
-        params_5QI[get_5QI_id(((qos_flow_to_setup_t *)a)->qos_params.qos_characteristics.non_dynamic.fiveqi)].priority_level;
-    priority2 =
-        params_5QI[get_5QI_id(((qos_flow_to_setup_t *)b)->qos_params.qos_characteristics.non_dynamic.fiveqi)].priority_level;
-  } else { // dynamic
-    priority1 = ((qos_flow_to_setup_t *)a)->qos_params.qos_characteristics.dynamic.qos_priority_level;
-    priority2 = ((qos_flow_to_setup_t *)b)->qos_params.qos_characteristics.dynamic.qos_priority_level;
-  }
+  for (int i = 0; i < STANDARIZED_5QI_NUM; ++i)
+    if (params_5QI[i].five_QI == fiveqi)
+      return params_5QI[i].priority_level;
+  AssertFatal(false, "illegal 5QI value %d\n", fiveqi);
+  return 0;
+}
+
+static int qos_cmp(const void *a, const void *b)
+{
+  qos_characteristics_t *flow1 = &((qos_flow_to_setup_t *)a)->qos_params.qos_characteristics;
+  qos_characteristics_t *flow2 = &((qos_flow_to_setup_t *)b)->qos_params.qos_characteristics;
+
+  int priority1 =
+      flow1->qos_type == dynamic_5qi ? flow1->dynamic.qos_priority_level : get_non_dynamic_priority(flow1->non_dynamic.fiveqi);
+  int priority2 =
+      flow2->qos_type == dynamic_5qi ? flow2->dynamic.qos_priority_level : get_non_dynamic_priority(flow2->non_dynamic.fiveqi);
+
   return priority1 - priority2;
 }
 
-void get_drb_characteristics(qos_flow_to_setup_t *qos_flows_in,
-                             int num_qos_flows,
-                             fiveQI_type_t qos_type,
-                             qos_flow_level_qos_parameters_t *dRB_QoS)
+void get_drb_characteristics(qos_flow_to_setup_t *qos_flows_in, int num_qos_flows, qos_flow_level_qos_parameters_t *dRB_QoS)
 {
   qos_characteristics_t *qos_char_drb = &dRB_QoS->qos_characteristics;
   qos_flow_to_setup_t *qos_flow = qos_flows_in;
 
-  if (qos_type == non_dynamic) { // non-dynamic
-    qsort_r(qos_flow, num_qos_flows, sizeof(qos_flow_to_setup_t), qos_cmp, (void *)&qos_type);
-    qos_char_drb->qos_type = non_dynamic;
-    qos_char_drb->non_dynamic.fiveqi = qos_flow->qos_params.qos_characteristics.non_dynamic.fiveqi;
-  } else { // dynamic
-    qsort_r(qos_flow, num_qos_flows, sizeof(qos_flow_to_setup_t), qos_cmp, (void *)&qos_type);
-    qos_char_drb->qos_type = dynamic;
-    qos_char_drb->dynamic.qos_priority_level = qos_flow->qos_params.qos_characteristics.dynamic.qos_priority_level;
-    qos_char_drb->dynamic.packet_delay_budget = qos_flow->qos_params.qos_characteristics.dynamic.packet_delay_budget;
-    qos_char_drb->dynamic.packet_error_rate.per_exponent =
-        qos_flow->qos_params.qos_characteristics.dynamic.packet_error_rate.per_exponent;
-    qos_char_drb->dynamic.packet_error_rate.per_scalar =
-        qos_flow->qos_params.qos_characteristics.dynamic.packet_error_rate.per_scalar;
+  qsort(qos_flow, num_qos_flows, sizeof(qos_flow_to_setup_t), qos_cmp);
+
+  qos_characteristics_t *qos_char = &qos_flow->qos_params.qos_characteristics;
+  if (qos_char->qos_type == non_dynamic_5qi) {
+    qos_char_drb->qos_type = non_dynamic_5qi;
+    qos_char_drb->non_dynamic.fiveqi = qos_char->non_dynamic.fiveqi;
+  } else {
+    qos_char_drb->qos_type = dynamic_5qi;
+    qos_char_drb->dynamic.qos_priority_level = qos_char->dynamic.qos_priority_level;
+    qos_char_drb->dynamic.packet_delay_budget = qos_char->dynamic.packet_delay_budget;
+    qos_char_drb->dynamic.packet_error_rate.per_exponent = qos_char->dynamic.packet_error_rate.per_exponent;
+    qos_char_drb->dynamic.packet_error_rate.per_scalar = qos_char->dynamic.packet_error_rate.per_scalar;
   }
 
   /* GBR Information for a DRB */

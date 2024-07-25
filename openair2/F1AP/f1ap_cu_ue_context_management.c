@@ -45,7 +45,7 @@ static void f1ap_write_drb_qos_param(const qos_flow_level_qos_parameters_t *drb_
   int type = drb_qos_in->qos_characteristics.qos_type;
 
   const qos_characteristics_t *drb_qos_char_in = &drb_qos_in->qos_characteristics;
-  if (type == non_dynamic) {
+  if (type == non_dynamic_5qi) {
     asn1_qosparam->qoS_Characteristics.present = F1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
     asn1cCalloc(asn1_qosparam->qoS_Characteristics.choice.non_Dynamic_5QI, tmp);
 
@@ -131,7 +131,7 @@ static void f1ap_write_flows_mapped(const f1ap_flows_mapped_to_drb_t *flows_mapp
     const qos_characteristics_t *flow_qos_char_in = &flow_qos_params_in->qos_characteristics;
 
     int type = flow_qos_params_in->qos_characteristics.qos_type;
-    if (type == non_dynamic) {
+    if (type == non_dynamic_5qi) {
       QosParams->present = F1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
       asn1cCalloc(QosParams->choice.non_Dynamic_5QI, tmp);
 

@@ -160,7 +160,7 @@ static int handle_ue_context_srbs_setup(NR_UE_info_t *UE,
     nr_rlc_add_srb(UE->rnti, srb->srb_id, rlc_BearerConfig);
 
     int priority = rlc_BearerConfig->mac_LogicalChannelConfig->ul_SpecificParameters->priority;
-    nr_lc_config_t c = {.lcid = rlc_BearerConfig->logicalChannelIdentity, .priority = priority, .guaranteed_bitrate = UINT64_MAX};
+    nr_lc_config_t c = {.lcid = rlc_BearerConfig->logicalChannelIdentity, .priority = priority};
     nr_mac_add_lcid(&UE->UE_sched_ctrl, &c);
 
     (*resp_srbs)[i] = *srb;
@@ -182,11 +182,11 @@ static NR_QoS_config_t get_qos_config(const qos_characteristics_t *qos_char)
 {
   NR_QoS_config_t qos_c = {0};
   switch (qos_char->qos_type) {
-    case dynamic:
+    case dynamic_5qi:
       qos_c.priority = qos_char->dynamic.qos_priority_level;
       qos_c.fiveQI = qos_char->dynamic.fiveqi > 0 ? qos_char->dynamic.fiveqi : 0;
       break;
-    case non_dynamic:
+    case non_dynamic_5qi:
       qos_c.fiveQI = qos_char->non_dynamic.fiveqi;
       qos_c.priority = params_5QI[get_5QI_id(qos_c.fiveQI)].priority_level;
       break;
@@ -195,6 +195,33 @@ static NR_QoS_config_t get_qos_config(const qos_characteristics_t *qos_char)
       break;
   }
   return qos_c;
+}
+
+static nr_lc_config_t nr_prepare_lcconfig(long lcid, const f1ap_drb_to_be_setup_t *drb)
+{
+  const gbr_qos_flow_information_t *gbr_qos_info_drb = drb->drb_info.drb_qos.gbr_qos_flow_info;
+  const qos_characteristics_t *qos_char = &drb->drb_info.drb_qos.qos_characteristics;
+
+  nr_lc_config_t c = {.lcid = lcid, .nssai = drb->nssai};
+  int prio = 100;
+  for (int q = 0; q < drb->drb_info.flows_to_be_setup_length; ++q) {
+    c.qos_config[q] = get_qos_config(&drb->drb_info.flows_mapped_to_drb[q].qos_params.qos_characteristics);
+  }
+  if (qos_char->qos_type == non_dynamic_5qi)
+    prio = get_non_dynamic_priority(qos_char->non_dynamic.fiveqi);
+  else
+    prio = qos_char->dynamic.qos_priority_level;
+  c.priority = prio;
+
+  int m_bitrate = 0, g_bitrate = 0;
+  if (gbr_qos_info_drb) {
+    g_bitrate = gbr_qos_info_drb->gbr_dl;
+    m_bitrate = gbr_qos_info_drb->mbr_dl;
+  }
+  c.guaranteed_bitrate = g_bitrate;
+  c.max_bitrate = m_bitrate;
+
+  return c;
 }
 
 static int handle_ue_context_drbs_setup(NR_UE_info_t *UE,
@@ -212,31 +239,12 @@ static int handle_ue_context_drbs_setup(NR_UE_info_t *UE,
   AssertFatal(*resp_drbs != NULL, "out of memory\n");
   for (int i = 0; i < drbs_len; i++) {
     const f1ap_drb_to_be_setup_t *drb = &req_drbs[i];
-    const gbr_qos_flow_information_t *gbr_qos_info_drb = drb->drb_info.drb_qos.gbr_qos_flow_info;
-    const qos_characteristics_t *qos_char = &drb->drb_info.drb_qos.qos_characteristics;
 
     f1ap_drb_to_be_setup_t *resp_drb = &(*resp_drbs)[i];
     NR_RLC_BearerConfig_t *rlc_BearerConfig = get_bearerconfig_from_drb(drb);
     nr_rlc_add_drb(UE->rnti, drb->drb_id, rlc_BearerConfig);
 
-    nr_lc_config_t c = {.lcid = rlc_BearerConfig->logicalChannelIdentity, .nssai = drb->nssai};
-    int prio = 100;
-    for (int q = 0; q < drb->drb_info.flows_to_be_setup_length; ++q) {
-      c.qos_config[q] = get_qos_config(&drb->drb_info.flows_mapped_to_drb[q].qos_params.qos_characteristics);
-    }
-    if (qos_char->qos_type == non_dynamic)
-      prio = params_5QI[get_5QI_id(qos_char->non_dynamic.fiveqi)].priority_level;
-    else
-      prio = qos_char->dynamic.qos_priority_level;
-    c.priority = prio;
-
-    int m_bitrate = 0, g_bitrate = 0;
-    if (gbr_qos_info_drb) {
-      g_bitrate = gbr_qos_info_drb->gbr_dl;
-      m_bitrate = gbr_qos_info_drb->mbr_dl;
-    }
-    c.guaranteed_bitrate = g_bitrate;
-    c.max_bitrate = m_bitrate;
+    nr_lc_config_t c = nr_prepare_lcconfig(rlc_BearerConfig->logicalChannelIdentity, drb);
 
     nr_mac_add_lcid(&UE->UE_sched_ctrl, &c);
 

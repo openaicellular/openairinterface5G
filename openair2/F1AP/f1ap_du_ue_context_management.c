@@ -45,13 +45,13 @@ static void f1ap_read_drb_qos_param(const F1AP_QoSFlowLevelQoSParameters_t *asn1
   const F1AP_QoS_Characteristics_t *dRB_QoS_Char = &asn1_qos->qoS_Characteristics;
 
   if (dRB_QoS_Char->present == F1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
-    drb_qos_char->qos_type = non_dynamic;
+    drb_qos_char->qos_type = non_dynamic_5qi;
     drb_qos_char->non_dynamic.fiveqi = dRB_QoS_Char->choice.non_Dynamic_5QI->fiveQI;
     drb_qos_char->non_dynamic.qos_priority_level = (dRB_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel != NULL)
                                                        ? *dRB_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel
                                                        : -1;
   } else {
-    drb_qos_char->qos_type = dynamic;
+    drb_qos_char->qos_type = dynamic_5qi;
     drb_qos_char->dynamic.fiveqi =
         (dRB_QoS_Char->choice.dynamic_5QI->fiveQI != NULL) ? *dRB_QoS_Char->choice.dynamic_5QI->fiveQI : -1;
     drb_qos_char->dynamic.qos_priority_level = dRB_QoS_Char->choice.dynamic_5QI->qoSPriorityLevel;
@@ -93,13 +93,13 @@ static void f1ap_read_flows_mapped(const F1AP_Flows_Mapped_To_DRB_List_t *asn1_f
       const F1AP_QoS_Characteristics_t *Flow_QoS_Char = &Flow_QoS->qoS_Characteristics;
 
       if (Flow_QoS_Char->present == F1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
-        flow_qos_char->qos_type = non_dynamic;
+        flow_qos_char->qos_type = non_dynamic_5qi;
         flow_qos_char->non_dynamic.fiveqi = Flow_QoS_Char->choice.non_Dynamic_5QI->fiveQI;
         flow_qos_char->non_dynamic.qos_priority_level = (Flow_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel != NULL)
                                                             ? *Flow_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel
                                                             : -1;
       } else {
-        flow_qos_char->qos_type = dynamic;
+        flow_qos_char->qos_type = dynamic_5qi;
         flow_qos_char->dynamic.fiveqi =
             (Flow_QoS_Char->choice.dynamic_5QI->fiveQI != NULL) ? *Flow_QoS_Char->choice.dynamic_5QI->fiveQI : -1;
         flow_qos_char->dynamic.qos_priority_level = Flow_QoS_Char->choice.dynamic_5QI->qoSPriorityLevel;
