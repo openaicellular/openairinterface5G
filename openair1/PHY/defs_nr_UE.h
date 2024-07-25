@@ -600,6 +600,9 @@ typedef struct PHY_VARS_NR_UE_s {
 
   notifiedFIFO_t tx_resume_ind_fifo[NR_MAX_SLOTS_PER_FRAME];
 
+  // Gain change required for automation RX gain change
+  int adjust_rxgain;
+
   // Sidelink parameters
   sl_nr_sidelink_mode_t sl_mode;
   sl_nr_ue_phy_params_t SL_UE_PHY_PARAMS;
@@ -645,6 +648,7 @@ typedef struct {
   fapiPbch_t pbchResult;
   int pssCorrPeakPower;
   int pssCorrAvgPower;
+  int adjust_rxgain;
 } nr_ue_ssb_scan_t;
 
 typedef struct nr_phy_data_tx_s {

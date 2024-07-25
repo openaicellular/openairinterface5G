@@ -348,10 +348,31 @@ typedef struct {
   int rx_offset;
 } syncData_t;
 
+static int nr_ue_adjust_rx_gain(PHY_VARS_NR_UE *UE, openair0_config_t *cfg0, int gain_change)
+{
+  // Increase the RX gain by the value determined by adjust_rxgain
+  cfg0->rx_gain[0] += gain_change;
+
+  // Set new RX gain.
+  int ret_gain = UE->rfdevice.trx_set_gains_func(&UE->rfdevice, cfg0);
+  // APPLY RX gain again if crossed the MAX RX gain threshold
+  if (ret_gain < 0) {
+    gain_change += ret_gain;
+    cfg0->rx_gain[0] += ret_gain;
+    ret_gain = UE->rfdevice.trx_set_gains_func(&UE->rfdevice, cfg0);
+  }
+
+  int applied_rxgain = cfg0->rx_gain[0] - cfg0->rx_gain_offset[0];
+  LOG_I(PHY, "Rxgain adjusted by %d dB, RX gain: %d dB \n", gain_change, applied_rxgain);
+
+  return gain_change;
+}
+
 static void UE_synch(void *arg) {
   syncData_t *syncD = (syncData_t *)arg;
   PHY_VARS_NR_UE *UE = syncD->UE;
   UE->is_synchronized = 0;
+  openair0_config_t *cfg0 = &openair0_cfg[UE->rf_map.card];
 
   if (UE->target_Nid_cell != -1) {
     LOG_W(NR_PHY, "Starting re-sync detection for target Nid_cell %i\n", UE->target_Nid_cell);
@@ -383,18 +404,30 @@ static void UE_synch(void *arg) {
 
     // rerun with new cell parameters and frequency-offset
     // todo: the freq_offset computed on DL shall be scaled before being applied to UL
-    nr_rf_card_config_freq(&openair0_cfg[UE->rf_map.card], ul_carrier, dl_carrier, freq_offset);
+    nr_rf_card_config_freq(cfg0, ul_carrier, dl_carrier, freq_offset);
+
+    if (get_nrUE_params()->agc) {
+      nr_ue_adjust_rx_gain(UE, cfg0, UE->adjust_rxgain);
+    }
 
     LOG_I(PHY,
           "Got synch: hw_slot_offset %d, carrier off %d Hz, rxgain %f (DL %f Hz, UL %f Hz)\n",
           hw_slot_offset,
           freq_offset,
-          openair0_cfg[UE->rf_map.card].rx_gain[0],
-          openair0_cfg[UE->rf_map.card].rx_freq[0],
-          openair0_cfg[UE->rf_map.card].tx_freq[0]);
+          cfg0->rx_gain[0] - cfg0->rx_gain_offset[0],
+          cfg0->rx_freq[0],
+          cfg0->tx_freq[0]);
 
-    UE->rfdevice.trx_set_freq_func(&UE->rfdevice, &openair0_cfg[0]);
+    UE->rfdevice.trx_set_freq_func(&UE->rfdevice, cfg0);
     UE->is_synchronized = 1;
+  } else {
+    int gain_change = 0;
+    if (get_nrUE_params()->agc)
+      gain_change = nr_ue_adjust_rx_gain(UE, cfg0, INCREASE_IN_RXGAIN);
+    if (gain_change)
+      LOG_I(PHY, "synch retry: Rx gain increased \n");
+    else
+      LOG_E(PHY, "synch Failed: \n");
   }
 }
 

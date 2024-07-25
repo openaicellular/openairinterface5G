@@ -115,6 +115,12 @@ void nr_ue_measurements(PHY_VARS_NR_UE *ue,
                         uint32_t pdsch_est_size,
                         int32_t dl_ch_estimates[][pdsch_est_size]);
 
+int nr_ue_calculate_ssb_rsrp(const NR_DL_FRAME_PARMS *fp,
+                             const UE_nr_rxtx_proc_t *proc,
+                             const c16_t rxdataF[][fp->samples_per_slot_wCP],
+                             int symbol_offset,
+                             int ssb_start_subcarrier);
+
 void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
                                  uint8_t gNB_index,
                                  const UE_nr_rxtx_proc_t *proc,
@@ -146,9 +152,9 @@ void nr_pdsch_ptrs_processing(PHY_VARS_NR_UE *ue,
 
 float_t get_nr_RSRP(module_id_t Mod_id,uint8_t CC_id,uint8_t gNB_index);
 
-void nr_sl_psbch_rsrp_measurements(sl_nr_ue_phy_params_t *sl_phy_params,
-                                   NR_DL_FRAME_PARMS *fp,
-                                   c16_t rxdataF[][fp->samples_per_slot_wCP],
-                                   bool use_SSS);
+int nr_sl_psbch_rsrp_measurements(sl_nr_ue_phy_params_t *sl_phy_params,
+                                  NR_DL_FRAME_PARMS *fp,
+                                  c16_t rxdataF[][fp->samples_per_slot_wCP],
+                                  bool use_SSS);
 /** @}*/
 #endif

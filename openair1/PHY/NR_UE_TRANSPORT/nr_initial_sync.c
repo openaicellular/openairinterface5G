@@ -291,6 +291,11 @@ void nr_scan_ssb(void *arg)
                                                          &ssbInfo->pbchResult,
                                                          nr_gold_pbch_ref,
                                                          rxdataF); // start pbch detection at first symbol after pss
+      if (ssbInfo->syncRes.cell_detected) {
+        int rsrp_db_per_re = nr_ue_calculate_ssb_rsrp(ssbInfo->fp, ssbInfo->proc, rxdataF, 0, ssbInfo->gscnInfo.ssbFirstSC);
+        ssbInfo->adjust_rxgain = TARGET_RX_POWER - rsrp_db_per_re;
+        LOG_I(PHY, "pbch rx ok. rsrp:%d dB/RE, adjust_rxgain:%d dB\n", rsrp_db_per_re, ssbInfo->adjust_rxgain);
+      }
     }
   }
 }
@@ -370,6 +375,7 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc,
     fp->ssb_index = res.ssbIndex;
     ue->symbol_offset = res.symbolOffset;
     ue->common_vars.freq_offset = res.freqOffset;
+    ue->adjust_rxgain = res.adjust_rxgain;
   }
 
   // In initial sync, we indicate PBCH to MAC after the scan is complete.

@@ -181,6 +181,9 @@
 #define TARGET_RX_POWER_MAX 65    // Maximum digital power, such that signal does not saturate (value found by simulation)
 #define TARGET_RX_POWER_MIN 35    // Minimum digital power, anything below will be discarded (value found by simulation)
 
+// Increase USRP rx gain in steps of 3dB during Initial search
+#define INCREASE_IN_RXGAIN 3
+
 //the min and max gains have to match the calibrated gain table
 //#define MAX_RF_GAIN 160
 //#define MIN_RF_GAIN 96
