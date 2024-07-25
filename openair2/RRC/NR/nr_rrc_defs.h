@@ -120,22 +120,26 @@ typedef struct nr_e_rab_param_s {
   uint8_t xid; // transaction_id
 } __attribute__ ((__packed__)) nr_e_rab_param_t;
 
-
-typedef struct HANDOVER_INFO_NR_s {
-  uint8_t                                             ho_prepare;
-  uint8_t                                             ho_complete;
-  uint8_t                                             modid_s;            //module_idP of serving cell
-  uint8_t                                             modid_t;            //module_idP of target cell
-  uint8_t                                             ueid_s;             //UE index in serving cell
-  uint8_t                                             ueid_t;             //UE index in target cell
-
-  // NR not define at this moment
-  //AS_Config_t                                       as_config;          /* these two parameters are taken from 36.331 section 10.2.2: HandoverPreparationInformation-r8-IEs */
-  //AS_Context_t                                      as_context;         /* They are mandatory for HO */
-
-  uint8_t                                             buf[NR_RRC_BUF_SIZE];  /* ASN.1 encoded handoverCommandMessage */
-  int                                                 size;               /* size of above message in bytes */
-} NR_HANDOVER_INFO;
+typedef enum {HANDOVER_TYPE_INTRA_CU, HANDOVER_TYPE_INTER_CU} nr_handover_type_t;
+typedef struct nr_handover_intra_cu_s {
+  sctp_assoc_t source_du;
+  sctp_assoc_t target_du;
+  uint32_t source_secondary_ue;
+  rnti_t new_rnti;
+  uint32_t target_secondary_ue;
+} nr_handover_intra_cu_t;
+typedef struct nr_handover_inter_cu_s {
+  // TODO additional data needed?
+  int dummy;
+} nr_handover_inter_cu_t;
+typedef struct nr_handover_context_s {
+  nr_handover_type_t type;
+  union {
+    nr_handover_intra_cu_t intra_cu;
+    nr_handover_inter_cu_t inter_cu;
+  } data;
+  // TODO fptr for success, failure
+} nr_handover_context_t;
 
 typedef struct nr_rrc_guami_s {
   uint16_t mcc;
@@ -230,7 +234,7 @@ typedef struct gNB_RRC_UE_s {
 
   NR_SRB_INFO_TABLE_ENTRY Srb[NR_NUM_SRB];
   NR_MeasConfig_t                   *measConfig;
-  NR_HANDOVER_INFO                  *handover_info;
+  nr_handover_context_t *ho_context;
   NR_MeasResults_t                  *measResults;
 
   bool as_security_active;
