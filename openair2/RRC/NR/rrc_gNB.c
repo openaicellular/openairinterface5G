@@ -2167,7 +2167,13 @@ static void rrc_CU_process_ue_context_setup_response(MessageDef *msg_p, instance
      */
     int srb_id = 2;
     if (UE->Srb[srb_id].Active) {
-      nr_pdcp_reestablishment(UE->rrc_ue_id, srb_id, true);
+      nr_pdcp_entity_security_keys_and_algos_t security_parameters;
+      /* Derive the keys from kgnb */
+      nr_derive_key(RRC_ENC_ALG, UE->ciphering_algorithm, UE->kgnb, security_parameters.ciphering_key);
+      nr_derive_key(RRC_INT_ALG, UE->integrity_algorithm, UE->kgnb, security_parameters.integrity_key);
+      security_parameters.integrity_algorithm = UE->integrity_algorithm;
+      security_parameters.ciphering_algorithm = UE->ciphering_algorithm;
+      nr_pdcp_reestablishment(UE->rrc_ue_id, srb_id, true, &security_parameters);
     }
     if (resp->drbs_to_be_setup_length > 0) {
       //AssertFatal() should be same number as active bearers?
