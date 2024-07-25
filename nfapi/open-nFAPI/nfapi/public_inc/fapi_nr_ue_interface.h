@@ -682,6 +682,8 @@ typedef struct
 } fapi_nr_prach_config_t;
 
 typedef struct {
+  uint64_t absoluteFrequencySSB;
+  uint64_t absoluteFrequencyPointA;
   int16_t target_Nid_cell;
   bool ssb_bw_scan;
 } fapi_nr_synch_request_t;
