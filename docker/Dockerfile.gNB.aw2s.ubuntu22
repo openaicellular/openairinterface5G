@@ -38,7 +38,7 @@ RUN /bin/sh oaienv && \
     ./build_oai -w AW2SORI -t Ethernet
 
 #start from scratch for target executable
-FROM ubuntu:bionic as oai-gnb-aw2s
+FROM ubuntu:jammy as oai-gnb-aw2s
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe
 
