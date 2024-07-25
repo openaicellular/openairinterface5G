@@ -53,6 +53,8 @@
 #include "uper_encoder.h"
 #include "uper_decoder.h"
 
+#include "SIMULATION/TOOLS/sim.h" // for taus
+
 #define ENABLE_MAC_PAYLOAD_DEBUG
 #define DEBUG_gNB_SCHEDULER 1
 
@@ -2674,6 +2676,16 @@ void mac_remove_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rnti)
   memcpy(UE_info->list, newUEs, sizeof(UE_info->list));
   NR_SCHED_UNLOCK(&UE_info->mutex);
 
+  const int CC_id = 0;
+  NR_COMMON_channels_t *cc = &nr_mac->common_channels[CC_id];
+  for (int i = 0; i < NR_NB_RA_PROC_MAX; i++) {
+    NR_RA_t *ra = &cc->ra[i];
+    if (ra->rnti == UE->rnti) {
+      nr_clear_ra_proc(ra);
+      ra->cfra = 0;
+    }
+  }
+
   delete_nr_ue_data(UE, nr_mac->common_channels, &UE_info->uid_allocator);
 }
 
@@ -2732,9 +2744,8 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
     if (UE_info->sched_csirs & (1 << dl_bwp->bwp_id))
       continue;
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-    if (sched_ctrl->rrc_processing_timer > 0) {
+    if (nr_timer_is_active(&sched_ctrl->transmission_stop))
       continue;
-    }
 
     if (!UE->sc_info.csi_MeasConfig)
       continue;
@@ -2948,7 +2959,7 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
   }
 }
 
-static void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t frame, sub_frame_t slot)
+void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t frame, sub_frame_t slot)
 {
   LOG_D(NR_MAC, "%4d.%2d RNTI %04x: RRC processing timer expired\n", frame, slot, UE->rnti);
 
@@ -2963,6 +2974,11 @@ static void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t 
     if (LOG_DEBUGFLAG(DEBUG_ASN1))
       xer_fprint(stdout, &asn_DEF_NR_CellGroupConfig, (const void *)UE->CellGroup);
 
+    /* remove a reconfigurationWithSync, we don't need it anymore */
+    if (UE->CellGroup->spCellConfig->reconfigurationWithSync != NULL) {
+      ASN_STRUCT_FREE(asn_DEF_NR_ReconfigurationWithSync, UE->CellGroup->spCellConfig->reconfigurationWithSync);
+      UE->CellGroup->spCellConfig->reconfigurationWithSync = NULL;
+    }
     /* remove the rlc_BearerToReleaseList, we don't need it anymore */
     if (UE->CellGroup->rlc_BearerToReleaseList != NULL) {
       struct NR_CellGroupConfig__rlc_BearerToReleaseList *l = UE->CellGroup->rlc_BearerToReleaseList;
@@ -2996,7 +3012,8 @@ int nr_mac_enable_ue_rrc_processing_timer(gNB_MAC_INST *mac, NR_UE_info_t *UE, b
   int delay = NR_RRC_RECONFIGURATION_DELAY_MS;
   NR_SubcarrierSpacing_t scs = UE->current_UL_BWP.scs;
 
-  UE->UE_sched_ctrl.rrc_processing_timer = (delay << scs) + sl_ahead;
+  nr_timer_setup(&UE->UE_sched_ctrl.transmission_stop, (delay << scs) + sl_ahead, 1);
+  nr_timer_start(&UE->UE_sched_ctrl.transmission_stop);
   UE->apply_cellgroup = apply_cellgroup;
   AssertFatal(!UE->apply_cellgroup || (UE->apply_cellgroup && UE->reconfigCellGroup),
               "logic bug: apply_cellgroup %d and UE->reconfigCellGroup %p: did you try to apply a cellGroup, while none is deposited?\n",
@@ -3010,6 +3027,15 @@ int nr_mac_enable_ue_rrc_processing_timer(gNB_MAC_INST *mac, NR_UE_info_t *UE, b
   UE->UE_sched_ctrl.ta_frame = (mac->frame - 1 + 1024) % 1024;
 
   LOG_D(NR_MAC, "UE %04x: Activate RRC processing timer (%d ms)\n", UE->rnti, delay);
+  return 0;
+}
+
+int nr_transmission_action_indicator_stop(NR_UE_info_t *UE_info)
+{
+  /* UINT_MAX -> indefinite expiry */
+  nr_timer_setup(&UE_info->UE_sched_ctrl.transmission_stop, UINT_MAX, 1);
+  nr_timer_start(&UE_info->UE_sched_ctrl.transmission_stop);
+  LOG_I(NR_MAC, "gNB-DU received the TransmissionActionIndicator with Stop value for UE %04x\n", UE_info->rnti);
   return 0;
 }
 
@@ -3065,10 +3091,10 @@ void nr_mac_update_timers(module_id_t module_id,
     /* check if UL failure and trigger release request if necessary */
     nr_mac_check_ul_failure(mac, UE->rnti, sched_ctrl);
 
-    if (sched_ctrl->rrc_processing_timer > 0) {
-      sched_ctrl->rrc_processing_timer--;
-      if (sched_ctrl->rrc_processing_timer == 0)
-        nr_mac_apply_cellgroup(mac, UE, frame, slot);
+    if (nr_timer_tick(&sched_ctrl->transmission_stop)) {
+      /* expired */
+      nr_timer_stop(&sched_ctrl->transmission_stop);
+      nr_mac_apply_cellgroup(mac, UE, frame, slot);
     }
   }
 }
@@ -3295,4 +3321,27 @@ bool nr_mac_remove_lcid(NR_UE_sched_ctrl_t *sched_ctrl, long lcid)
 
   seq_arr_erase(&sched_ctrl->lc_config, elm.it);
   return true;
+}
+
+static const NR_RA_t *find_nr_RA_rnti(const NR_RA_t *ra_base, int ra_count, rnti_t rnti)
+{
+  for (int i = 0; i < ra_count; ++i) {
+    const NR_RA_t *ra = &ra_base[i];
+    if (ra->ra_state != nrRA_gNB_IDLE && ra->rnti == rnti)
+      return ra;
+  }
+  return NULL;
+}
+
+bool nr_mac_get_new_rnti(NR_UEs_t *UEs, const NR_RA_t *ra_base, int ra_count, rnti_t *rnti)
+{
+  int loop = 0;
+  bool exist_connected_ue, exist_in_pending_ra_ue;
+  do {
+    *rnti = (taus() % 0xffef) + 1;
+    exist_connected_ue = find_nr_UE(UEs, *rnti) != NULL;
+    exist_in_pending_ra_ue = find_nr_RA_rnti(ra_base, ra_count, *rnti) != NULL;
+    loop++;
+  } while (loop < 100 && (exist_connected_ue || exist_in_pending_ra_ue));
+  return loop < 100; // nothing found: loop count 100
 }

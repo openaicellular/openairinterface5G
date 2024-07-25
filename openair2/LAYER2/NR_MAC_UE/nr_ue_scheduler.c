@@ -1260,7 +1260,7 @@ static void nr_update_sr(NR_UE_MAC_INST_t *mac)
 
   // if a Regular BSR has been triggered and logicalChannelSR-DelayTimer is not running
   if (((sched_info->BSR_reporting_active & NR_BSR_TRIGGER_REGULAR) == 0)
-      || is_nr_timer_active(sched_info->sr_DelayTimer))
+      || nr_timer_is_active(&sched_info->sr_DelayTimer))
     return;
 
   nr_lcordered_info_t *lc_info = get_lc_info_from_lcid(mac, sched_info->regularBSR_trigger_lcid);
@@ -1472,7 +1472,7 @@ void nr_ue_ul_scheduler(NR_UE_MAC_INST_t *mac, nr_uplink_indication_t *ul_info)
       NR_LC_SCHEDULING_INFO *sched_info = get_scheduling_info_from_lcid(mac, lcid);
       int32_t bj = sched_info->Bj;
       if (lc_info->pbr < UINT_MAX) {
-        uint32_t slots_elapsed = nr_timer_elapsed_time(sched_info->Bj_timer); // slots elapsed since Bj was last incremented
+        uint32_t slots_elapsed = nr_timer_elapsed_time(&sched_info->Bj_timer); // slots elapsed since Bj was last incremented
         // it is safe to divide by 1k since pbr in lc_info is computed multiplying by 1000 the RRC value to convert kB/s to B/s
         uint32_t pbr_ms = lc_info->pbr / 1000;
         bj += ((pbr_ms * slots_elapsed) >> mac->current_UL_BWP->scs); // each slot length is 1/scs ms
@@ -2036,7 +2036,7 @@ static int get_nr_prach_info_from_ssb_index(prach_association_pattern_t *prach_a
           ssb_info_p->mapped_ro[n_mapped_ro]->frame,
           ssb_info_p->mapped_ro[n_mapped_ro]->slot,
           prach_assoc_pattern->nb_of_frame);
-    if ((slot == ssb_info_p->mapped_ro[n_mapped_ro]->slot) &&
+    if ((slot == ssb_info_p->mapped_ro[n_mapped_ro]->slot) && prach_assoc_pattern->prach_conf_period_list[0].nb_of_frame != 0 &&
         (ssb_info_p->mapped_ro[n_mapped_ro]->frame == (frame % prach_assoc_pattern->nb_of_frame))) {
       uint8_t prach_config_period_nb = ssb_info_p->mapped_ro[n_mapped_ro]->frame / prach_assoc_pattern->prach_conf_period_list[0].nb_of_frame;
       uint8_t frame_nb_in_prach_config_period = ssb_info_p->mapped_ro[n_mapped_ro]->frame % prach_assoc_pattern->prach_conf_period_list[0].nb_of_frame;

@@ -480,7 +480,7 @@ static void nr_rrc_ue_decode_NR_BCCH_BCH_Message(NR_UE_RRC_INST_t *rrc,
   
   // Actions following cell selection while T311 is running
   NR_UE_Timers_Constants_t *timers = &rrc->timers_and_constants;
-  if (is_nr_timer_active(timers->T311)) {
+  if (nr_timer_is_active(&timers->T311)) {
     nr_timer_stop(&timers->T311);
     rrc->ra_trigger = RRC_CONNECTION_REESTABLISHMENT;
 
@@ -856,6 +856,15 @@ void nr_rrc_cellgroup_configuration(NR_UE_RRC_INST_t *rrc, NR_CellGroupConfig_t 
       for (int i = 1; i <= MAX_DRBS_PER_UE; i++) {
         if (get_DRB_status(rrc, i) == RB_SUSPENDED)
           set_DRB_status(rrc, i, RB_ESTABLISHED);
+      }
+      if (cellGroupConfig->rlc_BearerToAddModList != NULL) {
+        for (int i = 0; i < cellGroupConfig->rlc_BearerToAddModList->list.count; i++) {
+          NR_RLC_BearerConfig_t *rlc_bearer = cellGroupConfig->rlc_BearerToAddModList->list.array[i];
+          NR_LogicalChannelIdentity_t lcid = rlc_bearer->logicalChannelIdentity;
+          if (rrc->active_RLC_entity[lcid]) {
+            nr_rlc_reestablish_entity(rrc->ue_id, lcid);
+          }
+        }
       }
       // TODO reset MAC
     }
@@ -1701,7 +1710,7 @@ static int nr_rrc_ue_decode_dcch(NR_UE_RRC_INST_t *rrc,
 void nr_rrc_handle_ra_indication(NR_UE_RRC_INST_t *rrc, bool ra_succeeded)
 {
   NR_UE_Timers_Constants_t *timers = &rrc->timers_and_constants;
-  if (ra_succeeded && is_nr_timer_active(timers->T304)) {
+  if (ra_succeeded && nr_timer_is_active(&timers->T304)) {
     // successful Random Access procedure triggered by reconfigurationWithSync
     nr_timer_stop(&timers->T304);
     // TODO handle the rest of procedures as described in 5.3.5.3 for when
@@ -2124,7 +2133,7 @@ static void process_lte_nsa_msg(NR_UE_RRC_INST_t *rrc, nsa_msg_t *msg, int msg_l
       process_nsa_message(NR_UE_rrc_inst, nr_SecondaryCellGroupConfig_r15, nr_SecondaryCellGroup_buffer, nr_SecondaryCellGroup_size);
       process_nsa_message(NR_UE_rrc_inst, nr_RadioBearerConfigX_r15, nr_RadioBearer_buffer, nr_RadioBearer_size);
       LOG_I(NR_RRC, "Calling do_NR_RRCReconfigurationComplete. t_id %ld \n", t_id);
-      uint8_t buffer[RRC_BUF_SIZE];
+      uint8_t buffer[NR_RRC_BUF_SIZE];
       size_t size = do_NR_RRCReconfigurationComplete_for_nsa(buffer, sizeof(buffer), t_id);
       nsa_sendmsg_to_lte_ue(buffer, size, NR_RRC_CONFIG_COMPLETE_REQ);
       break;
@@ -2132,7 +2141,7 @@ static void process_lte_nsa_msg(NR_UE_RRC_INST_t *rrc, nsa_msg_t *msg, int msg_l
 
     case OAI_TUN_IFACE_NSA: {
       LOG_I(NR_RRC, "We got an OAI_TUN_IFACE_NSA!!\n");
-      char cmd_line[RRC_BUF_SIZE];
+      char cmd_line[NR_RRC_BUF_SIZE];
       memcpy(cmd_line, msg_buffer, sizeof(cmd_line));
       LOG_D(NR_RRC, "Command line: %s\n", cmd_line);
       if (background_system(cmd_line) != 0)
@@ -2212,14 +2221,14 @@ void nr_rrc_going_to_IDLE(NR_UE_RRC_INST_t *rrc,
     }
   }
   if (!waitTime) {
-    if (is_nr_timer_active(tac->T302)) {
+    if (nr_timer_is_active(&tac->T302)) {
       nr_timer_stop(&tac->T302);
       // TODO barring alleviation as in 5.3.14.4
       // not implemented
       LOG_E(NR_RRC,"Go to IDLE. Barring alleviation not implemented\n");
     }
   }
-  if (is_nr_timer_active(tac->T390)) {
+  if (nr_timer_is_active(&tac->T390)) {
     nr_timer_stop(&tac->T390);
     // TODO barring alleviation as in 5.3.14.4
     // not implemented

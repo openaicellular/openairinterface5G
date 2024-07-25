@@ -486,6 +486,18 @@ nr_rrc_du_container_t *get_du_by_assoc_id(gNB_RRC_INST *rrc, sctp_assoc_t assoc_
   return RB_FIND(rrc_du_tree, &rrc->dus, &e);
 }
 
+/* \brief find DU by cell ID. Note: currently the CU is limited to one cell per
+ * DU, hence here, DU == cell. Modify this to look up a specific cell. */
+nr_rrc_du_container_t *get_du_by_cell_id(gNB_RRC_INST *rrc, uint64_t cell_id)
+{
+  nr_rrc_du_container_t *du = NULL;
+  RB_FOREACH(du, rrc_du_tree, &rrc->dus) {
+    if (cell_id == du->setup_req->cell[0].info.nr_cellid)
+      return du;
+  }
+  return NULL;
+}
+
 void dump_du_info(const gNB_RRC_INST *rrc, FILE *f)
 {
   fprintf(f, "%ld connected DUs \n", rrc->num_dus);
@@ -516,4 +528,32 @@ void dump_du_info(const gNB_RRC_INST *rrc, FILE *f)
       fprintf(f, "         UL band %d ARFCN %d SCS %d (kHz) PRB %d\n", ufi->band, ufi->arfcn, 15 * (1 << utb->scs), utb->nrb);
     }
   }
+}
+
+nr_rrc_du_container_t *find_target_du(gNB_RRC_INST *rrc, sctp_assoc_t source_assoc_id)
+{
+  nr_rrc_du_container_t *target_du = NULL;
+  nr_rrc_du_container_t *it = NULL;
+  bool next_du = false;
+  RB_FOREACH (it, rrc_du_tree, &rrc->dus) {
+    if (next_du == false && source_assoc_id != it->assoc_id) {
+      continue;
+    } else if (source_assoc_id == it->assoc_id) {
+      next_du = true;
+    } else {
+      target_du = it;
+      break;
+    }
+  }
+  if (target_du == NULL) {
+    RB_FOREACH (it, rrc_du_tree, &rrc->dus) {
+      if (source_assoc_id == it->assoc_id) {
+        continue;
+      } else {
+        target_du = it;
+        break;
+      }
+    }
+  }
+  return target_du;
 }

@@ -272,6 +272,21 @@ int CU_send_UE_CONTEXT_SETUP_REQUEST(sctp_assoc_t assoc_id, f1ap_ue_context_setu
       OCTET_STRING_fromBuf(measConfig, (const char*)f1ap_ue_context_setup_req->cu_to_du_rrc_information->measConfig,
         f1ap_ue_context_setup_req->cu_to_du_rrc_information->measConfig_length);
     }
+
+    /* optional */
+    /* HandoverPreparationInformation */
+    if (f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo_length > 0) {
+      DevAssert(f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo != NULL);
+      F1AP_ProtocolExtensionContainer_10696P60_t *p = calloc(1, sizeof(*p));
+      ie6->value.choice.CUtoDURRCInformation.iE_Extensions = (struct F1AP_ProtocolExtensionContainer *)p;
+      asn1cSequenceAdd(p->list, F1AP_CUtoDURRCInformation_ExtIEs_t, ie_ext);
+      ie_ext->id = F1AP_ProtocolIE_ID_id_HandoverPreparationInformation;
+      ie_ext->criticality = F1AP_Criticality_ignore;
+      ie_ext->extensionValue.present = F1AP_CUtoDURRCInformation_ExtIEs__extensionValue_PR_HandoverPreparationInformation;
+      OCTET_STRING_fromBuf(&ie_ext->extensionValue.choice.HandoverPreparationInformation,
+                           (const char *)f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo,
+                           f1ap_ue_context_setup_req->cu_to_du_rrc_information->handoverPreparationInfo_length);
+    }
   }
 
   /* optional */
@@ -600,6 +615,12 @@ int CU_handle_UE_CONTEXT_SETUP_RESPONSE(instance_t instance, sctp_assoc_t assoc_
                              F1AP_ProtocolIE_ID_id_gNB_DU_UE_F1AP_ID, true);
   f1ap_ue_context_setup_resp->gNB_DU_ue_id = ie->value.choice.GNB_DU_UE_F1AP_ID;
   LOG_D(F1AP, "f1ap_ue_context_setup_resp->gNB_DU_ue_id is: %d \n", f1ap_ue_context_setup_resp->gNB_DU_ue_id);
+  F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextSetupResponseIEs_t, ie, container, F1AP_ProtocolIE_ID_id_C_RNTI, false);
+  if (ie) {
+    f1ap_ue_context_setup_resp->crnti = calloc(1, sizeof(uint16_t));
+    *f1ap_ue_context_setup_resp->crnti = ie->value.choice.C_RNTI;
+  }
+
   // DUtoCURRCInformation
   F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextSetupResponseIEs_t, ie, container,
                              F1AP_ProtocolIE_ID_id_DUtoCURRCInformation, true);
@@ -1001,12 +1022,15 @@ int CU_send_UE_CONTEXT_MODIFICATION_REQUEST(sctp_assoc_t assoc_id, f1ap_ue_conte
 
   /* optional */
   /* c7. TransmissionActionIndicator */
-  if (0) {
+  if (f1ap_ue_context_modification_req->transm_action_ind != NULL) {
     asn1cSequenceAdd(out->protocolIEs.list, F1AP_UEContextModificationRequestIEs_t, ie7);
     ie7->id                                     = F1AP_ProtocolIE_ID_id_TransmissionActionIndicator;
     ie7->criticality                            = F1AP_Criticality_ignore;
     ie7->value.present                          = F1AP_UEContextModificationRequestIEs__value_PR_TransmissionActionIndicator;
-    ie7->value.choice.TransmissionActionIndicator = F1AP_TransmissionActionIndicator_stop;
+    ie7->value.choice.TransmissionActionIndicator = *f1ap_ue_context_modification_req->transm_action_ind;
+    // Stop is guaranteed to be 0, by restart might be different from 1
+    static_assert((int)F1AP_TransmissionActionIndicator_restart == (int)TransmActionInd_RESTART,
+                  "mismatch of ASN.1 and internal representation\n");
   }
 
   /* optional */

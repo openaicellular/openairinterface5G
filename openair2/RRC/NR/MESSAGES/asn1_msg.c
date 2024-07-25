@@ -80,6 +80,9 @@
 #include "NR_PCCH-Message.h"
 #include "NR_PagingRecord.h"
 #include "NR_UE-CapabilityRequestFilterNR.h"
+#include "NR_HandoverPreparationInformation.h"
+#include "NR_HandoverPreparationInformation-IEs.h"
+#include "NR_HandoverCommand.h"
 #include "common/utils/nr/nr_common.h"
 #if defined(NR_Rel16)
   #include "NR_SCS-SpecificCarrier.h"
@@ -1368,7 +1371,7 @@ int do_NR_Paging(uint8_t Mod_id, uint8_t *buffer, uint32_t tmsi)
   LOG_D(NR_RRC, "[gNB %d] do_Paging paging_record: PagingRecordList.count %d\n",
         Mod_id, c1->choice.paging->pagingRecordList->list.count);
   asn_enc_rval_t enc_rval = uper_encode_to_buffer(
-      &asn_DEF_NR_PCCH_Message, NULL, (void *)&pcch_msg, buffer, RRC_BUF_SIZE);
+      &asn_DEF_NR_PCCH_Message, NULL, (void *)&pcch_msg, buffer, NR_RRC_BUF_SIZE);
 
   if ( LOG_DEBUGFLAG(DEBUG_ASN1) ) {
     xer_fprint(stdout, &asn_DEF_NR_PCCH_Message, (void *)&pcch_msg);
@@ -1381,4 +1384,43 @@ int do_NR_Paging(uint8_t Mod_id, uint8_t *buffer, uint32_t tmsi)
   }
 
   return((enc_rval.encoded+7)/8);
+}
+
+/* \brief generate HandoverPreparationInformation to be sent to the DU for
+ * handover. Takes uecap_buf in encoded form as (1) this is the form present at
+ * the CU already (2) we have to clone this information anyway, so can take it
+ * in encoded form which we decode + add to the handoverPreparationInformation */
+int do_NR_HandoverPreparationInformation(const uint8_t *uecap_buf, int uecap_buf_size, uint8_t *buf, int buf_size)
+{
+  NR_HandoverPreparationInformation_t *hpi = calloc(1, sizeof(*hpi));
+  AssertFatal(hpi != NULL, "out of memory\n");
+  hpi->criticalExtensions.present = NR_HandoverPreparationInformation__criticalExtensions_PR_c1;
+  hpi->criticalExtensions.choice.c1 = calloc(1, sizeof(*hpi->criticalExtensions.choice.c1));
+  AssertFatal(hpi->criticalExtensions.choice.c1 != NULL, "out of memory\n");
+  hpi->criticalExtensions.choice.c1->present =
+      NR_HandoverPreparationInformation__criticalExtensions__c1_PR_handoverPreparationInformation;
+  NR_HandoverPreparationInformation_IEs_t *hpi_ie = calloc(1, sizeof(*hpi_ie));
+  AssertFatal(hpi_ie != NULL, "out of memory\n");
+  hpi->criticalExtensions.choice.c1->choice.handoverPreparationInformation = hpi_ie;
+
+  NR_UE_CapabilityRAT_ContainerList_t *list = NULL;
+  asn_dec_rval_t dec_rval =
+      uper_decode_complete(NULL, &asn_DEF_NR_UE_CapabilityRAT_ContainerList, (void **)&list, uecap_buf, uecap_buf_size);
+  if (dec_rval.code == RC_OK) {
+    hpi_ie->ue_CapabilityRAT_List = *list;
+    free(list); /* list itself is not needed, members below will be freed in ASN_STRUCT_FREE */
+  } else {
+    /* problem with decoding, don't put a capability */
+    ASN_STRUCT_FREE(asn_DEF_NR_UE_CapabilityRAT_ContainerList, list);
+    list = NULL;
+  }
+
+  if (true)
+    xer_fprint(stdout, &asn_DEF_NR_HandoverPreparationInformation, hpi);
+
+  asn_enc_rval_t enc_rval = uper_encode_to_buffer(&asn_DEF_NR_HandoverPreparationInformation, NULL, hpi, buf, buf_size);
+  AssertFatal(enc_rval.encoded > 0, "ASN1 message encoding failed (%s, %lu)!\n", enc_rval.failed_type->name, enc_rval.encoded);
+
+  ASN_STRUCT_FREE(asn_DEF_NR_HandoverPreparationInformation, hpi);
+  return (enc_rval.encoded + 7) / 8;
 }

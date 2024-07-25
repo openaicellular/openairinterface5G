@@ -132,8 +132,13 @@ int DU_handle_UE_CONTEXT_SETUP_REQUEST(instance_t instance, sctp_assoc_t assoc_i
   /* GNB_DU_UE_F1AP_ID */
   F1AP_UEContextSetupRequestIEs_t *ieDU_UE;
   F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextSetupRequestIEs_t, ieDU_UE, container,
-                             F1AP_ProtocolIE_ID_id_gNB_DU_UE_F1AP_ID, true);
-  f1ap_ue_context_setup_req->gNB_DU_ue_id = ieDU_UE->value.choice.GNB_DU_UE_F1AP_ID;
+                             F1AP_ProtocolIE_ID_id_gNB_DU_UE_F1AP_ID, false);
+  // this should be optional. At present, the DU uses the RNTI, and hence, this
+  // value cannot exceed 0xffff (or something below, whatever is a valid
+  // C-RNTI). So we use a value > 0xffff to mark optionality
+  f1ap_ue_context_setup_req->gNB_DU_ue_id = -1; // 0xffffffff
+  if (ieDU_UE != NULL)
+    f1ap_ue_context_setup_req->gNB_DU_ue_id = ieDU_UE->value.choice.GNB_DU_UE_F1AP_ID;
 
   /* SpCell_ID */
   F1AP_UEContextSetupRequestIEs_t *ieNet;
@@ -170,11 +175,34 @@ int DU_handle_UE_CONTEXT_SETUP_REQUEST(instance_t instance, sctp_assoc_t assoc_i
       F1AP_ProtocolIE_ID_id_CUtoDURRCInformation, false);
   if(ieCuRrcInfo!=NULL){
     f1ap_ue_context_setup_req->cu_to_du_rrc_information = (cu_to_du_rrc_information_t *)calloc(1,sizeof(cu_to_du_rrc_information_t));
-    if(ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList!=NULL){
-      f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList = (uint8_t *)calloc(1,ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->size);
-      memcpy(f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList, ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->buf, ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->size);
-      f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList_length = ieCuRrcInfo->value.choice.CUtoDURRCInformation.uE_CapabilityRAT_ContainerList->size;
+    cu_to_du_rrc_information_t *cu2du = f1ap_ue_context_setup_req->cu_to_du_rrc_information;
+    const F1AP_CUtoDURRCInformation_t *cu2duie = &ieCuRrcInfo->value.choice.CUtoDURRCInformation;
+    if(cu2duie->uE_CapabilityRAT_ContainerList!=NULL){
+      cu2du->uE_CapabilityRAT_ContainerList = calloc(1, cu2duie->uE_CapabilityRAT_ContainerList->size);
+      memcpy(cu2du->uE_CapabilityRAT_ContainerList,
+             cu2duie->uE_CapabilityRAT_ContainerList->buf,
+             cu2duie->uE_CapabilityRAT_ContainerList->size);
+      cu2du->uE_CapabilityRAT_ContainerList_length = cu2duie->uE_CapabilityRAT_ContainerList->size;
       LOG_D(F1AP, "Size f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList_length: %d \n", f1ap_ue_context_setup_req->cu_to_du_rrc_information->uE_CapabilityRAT_ContainerList_length);
+    }
+    if (cu2duie->iE_Extensions != NULL) {
+      const F1AP_ProtocolExtensionContainer_10696P60_t *ext = (const F1AP_ProtocolExtensionContainer_10696P60_t *)cu2duie->iE_Extensions;
+      for (int i = 0; i < ext->list.count; ++i) {
+        const F1AP_CUtoDURRCInformation_ExtIEs_t *cu2du_info = ext->list.array[i];
+        switch (cu2du_info->id) {
+          case F1AP_ProtocolIE_ID_id_HandoverPreparationInformation:
+            DevAssert(cu2du_info->extensionValue.present == F1AP_CUtoDURRCInformation_ExtIEs__extensionValue_PR_HandoverPreparationInformation);
+            const F1AP_HandoverPreparationInformation_t *hopi = &cu2du_info->extensionValue.choice.MeasurementTimingConfiguration;
+            cu2du->handoverPreparationInfo = calloc(1, hopi->size);
+            AssertFatal(cu2du->handoverPreparationInfo != NULL, "out of memory\n");
+            memcpy(cu2du->handoverPreparationInfo, hopi->buf, hopi->size);
+            cu2du->handoverPreparationInfo_length = hopi->size;
+            break;
+          default:
+            LOG_W(F1AP, "unsupported CUtoDURRCInformation_ExtIE %ld encountered, ignoring\n", cu2du_info->id);
+            break;
+        }
+      }
     }
   }
 
@@ -352,15 +380,12 @@ int DU_send_UE_CONTEXT_SETUP_RESPONSE(sctp_assoc_t assoc_id, f1ap_ue_context_set
 
   /* optional */
   /* c4. C_RNTI */
-  if (0) {
+  if (resp->crnti!=NULL) {
     asn1cSequenceAdd(out->protocolIEs.list, F1AP_UEContextSetupResponseIEs_t, ie4);
     ie4->id                             = F1AP_ProtocolIE_ID_id_C_RNTI;
     ie4->criticality                    = F1AP_Criticality_ignore;
     ie4->value.present                  = F1AP_UEContextSetupResponseIEs__value_PR_C_RNTI;
-    //C_RNTI_TO_BIT_STRING(rntiP, &ie->value.choice.C_RNTI);
-    ie4->value.choice.C_RNTI=0;
-    AssertFatal(false, "not implemented\n");
-    LOG_E(F1AP,"RNTI to code!\n");
+    ie4->value.choice.C_RNTI            = *resp->crnti;
   }
 
   /* optional */
@@ -886,6 +911,22 @@ int DU_handle_UE_CONTEXT_MODIFICATION_REQUEST(instance_t instance, sctp_assoc_t 
   F1AP_UEContextModificationRequestIEs_t *ieSrb;
   F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextModificationRequestIEs_t, ieSrb, container,
       F1AP_ProtocolIE_ID_id_SRBs_ToBeSetupMod_List, false);
+
+  F1AP_UEContextModificationRequestIEs_t *ieTxInd;
+  F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_UEContextModificationRequestIEs_t,
+                             ieTxInd,
+                             container,
+                             F1AP_ProtocolIE_ID_id_TransmissionActionIndicator,
+                             false);
+
+  if (ieTxInd != NULL) {
+    f1ap_ue_context_modification_req->transm_action_ind = calloc(1, sizeof(*f1ap_ue_context_modification_req->transm_action_ind));
+    AssertFatal(f1ap_ue_context_modification_req->transm_action_ind != NULL, "out of memory\n");
+    *f1ap_ue_context_modification_req->transm_action_ind = ieTxInd->value.choice.TransmissionActionIndicator;
+    // Stop is guaranteed to be 0, by restart might be different from 1
+    static_assert((int)F1AP_TransmissionActionIndicator_restart == (int)TransmActionInd_RESTART,
+                  "mismatch of ASN.1 and internal representation\n");
+  }
 
   if(ieSrb != NULL) {
     f1ap_ue_context_modification_req->srbs_to_be_setup_length = ieSrb->value.choice.SRBs_ToBeSetupMod_List.list.count;

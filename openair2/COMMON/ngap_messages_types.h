@@ -278,8 +278,6 @@ typedef struct pdusession_s {
   transport_layer_addr_t upf_addr;
   /* Outgoing (UL) NG-U Tunnel Endpoint Identifier (S-GW/UPF) */
   uint32_t gtp_teid;
-  /* Stores the DRB ID of the DRBs used by this PDU Session */
-  uint8_t used_drbs[MAX_DRBS_PER_UE];
   /* Incoming (DL) NG-U Tunnel Endpoint Identifier (S-GW/UPF) */
   uint32_t gNB_teid_N3;
   transport_layer_addr_t gNB_addr_N3;

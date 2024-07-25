@@ -427,6 +427,8 @@ typedef struct cu_to_du_rrc_information_s {
   uint32_t   uE_CapabilityRAT_ContainerList_length;
   uint8_t * measConfig;
   uint32_t   measConfig_length;
+  uint8_t *handoverPreparationInfo;
+  uint32_t handoverPreparationInfo_length;
 }cu_to_du_rrc_information_t;
 
 typedef struct du_to_cu_rrc_information_s {
@@ -449,6 +451,11 @@ typedef enum ReconfigurationCompl_e {
   RRCreconf_success          = 2,
 } ReconfigurationCompl_t;
 
+typedef enum TransmActionInd_e {
+  TransmActionInd_STOP,
+  TransmActionInd_RESTART,
+} TransmActionInd_t;
+
 typedef struct f1ap_ue_context_setup_s {
   uint32_t gNB_CU_ue_id;
   uint32_t gNB_DU_ue_id;
@@ -463,6 +470,7 @@ typedef struct f1ap_ue_context_setup_s {
   //uint8_t *du_to_cu_rrc_information;
   du_to_cu_rrc_information_t *du_to_cu_rrc_information;
   uint32_t  du_to_cu_rrc_information_length;
+  uint16_t *crnti;
   f1ap_drb_to_be_setup_t *drbs_to_be_setup;
   uint8_t  drbs_to_be_setup_length;
   f1ap_drb_to_be_setup_t *drbs_to_be_modified;
@@ -479,6 +487,7 @@ typedef struct f1ap_ue_context_setup_s {
   ReconfigurationCompl_t ReconfigComplOutcome;
   uint8_t *rrc_container;
   int      rrc_container_length;
+  TransmActionInd_t *transm_action_ind;
 } f1ap_ue_context_setup_t, f1ap_ue_context_modif_req_t, f1ap_ue_context_modif_resp_t;
 
 typedef enum F1ap_Cause_e {

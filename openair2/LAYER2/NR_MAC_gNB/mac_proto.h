@@ -53,6 +53,7 @@ bool nr_mac_prepare_ra_ue(gNB_MAC_INST *nrmac, uint32_t rnti, NR_CellGroupConfig
 
 bool nr_mac_prepare_cellgroup_update(gNB_MAC_INST *nrmac, NR_UE_info_t *UE, NR_CellGroupConfig_t *CellGroup);
 int nr_mac_enable_ue_rrc_processing_timer(gNB_MAC_INST *mac, NR_UE_info_t *UE, bool apply_cellGroup);
+int nr_transmission_action_indicator_stop(NR_UE_info_t *UE_info);
 
 void clear_nr_nfapi_information(gNB_MAC_INST *gNB,
                                 int CC_idP,
@@ -451,5 +452,9 @@ void process_addmod_bearers_cellGroupConfig(NR_UE_sched_ctrl_t *sched_ctrl,
 
 bool nr_mac_add_lcid(NR_UE_sched_ctrl_t *sched_ctrl, const nr_lc_config_t *c);
 bool nr_mac_remove_lcid(NR_UE_sched_ctrl_t *sched_ctrl, long lcid);
+
+bool nr_mac_get_new_rnti(NR_UEs_t *UEs, const NR_RA_t *ra_base, int ra_count, rnti_t *rnti);
+
+void nr_mac_apply_cellgroup(gNB_MAC_INST *mac, NR_UE_info_t *UE, frame_t frame, sub_frame_t slot);
 
 #endif /*__LAYER2_NR_MAC_PROTO_H__*/

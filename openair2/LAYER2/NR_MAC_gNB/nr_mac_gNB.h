@@ -43,6 +43,7 @@
 #include <string.h>
 #include <pthread.h>
 #include "common/utils/ds/seq_arr.h"
+#include "common/utils/nr/nr_common.h"
 
 #define NR_SCHED_LOCK(lock)                                        \
   do {                                                             \
@@ -641,8 +642,8 @@ typedef struct {
   NR_list_t retrans_ul_harq;
   NR_UE_mac_ce_ctrl_t UE_mac_ce_ctrl; // MAC CE related information
 
-  /// Timer for RRC processing procedures
-  uint32_t rrc_processing_timer;
+  /// Timer for RRC processing procedures and transmission activity
+  NR_timer_t transmission_stop;
 
   /// sri, ul_ri and tpmi based on SRS
   nr_srs_feedback_t srs_feedback;

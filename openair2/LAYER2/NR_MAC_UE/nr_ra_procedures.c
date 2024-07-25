@@ -789,7 +789,7 @@ void nr_ue_get_rach(NR_UE_MAC_INST_t *mac, int CC_id, frame_t frame, uint8_t gNB
     }
   }
 
-  if (is_nr_timer_active(ra->contention_resolution_timer)) {
+  if (nr_timer_is_active(&ra->contention_resolution_timer)) {
     nr_ue_contention_resolution(mac, CC_id, frame, nr_slot_tx, prach_resources);
   }
 }
@@ -850,7 +850,7 @@ void nr_ue_contention_resolution(NR_UE_MAC_INST_t *mac, int cc_id, frame_t frame
 {
   RA_config_t *ra = &mac->ra;
 
-  if (nr_timer_expired(ra->contention_resolution_timer)) {
+  if (nr_timer_expired(&ra->contention_resolution_timer)) {
     ra->t_crnti = 0;
     nr_timer_stop(&ra->contention_resolution_timer);
     // Signal PHY to quit RA procedure
