@@ -88,15 +88,6 @@
 #define NR_RRC_RECONFIGURATION_DELAY_MS 10
 #define NR_RRC_BWP_SWITCHING_DELAY_MS   6
 
-// 3GPP TS 38.133 - Section 8 - Table 8.2.1.2.7-2: Parameters which cause interruption other than SCS
-// This table was recently added to 3GPP. It shows that changing the parameters locationAndBandwidth, nrofSRS-Ports or
-// maxMIMO-Layers-r16 causes an interruption. This parameter is not yet being used in code, but has been placed here
-// for future reference.
-#define NR_OF_SRS_PORTS_SWITCHING_DELAY_MS 30
-
-#define NR_UE_MODULE_INVALID ((module_id_t) ~0) // FIXME attention! depends on type uint8_t!!!
-#define NR_UE_INDEX_INVALID  ((module_id_t) ~0) // FIXME attention! depends on type uint8_t!!! used to be -1
-
 typedef enum {
   NR_RRC_OK=0,
   NR_RRC_ConnSetup_failed,
@@ -105,16 +96,10 @@ typedef enum {
   NR_RRC_HO_STARTED
 } NR_RRC_status_t;
 
-#define RRM_FREE(p)       if ( (p) != NULL) { free(p) ; p=NULL ; }
-#define RRM_MALLOC(t,n)   (t *) malloc16( sizeof(t) * n )
-#define RRM_CALLOC(t,n)   (t *) malloc16( sizeof(t) * n)
-#define RRM_CALLOC2(t,s)  (t *) malloc16( s )
-
 #define MAX_MEAS_OBJ                                  7
 #define MAX_MEAS_CONFIG                               7
 #define MAX_MEAS_ID                                   7
 
-#define PAYLOAD_SIZE_MAX                              1024
 #define NR_RRC_BUF_SIZE                               4096
 #define UNDEF_SECURITY_MODE                           0xff
 #define NO_SECURITY_MODE                              0x20
@@ -128,14 +113,6 @@ typedef struct UE_S_TMSI_NR_s {
   uint8_t                                             amf_pointer;
   uint32_t                                            fiveg_tmsi;
 } __attribute__ ((__packed__)) NR_UE_S_TMSI;
-
-
-typedef enum nr_e_rab_satus_e {
-  NR_E_RAB_STATUS_NEW,
-  NR_E_RAB_STATUS_DONE,           // from the gNB perspective
-  NR_E_RAB_STATUS_ESTABLISHED,    // get the reconfigurationcomplete form UE
-  NR_E_RAB_STATUS_FAILED,
-} nr_e_rab_status_t;
 
 typedef struct nr_e_rab_param_s {
   e_rab_t param;
@@ -159,8 +136,6 @@ typedef struct HANDOVER_INFO_NR_s {
   uint8_t                                             buf[NR_RRC_BUF_SIZE];  /* ASN.1 encoded handoverCommandMessage */
   int                                                 size;               /* size of above message in bytes */
 } NR_HANDOVER_INFO;
-
-#define NR_RRC_BUFFER_SIZE                            sizeof(RRC_BUFFER_NR)
 
 typedef struct nr_rrc_guami_s {
   uint16_t mcc;
