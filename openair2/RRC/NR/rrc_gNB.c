@@ -490,7 +490,8 @@ static int rrc_gNB_encode_RRCReconfiguration(gNB_RRC_INST *rrc,
                                              uint8_t xid,
                                              struct NR_RRCReconfiguration_v1530_IEs__dedicatedNAS_MessageList *nas_messages,
                                              uint8_t *buf,
-                                             int max_len)
+                                             int max_len,
+                                             bool reestablish)
 {
   NR_CellGroupConfig_t *cellGroupConfig = UE->masterCellGroup;
   nr_rrc_du_container_t *du = get_du_for_ue(rrc, UE->rrc_ue_id);
@@ -515,8 +516,8 @@ static int rrc_gNB_encode_RRCReconfiguration(gNB_RRC_INST *rrc,
 
   UE->measConfig = measconfig;
 
-  NR_SRB_ToAddModList_t *SRBs = createSRBlist(UE, false);
-  NR_DRB_ToAddModList_t *DRBs = createDRBlist(UE, false);
+  NR_SRB_ToAddModList_t *SRBs = createSRBlist(UE, reestablish);
+  NR_DRB_ToAddModList_t *DRBs = createDRBlist(UE, reestablish);
 
   int size = do_RRCReconfiguration(UE,
                                    buf,
@@ -581,7 +582,7 @@ void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const c
 
   uint8_t buffer[RRC_BUF_SIZE] = {0};
   // TODO refactor dedicatedNAS_MessageList
-  int size = rrc_gNB_encode_RRCReconfiguration(rrc, ue_p, xid, dedicatedNAS_MessageList, buffer, sizeof(buffer));
+  int size = rrc_gNB_encode_RRCReconfiguration(rrc, ue_p, xid, dedicatedNAS_MessageList, buffer, sizeof(buffer), false);
   DevAssert(size > 0 && size <= sizeof(buffer));
 
   LOG_I(NR_RRC, "UE %d: Generate RRCReconfiguration (bytes %d, xid %d)\n", ue_p->rrc_ue_id, size, xid);
