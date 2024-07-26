@@ -643,6 +643,8 @@ void *trx_usrp_write_thread(void * arg){
       ret = (int)s->tx_stream->send(&(((int16_t *)buff_tx[0])[0]), nsamps, s->tx_md);
     }
 
+    T(T_USRP_TX_ANT0, T_INT(timestamp), T_BUFFER(buff_tx[0], nsamps*4));
+
     if (ret != nsamps) LOG_E(HW,"[xmit] tx samples %d != %d\n",ret,nsamps);
     VCD_SIGNAL_DUMPER_DUMP_VARIABLE_BY_NAME( VCD_SIGNAL_DUMPER_VARIABLES_USRP_SEND_RETURN, ret );
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME( VCD_SIGNAL_DUMPER_FUNCTIONS_TRX_WRITE_THREAD, 0 );
