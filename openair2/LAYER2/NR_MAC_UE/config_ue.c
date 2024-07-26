@@ -118,9 +118,11 @@ static void config_common_ue_sa(NR_UE_MAC_INST_t *mac,
   NR_FrequencyInfoDL_SIB_t *frequencyInfoDL = &scc->downlinkConfigCommon.frequencyInfoDL;
   AssertFatal(frequencyInfoDL->frequencyBandList.list.array[0]->freqBandIndicatorNR, "Field mandatory present for DL in SIB1\n");
   mac->nr_band = *frequencyInfoDL->frequencyBandList.list.array[0]->freqBandIndicatorNR;
-  cfg->carrier_config.dl_bandwidth = get_supported_bw_mhz(mac->frequency_range,
-                                                          frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                                          frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+
+  int bw_index = get_supported_band_index(frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
+                                          mac->frequency_range,
+                                          frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+  cfg->carrier_config.dl_bandwidth = get_supported_bw_mhz(mac->frequency_range, bw_index);
 
   uint64_t dl_bw_khz = (12 * frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth) *
                        (15 << frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing);
@@ -139,9 +141,11 @@ static void config_common_ue_sa(NR_UE_MAC_INST_t *mac,
 
   NR_FrequencyInfoUL_SIB_t *frequencyInfoUL = &scc->uplinkConfigCommon->frequencyInfoUL;
   mac->p_Max = frequencyInfoUL->p_Max ? *frequencyInfoUL->p_Max : INT_MIN;
-  cfg->carrier_config.uplink_bandwidth = get_supported_bw_mhz(mac->frequency_range,
-                                                              frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                                              frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+
+  bw_index = get_supported_band_index(frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
+                                      mac->frequency_range,
+                                      frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+  cfg->carrier_config.uplink_bandwidth = get_supported_bw_mhz(mac->frequency_range, bw_index);
 
   if (frequencyInfoUL->absoluteFrequencyPointA == NULL)
     cfg->carrier_config.uplink_frequency = cfg->carrier_config.dl_frequency;
@@ -260,9 +264,10 @@ static void config_common_ue(NR_UE_MAC_INST_t *mac,
     mac->frame_type = get_frame_type(mac->nr_band, get_softmodem_params()->numerology);
     mac->frequency_range = mac->nr_band < 256 ? FR1 : FR2;
 
-    cfg->carrier_config.dl_bandwidth = get_supported_bw_mhz(mac->frequency_range,
-                                                            frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                                            frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+    int bw_index = get_supported_band_index(frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
+                                            mac->frequency_range,
+                                            frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+    cfg->carrier_config.dl_bandwidth = get_supported_bw_mhz(mac->frequency_range, bw_index);
 
     cfg->carrier_config.dl_frequency = from_nrarfcn(mac->nr_band,
                                                     *scc->ssbSubcarrierSpacing,
@@ -284,9 +289,10 @@ static void config_common_ue(NR_UE_MAC_INST_t *mac,
     NR_FrequencyInfoUL_t *frequencyInfoUL = scc->uplinkConfigCommon->frequencyInfoUL;
     mac->p_Max = frequencyInfoUL->p_Max ? *frequencyInfoUL->p_Max : INT_MIN;
 
-    cfg->carrier_config.uplink_bandwidth = get_supported_bw_mhz(mac->frequency_range,
-                                                                frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                                                frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+    int bw_index = get_supported_band_index(frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
+                                            mac->frequency_range,
+                                            frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+    cfg->carrier_config.uplink_bandwidth = get_supported_bw_mhz(mac->frequency_range, bw_index);
 
     long *UL_pointA = NULL;
     if (frequencyInfoUL->absoluteFrequencyPointA)
@@ -1488,6 +1494,11 @@ static void configure_common_BWP_ul(NR_UE_MAC_INST_t *mac, int bwp_id, NR_BWP_Up
     bwp->cyclicprefix = ul_genericParameters->cyclicPrefix;
     bwp->BWPSize = NRRIV2BW(ul_genericParameters->locationAndBandwidth, MAX_BWP_SIZE);
     bwp->BWPStart = NRRIV2PRBOFFSET(ul_genericParameters->locationAndBandwidth, MAX_BWP_SIZE);
+    // For power calculations assume the UE channel is the smallest channel that can support the BWP
+    int bw_index = get_smallest_supported_bandwidth_index(bwp->scs, mac->frequency_range, bwp->BWPSize);
+    bwp->channel_bandwidth = get_supported_bw_mhz(mac->frequency_range, bw_index);
+    // Minumum transmission power depends on bandwidth, precalculate it here
+    bwp->P_CMIN = nr_get_Pcmin(bw_index);
     if (bwp_id == 0) {
       mac->sc_info.initial_ul_BWPSize = bwp->BWPSize;
       mac->sc_info.initial_ul_BWPStart = bwp->BWPStart;

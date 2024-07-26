@@ -44,24 +44,27 @@ TEST(test_pcmax, test_mpr)
   int nr_band = 20;
   float expected_power = 23 - (1.5 / 2);
   frame_type_t frame_type = TDD;
-  EXPECT_EQ(expected_power, nr_get_Pcmax(23, nr_band, frame_type, FR1, 2, false, 1, N_RB_UL, false, 6, prb_start));
+  int channel_bandwidth = 20;
+  EXPECT_EQ(expected_power,
+            nr_get_Pcmax(23, nr_band, frame_type, FR1, channel_bandwidth, 2, false, 1, N_RB_UL, false, 6, prb_start));
 
   // Outer PRB, MPR = 3, no delta MPR
   prb_start = 0;
   expected_power = 23 - (3.0 / 2);
-  EXPECT_EQ(expected_power, nr_get_Pcmax(23, nr_band, frame_type, FR1, 2, false, 1, N_RB_UL, false, 6, prb_start));
+  EXPECT_EQ(expected_power,
+            nr_get_Pcmax(23, nr_band, frame_type, FR1, channel_bandwidth, 2, false, 1, N_RB_UL, false, 6, prb_start));
 
   // Outer PRB on band 28, MPR = 3, delta MPR = 0.5 dB
   N_RB_UL = 78;
   nr_band = 28;
   expected_power = 23 - ((3.0 + 0.5) / 2);
-  EXPECT_EQ(expected_power, nr_get_Pcmax(23, nr_band, frame_type, FR1, 2, false, 1, N_RB_UL, false, 100, prb_start));
+  EXPECT_EQ(expected_power, nr_get_Pcmax(23, nr_band, frame_type, FR1, 30, 2, false, 1, N_RB_UL, false, 100, prb_start));
 }
 
 TEST(test_pcmax, test_not_implemented)
 {
   int N_RB_UL = 51;
-  EXPECT_DEATH(nr_get_Pcmax(23, 20, TDD, FR1, 1, false, 1, N_RB_UL, false, 6, 0), "MPR for Pi/2 BPSK not implemented yet");
+  EXPECT_DEATH(nr_get_Pcmax(23, 20, TDD, FR1, 20, 1, false, 1, N_RB_UL, false, 6, 0), "MPR for Pi/2 BPSK not implemented yet");
 }
 
 TEST(test_pcmax, test_pucch_max_power)
@@ -70,11 +73,12 @@ TEST(test_pcmax, test_pucch_max_power)
   int prb_start = 0;
   int N_RB_UL = 51; // 10Mhz
   float expected_power = 23 - (1.0 / 2);
-  EXPECT_EQ(expected_power, nr_get_Pcmax(23, 20, TDD, FR1, 2, false, 1, N_RB_UL, true, 1, prb_start));
+  int channel_bandwidth = 20;
+  EXPECT_EQ(expected_power, nr_get_Pcmax(23, 20, TDD, FR1, channel_bandwidth, 2, false, 1, N_RB_UL, true, 1, prb_start));
 
   // Other fromats, no transform precoding, MPR = 3
   expected_power = 23 - (3.0 / 2);
-  EXPECT_EQ(expected_power, nr_get_Pcmax(23, 20, TDD, FR1, 2, false, 1, N_RB_UL, false, 1, prb_start));
+  EXPECT_EQ(expected_power, nr_get_Pcmax(23, 20, TDD, FR1, channel_bandwidth, 2, false, 1, N_RB_UL, false, 1, prb_start));
 }
 
 TEST(test_pucch_power_state, test_accumulated_delta_pucch)
@@ -108,6 +112,7 @@ TEST(test_pucch_power_state, test_accumulated_delta_pucch)
                             mac.nr_band,
                             mac.frame_type,
                             FR1,
+                            current_UL_BWP.channel_bandwidth,
                             2,
                             false,
                             current_UL_BWP.scs,
@@ -177,9 +182,9 @@ TEST(test_pucch_power_state, test_accumulated_delta_pucch)
 
 TEST(pc_min, check_all_bw_indexes)
 {
-  const int NB_RB_UL[] = {11, 24, 38, 51, 65, 78, 106, 133, 162, 217, 245, 273};
-  for (auto i = 0U; i < sizeof(NB_RB_UL) / sizeof(NB_RB_UL[0]); i++) {
-    (void)nr_get_Pcmin(1, 20, NB_RB_UL[i]);
+  const int bws[] = {5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100};
+  for (auto i = 0U; i < sizeofArray(bws); i++) {
+    (void)nr_get_Pcmin(i);
   }
 }
 
@@ -189,6 +194,7 @@ TEST(pusch_power_control, pusch_power_control_msg3)
   NR_UE_UL_BWP_t current_UL_BWP = {0};
   current_UL_BWP.scs = 1;
   current_UL_BWP.BWPSize = 106;
+  current_UL_BWP.channel_bandwidth = 40;
   mac.current_UL_BWP = &current_UL_BWP;
   NR_RACH_ConfigCommon_t nr_rach_ConfigCommon = {0};
   current_UL_BWP.rach_ConfigCommon = &nr_rach_ConfigCommon;
@@ -218,6 +224,7 @@ TEST(pusch_power_control, pusch_power_control_msg3)
                             mac.nr_band,
                             mac.frame_type,
                             FR1,
+                            current_UL_BWP.channel_bandwidth,
                             Qm,
                             false,
                             current_UL_BWP.scs,
@@ -286,6 +293,7 @@ TEST(pusch_power_control, pusch_power_data)
   NR_UE_UL_BWP_t current_UL_BWP = {0};
   current_UL_BWP.scs = 1;
   current_UL_BWP.BWPSize = 106;
+  current_UL_BWP.channel_bandwidth = 40;
   mac.current_UL_BWP = &current_UL_BWP;
   NR_RACH_ConfigCommon_t nr_rach_ConfigCommon = {0};
   current_UL_BWP.rach_ConfigCommon = &nr_rach_ConfigCommon;
@@ -317,6 +325,7 @@ TEST(pusch_power_control, pusch_power_data)
                             mac.nr_band,
                             mac.frame_type,
                             FR1,
+                            current_UL_BWP.channel_bandwidth,
                             Qm,
                             false,
                             current_UL_BWP.scs,
@@ -365,6 +374,7 @@ TEST(pusch_power_control, pusch_power_control_state_initialization)
   NR_UE_UL_BWP_t current_UL_BWP = {0};
   current_UL_BWP.scs = 1;
   current_UL_BWP.BWPSize = 106;
+  current_UL_BWP.channel_bandwidth = 40;
   mac.current_UL_BWP = &current_UL_BWP;
   NR_RACH_ConfigCommon_t nr_rach_ConfigCommon = {0};
   current_UL_BWP.rach_ConfigCommon = &nr_rach_ConfigCommon;
@@ -412,6 +422,7 @@ TEST(pusch_power_control, pusch_power_control_state)
   NR_UE_UL_BWP_t current_UL_BWP = {0};
   current_UL_BWP.scs = 1;
   current_UL_BWP.BWPSize = 106;
+  current_UL_BWP.channel_bandwidth = 40;
   mac.current_UL_BWP = &current_UL_BWP;
   NR_RACH_ConfigCommon_t nr_rach_ConfigCommon = {0};
   current_UL_BWP.rach_ConfigCommon = &nr_rach_ConfigCommon;
@@ -443,6 +454,7 @@ TEST(pusch_power_control, pusch_power_control_state)
                             mac.nr_band,
                             mac.frame_type,
                             FR1,
+                            current_UL_BWP.channel_bandwidth,
                             Qm,
                             false,
                             current_UL_BWP.scs,
@@ -569,9 +581,25 @@ TEST(pusch_power_control, pusch_power_100_rb)
   EXPECT_GT(power_100_prbs, power);
 }
 
+TEST(test_pcmax, test_non_obvious_bwp_size)
+{
+  // Inner PRB, MPR = 1.5, no delta MPR
+  int prb_start = 4;
+  int N_RB_UL = 48;
+  int nr_band = 20;
+  frame_type_t frame_type = TDD;
+  int channel_bandwidth = 10;
+  float expected_power = 23 - 1.5 / 2;
+  EXPECT_EQ(expected_power,
+            nr_get_Pcmax(23, nr_band, frame_type, FR1, channel_bandwidth, 2, false, 1, N_RB_UL, false, 6, prb_start));
+}
+
 int main(int argc, char** argv)
 {
   logInit();
+  uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY);
+  g_log->log_component[MAC].level = OAILOG_DEBUG;
+  g_log->log_component[NR_MAC].level = OAILOG_DEBUG;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

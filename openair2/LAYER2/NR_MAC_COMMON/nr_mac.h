@@ -573,6 +573,10 @@ typedef struct NR_UE_UL_BWP {
   nr_dci_format_t dci_format;
   int max_fb_time;
   long *p0_NominalWithGrant;
+  // UE Channel bandwidth according to 38.101 5.3.2
+  int channel_bandwidth;
+  // Minimum transmission power according to 38.101 6.3.1
+  float P_CMIN;
 } NR_UE_UL_BWP_t;
 
 // non-BWP serving cell configuration
