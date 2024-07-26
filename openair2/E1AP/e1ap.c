@@ -735,13 +735,15 @@ static int fill_BEARER_CONTEXT_SETUP_REQUEST(e1ap_bearer_setup_req_t *const bear
       qos_characteristics_t *drb_QoS_char_in = &j->dRB_QoS.qos_characteristics;
       if (drb_QoS_char_in->qos_type == non_dynamic_5qi) {
         drb_QoS_char->present = E1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
-        drb_QoS_char->choice.non_Dynamic_5QI->fiveQI = drb_QoS_char_in->non_dynamic.fiveqi;
+        asn1cCalloc(drb_QoS_char->choice.non_Dynamic_5QI, non_Dynamic_5QI);
+        non_Dynamic_5QI->fiveQI = drb_QoS_char_in->non_dynamic.fiveqi;
       } else {
         drb_QoS_char->present = E1AP_QoS_Characteristics_PR_dynamic_5QI;
-        drb_QoS_char->choice.dynamic_5QI->qoSPriorityLevel = drb_QoS_char_in->dynamic.qos_priority_level;
-        drb_QoS_char->choice.dynamic_5QI->packetDelayBudget = drb_QoS_char_in->dynamic.packet_delay_budget;
-        drb_QoS_char->choice.dynamic_5QI->packetErrorRate.pER_Exponent = drb_QoS_char_in->dynamic.packet_error_rate.per_exponent;
-        drb_QoS_char->choice.dynamic_5QI->packetErrorRate.pER_Scalar = drb_QoS_char_in->dynamic.packet_error_rate.per_scalar;
+        asn1cCalloc(drb_QoS_char->choice.dynamic_5QI, dynamic_5QI);
+        dynamic_5QI->qoSPriorityLevel = drb_QoS_char_in->dynamic.qos_priority_level;
+        dynamic_5QI->packetDelayBudget = drb_QoS_char_in->dynamic.packet_delay_budget;
+        dynamic_5QI->packetErrorRate.pER_Exponent = drb_QoS_char_in->dynamic.packet_error_rate.per_exponent;
+        dynamic_5QI->packetErrorRate.pER_Scalar = drb_QoS_char_in->dynamic.packet_error_rate.per_scalar;
       }
 
       /* GBR Info for DRB */
@@ -1089,51 +1091,61 @@ void extract_BEARER_CONTEXT_SETUP_REQUEST(const E1AP_E1AP_PDU_t *pdu, e1ap_beare
                 E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs_t *ext = IE_Ext->list.array[extid];
 
                 switch (ext->id) {
-                  case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_QoSFlowLevelQoSParameters: {
-                    E1AP_QoS_Characteristics_t *drbqos2Setup =
-                        &ext->extensionValue.choice.QoSFlowLevelQoSParameters.qoS_Characteristics;
-                    qos_characteristics_t *drb_qos = &drb->dRB_QoS.qos_characteristics;
+                  case E1AP_ProtocolIE_ID_id_DRB_QoS:
+                    DevAssert(ext->criticality == E1AP_Criticality_reject);
+                    switch (ext->extensionValue.present) {
+                      case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_NOTHING: 
+                        break;
+                      case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_QoSFlowLevelQoSParameters: {
+                        LOG_E(E1AP,
+                              "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: Received QoSFlowLevelQoSParameters(%d) extension\n",
+                              (int)ext->id);
+                        E1AP_QoS_Characteristics_t *drbqos2Setup =
+                            &ext->extensionValue.choice.QoSFlowLevelQoSParameters.qoS_Characteristics;
+                        qos_characteristics_t *drb_qos = &drb->dRB_QoS.qos_characteristics;
 
-                    if (drbqos2Setup->present == E1AP_QoS_Characteristics_PR_non_Dynamic_5QI) { // non-dynamic
-                      drb_qos->qos_type = non_dynamic_5qi;
-                      drb_qos->non_dynamic.fiveqi = drbqos2Setup->choice.non_Dynamic_5QI->fiveQI;
-                    } else if (drbqos2Setup->present == E1AP_QoS_Characteristics_PR_dynamic_5QI) { // dynamic
-                      drb_qos->qos_type = dynamic_5qi;
-                      drb_qos->dynamic.qos_priority_level = drbqos2Setup->choice.dynamic_5QI->qoSPriorityLevel;
-                      drb_qos->dynamic.packet_delay_budget = drbqos2Setup->choice.dynamic_5QI->packetDelayBudget;
-                      drb_qos->dynamic.packet_error_rate.per_exponent =
-                          drbqos2Setup->choice.dynamic_5QI->packetErrorRate.pER_Exponent;
-                      drb_qos->dynamic.packet_error_rate.per_scalar = drbqos2Setup->choice.dynamic_5QI->packetErrorRate.pER_Scalar;
+                        if (drbqos2Setup->present == E1AP_QoS_Characteristics_PR_non_Dynamic_5QI) { // non-dynamic
+                          drb_qos->qos_type = non_dynamic_5qi;
+                          drb_qos->non_dynamic.fiveqi = drbqos2Setup->choice.non_Dynamic_5QI->fiveQI;
+                        } else if (drbqos2Setup->present == E1AP_QoS_Characteristics_PR_dynamic_5QI) { // dynamic
+                          drb_qos->qos_type = dynamic_5qi;
+                          drb_qos->dynamic.qos_priority_level = drbqos2Setup->choice.dynamic_5QI->qoSPriorityLevel;
+                          drb_qos->dynamic.packet_delay_budget = drbqos2Setup->choice.dynamic_5QI->packetDelayBudget;
+                          drb_qos->dynamic.packet_error_rate.per_exponent =
+                              drbqos2Setup->choice.dynamic_5QI->packetErrorRate.pER_Exponent;
+                          drb_qos->dynamic.packet_error_rate.per_scalar =
+                              drbqos2Setup->choice.dynamic_5QI->packetErrorRate.pER_Scalar;
+                        }
+
+                        gbr_qos_flow_information_t *drb_gbr_qos_info = drb->dRB_QoS.gbr_qos_flow_info;
+                        E1AP_GBR_QoSFlowInformation_t *drb_gbr_qos2setup =
+                            ext->extensionValue.choice.QoSFlowLevelQoSParameters.gBR_QoS_Flow_Information;
+                        if (drb_gbr_qos2setup) {
+                          asn_INTEGER2long(&drb_gbr_qos2setup->guaranteedFlowBitRateDownlink, &drb_gbr_qos_info->gbr_dl);
+                          asn_INTEGER2long(&drb_gbr_qos2setup->guaranteedFlowBitRateUplink, &drb_gbr_qos_info->gbr_ul);
+                          asn_INTEGER2long(&drb_gbr_qos2setup->maxFlowBitRateDownlink, &drb_gbr_qos_info->mbr_dl);
+                          asn_INTEGER2long(&drb_gbr_qos2setup->maxFlowBitRateUplink, &drb_gbr_qos_info->mbr_ul);
+                        }
+
+                        /* todo: ngran allocation retention priority for DRB still needs to be implemented */
+                        break;
+                      }
+                      case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_DAPSRequestInfo:
+                        AssertFatal(1 == 0, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: DAPSRequestInfo not supported yet\n");
+                        break;
+
+                      case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_IgnoreMappingRuleIndication:
+                        AssertFatal(1 == 0, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: IgnoreMappingRuleIndication not supported yet\n");
+                        break;
+
+                      case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_QoS_Flows_DRB_Remapping:
+                        AssertFatal(1 == 0, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: QoS_Flows_DRB_Remapping not supported yet\n");
+                        break;
+
+                      default:
+                        LOG_E(E1AP, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: %d unknown extension id\n", (int)ext->id);
+                        break;
                     }
-
-                    gbr_qos_flow_information_t *drb_gbr_qos_info = drb->dRB_QoS.gbr_qos_flow_info;
-                    E1AP_GBR_QoSFlowInformation_t *drb_gbr_qos2setup =
-                        ext->extensionValue.choice.QoSFlowLevelQoSParameters.gBR_QoS_Flow_Information;
-                    if (drb_gbr_qos2setup) {
-                      asn_INTEGER2long(&drb_gbr_qos2setup->guaranteedFlowBitRateDownlink, &drb_gbr_qos_info->gbr_dl);
-                      asn_INTEGER2long(&drb_gbr_qos2setup->guaranteedFlowBitRateUplink, &drb_gbr_qos_info->gbr_ul);
-                      asn_INTEGER2long(&drb_gbr_qos2setup->maxFlowBitRateDownlink, &drb_gbr_qos_info->mbr_dl);
-                      asn_INTEGER2long(&drb_gbr_qos2setup->maxFlowBitRateUplink, &drb_gbr_qos_info->mbr_ul);
-                    }
-
-                    /* todo: ngran allocation retention priority for DRB still needs to be implemented */
-                    break;
-                  }
-                  case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_DAPSRequestInfo:
-                    AssertFatal(1 == 0, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: DAPSRequestInfo not supported yet\n");
-                    break;
-
-                  case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_IgnoreMappingRuleIndication:
-                    AssertFatal(1 == 0, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: IgnoreMappingRuleIndication not supported yet\n");
-                    break;
-
-                  case E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs__extensionValue_PR_QoS_Flows_DRB_Remapping:
-                    AssertFatal(1 == 0, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: QoS_Flows_DRB_Remapping not supported yet\n");
-                    break;
-
-                  default:
-                    AssertFatal(1 == 0, "E1AP_DRB_To_Setup_Item_NG_RAN_ExtIEs: %d unknown\n", (int)ext->id);
-                    break;
                 }
               }
             }
