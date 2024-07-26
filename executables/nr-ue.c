@@ -607,7 +607,12 @@ static int UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc
     // Start synchronization with a target gNB
     if (UE->synch_request.received_synch_request == 1) {
       UE->is_synchronized = 0;
-      UE->UE_scan_carrier = UE->synch_request.synch_req.ssb_bw_scan;
+      // if upper layers signal BW scan we do as instructed by command line parameter
+      // if upper layers disable BW scan we set it to false
+      if (UE->synch_request.synch_req.ssb_bw_scan)
+        UE->UE_scan_carrier = get_nrUE_params()->UE_scan_carrier;
+      else
+        UE->UE_scan_carrier = false;
       UE->target_Nid_cell = UE->synch_request.synch_req.target_Nid_cell;
       clean_UE_harq(UE);
       UE->synch_request.received_synch_request = 0;
