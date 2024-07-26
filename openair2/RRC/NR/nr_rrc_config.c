@@ -2454,6 +2454,54 @@ int encode_SIB1_NR(NR_BCCH_DL_SCH_Message_t *sib1, uint8_t *buffer, int max_buff
   return (enc_rval.encoded + 7) / 8;
 }
 
+NR_BCCH_DL_SCH_Message_t *get_SIB19_NR(const NR_ServingCellConfigCommon_t *scc)
+{
+  NR_BCCH_DL_SCH_Message_t *sib_message = CALLOC(1, sizeof(NR_BCCH_DL_SCH_Message_t));
+  sib_message->message.present = NR_BCCH_DL_SCH_MessageType_PR_c1;
+  sib_message->message.choice.c1 = CALLOC(1,sizeof(struct NR_BCCH_DL_SCH_MessageType__c1));
+  sib_message->message.choice.c1->present = NR_BCCH_DL_SCH_MessageType__c1_PR_systemInformation;
+  sib_message->message.choice.c1->choice.systemInformation = CALLOC(1,sizeof(struct NR_SystemInformation));
+
+  struct NR_SystemInformation *sib = sib_message->message.choice.c1->choice.systemInformation;
+  sib->criticalExtensions.present = NR_SystemInformation__criticalExtensions_PR_systemInformation;
+  sib->criticalExtensions.choice.systemInformation = CALLOC(1, sizeof(struct NR_SystemInformation_IEs));
+
+  struct NR_SystemInformation_IEs *ies = sib->criticalExtensions.choice.systemInformation;
+
+  SystemInformation_IEs__sib_TypeAndInfo__Member *sib19 = NULL;
+  sib19 = CALLOC(1, sizeof(SystemInformation_IEs__sib_TypeAndInfo__Member));
+  sib19->present = NR_SystemInformation_IEs__sib_TypeAndInfo__Member_PR_sib19_v1700;
+  sib19->choice.sib19_v1700 = CALLOC(1, sizeof(struct NR_SIB19_r17));
+
+  // use ntn-config from NR_ServingCellConfigCommon_t
+  sib19->choice.sib19_v1700->ntn_Config_r17 = scc->ext2->ntn_Config_r17;
+
+  asn1cSeqAdd(&ies->sib_TypeAndInfo.list, sib19);
+
+  return sib_message;
+}
+
+int encode_SIB19_NR(NR_BCCH_DL_SCH_Message_t *sib19, uint8_t *buffer, int max_buffer_size)
+{
+  asn_enc_rval_t enc_rval;
+
+  enc_rval = uper_encode_to_buffer(&asn_DEF_NR_BCCH_DL_SCH_Message,
+                                   NULL,
+                                   (void *)sib19,
+                                   buffer,
+                                   150);
+  AssertFatal (enc_rval.encoded > 0, "ASN1 message encoding failed (%s, %lu)!\n",
+               enc_rval.failed_type->name, enc_rval.encoded);
+
+  // xer_fprint(stdout, &asn_DEF_NR_BCCH_DL_SCH_Message,(void *)sib19);
+  return((enc_rval.encoded+7)/8);
+}
+
+void free_SIB19_NR(NR_BCCH_DL_SCH_Message_t *sib19)
+{
+  ASN_STRUCT_FREE(asn_DEF_NR_BCCH_DL_SCH_Message, sib19);
+}
+
 static NR_PhysicalCellGroupConfig_t *configure_phy_cellgroup(void)
 {
   NR_PhysicalCellGroupConfig_t *physicalCellGroupConfig = calloc(1, sizeof(*physicalCellGroupConfig));

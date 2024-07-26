@@ -219,6 +219,13 @@ void prepare_scc(NR_ServingCellConfigCommon_t *scc) {
   scc->ext2 = CALLOC(1, sizeof(*scc->ext2));
   scc->ext2->ntn_Config_r17 = CALLOC(1, sizeof(*scc->ext2->ntn_Config_r17));
   scc->ext2->ntn_Config_r17->cellSpecificKoffset_r17 = CALLOC(1, sizeof(*scc->ext2->ntn_Config_r17->cellSpecificKoffset_r17));
+
+  scc->ext2->ntn_Config_r17->ephemerisInfo_r17  = CALLOC(1, sizeof(*scc->ext2->ntn_Config_r17->ephemerisInfo_r17));
+  scc->ext2->ntn_Config_r17->ta_Info_r17 = CALLOC(1, sizeof(*scc->ext2->ntn_Config_r17->ta_Info_r17));
+
+  scc->ext2->ntn_Config_r17->ephemerisInfo_r17->present = NR_EphemerisInfo_r17_PR_positionVelocity_r17;
+  scc->ext2->ntn_Config_r17->ephemerisInfo_r17->choice.positionVelocity_r17 = CALLOC(1, sizeof(*scc->ext2->ntn_Config_r17->ephemerisInfo_r17->choice.positionVelocity_r17));
+
 }
 
 void fill_scc_sim(NR_ServingCellConfigCommon_t *scc,uint64_t *ssb_bitmap,int N_RB_DL,int N_RB_UL,int mu_dl,int mu_ul) {
@@ -1403,8 +1410,11 @@ void RCconfig_nr_macrlc(configmodule_interface_t *cfg)
     read_du_cell_info(cfg, NODE_IS_DU(node_type), &gnb_id, &gnb_du_id, &name, &info, 1);
 
     if (get_softmodem_params()->sa)
+    {
       nr_mac_configure_sib1(RC.nrmac[0], &info.plmn, info.nr_cellid, *info.tac);
-
+      nr_mac_configure_sib19(RC.nrmac[0]);
+    }
+    
     // read F1 Setup information from config and generated MIB/SIB1
     // and store it at MAC for sending later
     NR_BCCH_BCH_Message_t *mib = RC.nrmac[0]->common_channels[0].mib;

@@ -692,6 +692,17 @@ void nr_mac_configure_sib1(gNB_MAC_INST *nrmac, const f1ap_plmn_t *plmn, uint64_
   AssertFatal(cc->sib1_bcch_length > 0, "could not encode SIB1\n");
 }
 
+void nr_mac_configure_sib19(gNB_MAC_INST *nrmac)
+{
+  AssertFatal(get_softmodem_params()->sa > 0, "error: SIB19 only applicable for SA\n");
+  NR_COMMON_channels_t *cc = &nrmac->common_channels[0];
+  NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
+  NR_BCCH_DL_SCH_Message_t *sib19 = get_SIB19_NR(scc);
+  cc->sib19 = sib19;
+  cc->sib19_bcch_length = encode_SIB19_NR(sib19, cc->sib19_bcch_pdu, sizeof(cc->sib19_bcch_pdu));
+  AssertFatal(cc->sib19_bcch_length > 0, "could not encode SIB19\n");
+}
+
 bool nr_mac_add_test_ue(gNB_MAC_INST *nrmac, uint32_t rnti, NR_CellGroupConfig_t *CellGroup)
 {
   /* ideally, instead of this function, "users" of this function should call
