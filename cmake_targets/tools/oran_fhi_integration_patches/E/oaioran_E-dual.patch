@@ -1,3 +1,16 @@
+diff --git a/fhi_lib/app/src/common.h b/fhi_lib/app/src/common.h
+index 7508117..0dbe0bd 100644
+--- a/fhi_lib/app/src/common.h
++++ b/fhi_lib/app/src/common.h
+@@ -28,7 +28,7 @@
+ #include <rte_common.h>
+ #include <rte_mbuf.h>
+ 
+-#define VERSIONX                "oran_e_maintenance_release_v1.0"
++#define VERSIONX                "oran_e_maintenance_release_v1.3"
+ 
+ #define APP_O_DU  0
+ #define APP_O_RU  1
 diff --git a/fhi_lib/lib/Makefile b/fhi_lib/lib/Makefile
 index de141bf..0c136b5 100644
 --- a/fhi_lib/lib/Makefile
