@@ -2244,6 +2244,30 @@ NR_BCCH_DL_SCH_Message_t *get_SIB1_NR(const NR_ServingCellConfigCommon_t *scc,
 
   asn1cSeqAdd(&sib1->si_SchedulingInfo->schedulingInfoList.list,schedulingInfo);*/
 
+  // sib19 scheduling info
+  // this condition ensures ntn-config is initialized 
+  if (scc->ext2 && scc->ext2->ntn_Config_r17)
+  {
+    sib1->nonCriticalExtension = CALLOC(1, sizeof(struct NR_SIB1_v1610_IEs));
+    sib1->nonCriticalExtension->nonCriticalExtension = CALLOC(1, sizeof(struct NR_SIB1_v1630_IEs));
+    sib1->nonCriticalExtension->nonCriticalExtension->nonCriticalExtension = CALLOC(1, sizeof(struct NR_SIB1_v1700_IEs));
+
+    struct NR_SI_SchedulingInfo_v1700* sib_v17_scheduling_info = CALLOC(1, sizeof(struct NR_SI_SchedulingInfo_v1700));
+
+    struct NR_SchedulingInfo2_r17* si_schedulinginfo2_r17 = CALLOC(1, sizeof(struct NR_SchedulingInfo2_r17));
+    si_schedulinginfo2_r17->si_BroadcastStatus_r17 = NR_SchedulingInfo2_r17__si_BroadcastStatus_r17_broadcasting;
+    si_schedulinginfo2_r17->si_WindowPosition_r17 = 2;
+    si_schedulinginfo2_r17->si_Periodicity_r17 = NR_SchedulingInfo2_r17__si_Periodicity_r17_rf16;
+
+    struct NR_SIB_TypeInfo_v1700* sib_type_info = CALLOC(1, sizeof(struct NR_SIB_TypeInfo_v1700));
+    sib_type_info->sibType_r17.present = NR_SIB_TypeInfo_v1700__sibType_r17_PR_type1_r17;
+    sib_type_info->sibType_r17.choice.type1_r17 = NR_SIB_TypeInfo_v1700__sibType_r17__type1_r17_sibType19;
+
+    asn1cSeqAdd(&si_schedulinginfo2_r17->sib_MappingInfo_r17.list, sib_type_info);
+    asn1cSeqAdd(&sib_v17_scheduling_info->schedulingInfoList2_r17.list, si_schedulinginfo2_r17);
+    sib1->nonCriticalExtension->nonCriticalExtension->nonCriticalExtension->si_SchedulingInfo_v1700 = sib_v17_scheduling_info;
+  }
+
   // servingCellConfigCommon
   asn1cCalloc(sib1->servingCellConfigCommon, ServCellCom);
   NR_BWP_DownlinkCommon_t *initialDownlinkBWP = &ServCellCom->downlinkConfigCommon.initialDownlinkBWP;
@@ -2434,7 +2458,10 @@ NR_BCCH_DL_SCH_Message_t *get_SIB1_NR(const NR_ServingCellConfigCommon_t *scc,
   // nonCriticalExtension
   // TODO: add nonCriticalExtension
 
-  //xer_fprint(stdout, &asn_DEF_NR_SIB1, (const void*)sib1_message->message.choice.c1->choice.systemInformationBlockType1);
+  if (LOG_DEBUGFLAG(DEBUG_ASN1)) {
+    xer_fprint(stdout, &asn_DEF_NR_SIB1, (const void*)sib1_message->message.choice.c1->choice.systemInformationBlockType1);
+  }
+
   return sib1_message;
 }
 
