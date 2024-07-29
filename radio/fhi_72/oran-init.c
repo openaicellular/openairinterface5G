@@ -307,7 +307,15 @@ static void oran_allocate_buffers(void *handle,
   uint32_t xran_max_sections_per_slot = RTE_MAX(fh_config->max_sections_per_slot, XRAN_MIN_SECTIONS_PER_SLOT);
   uint32_t size_of_prb_map = sizeof(struct xran_prb_map) + sizeof(struct xran_prb_elm) * (xran_max_sections_per_slot - 1);
 
-  pi->buf_list = _mm_malloc(sizeof(*pi->buf_list), 256);
+#if defined(__arm__) || defined(__aarch64__)
+    // ARM-specific memory allocation
+    if (posix_memalign((void**)&pi->buf_list, 256, sizeof(*pi->buf_list)) != 0) {
+        AssertFatal(0, "out of memory\n");
+    }
+#else
+    // Intel-specific memory allocation
+    pi->buf_list = _mm_malloc(sizeof(*pi->buf_list), 256);
+#endif
   AssertFatal(pi->buf_list != NULL, "out of memory\n");
   oran_buf_list_t *bl = pi->buf_list;
 
