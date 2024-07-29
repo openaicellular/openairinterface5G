@@ -1317,13 +1317,16 @@ static void nr_update_sr(NR_UE_MAC_INST_t *mac)
   // if the UL-SCH resources available for a new transmission do not meet the LCP mapping restrictions
   // TODO not implemented
 
+  NR_UE_UL_BWP_t *current_UL_BWP = mac->current_UL_BWP;
+  NR_PUCCH_Config_t *pucch_Config = current_UL_BWP ? current_UL_BWP->pucch_Config : NULL;
+  if (!pucch_Config || !pucch_Config->schedulingRequestResourceToAddModList)
+    return; // cannot schedule SR if there is no schedulingRequestResource configured
+
   if (lc_info->sr_id < 0 || lc_info->sr_id >= NR_MAX_SR_ID)
     LOG_E(NR_MAC, "No SR corresponding to this LCID\n"); // TODO not sure what to do here
   else {
     nr_sr_info_t *sr = &sched_info->sr_info[lc_info->sr_id];
     if (!sr->pending) {
-      NR_UE_UL_BWP_t *current_UL_BWP = mac->current_UL_BWP;
-      NR_PUCCH_Config_t *pucch_Config = current_UL_BWP ? current_UL_BWP->pucch_Config : NULL;
       if (check_pucchres_for_pending_SR(pucch_Config, lc_info->sr_id)) {
         // trigger SR
         LOG_D(NR_MAC, "Triggering SR for ID %d\n", lc_info->sr_id);
