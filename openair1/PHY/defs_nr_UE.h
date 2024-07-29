@@ -508,6 +508,9 @@ typedef struct PHY_VARS_NR_UE_s {
   /// N0 (used for abstraction)
   double N0;
 
+  /// NR LDPC coding related
+  int nrLDPC_coding_interface_flag; // Flag enabling NR LDPC coding module
+
   uint8_t max_ldpc_iterations;
 
   int ldpc_offload_enable;

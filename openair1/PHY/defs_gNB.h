@@ -630,7 +630,9 @@ typedef struct PHY_VARS_gNB_s {
   /// OFDM symbol offset divisor for UL
   uint32_t ofdm_offset_divisor;
 
+  /// NR LDPC coding related
   int ldpc_offload_flag;
+  int nrLDPC_coding_interface_flag; // Flag enabling NR LDPC coding module
 
   int max_ldpc_iterations;
   /// indicate the channel estimation technique in time domain

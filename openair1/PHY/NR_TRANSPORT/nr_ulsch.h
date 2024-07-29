@@ -64,6 +64,24 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
                       uint8_t harq_pid,
                       uint32_t G);
 
+/*! \brief Perform PUSCH decoding for the whole current received TTI. TS 38.212 V15.4.0 subclause 6.2
+  @param phy_vars_gNB, Pointer to PHY data structure for gNB
+  @param frame_parms, Pointer to frame descriptor structure
+  @param frame, current received frame
+  @param nr_tti_rx, current received TTI
+  @param G
+  @param ULSCH_ids, array of ULSCH ids
+  @param nb_pusch, number of uplink shared channels
+*/
+
+int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
+                           NR_DL_FRAME_PARMS *frame_parms,
+                           uint32_t frame,
+                           uint8_t nr_tti_rx,
+                           uint32_t *G,
+                           uint8_t *ULSCH_ids,
+                           int nb_pusch);
+
 /*! \brief Perform PUSCH unscrambling. TS 38.211 V15.4.0 subclause 6.3.1.1
   @param llr, Pointer to llr bits
   @param size, length of llr bits

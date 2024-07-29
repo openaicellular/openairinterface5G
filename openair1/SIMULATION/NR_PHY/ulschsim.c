@@ -449,6 +449,12 @@ int main(int argc, char **argv)
 
   nr_init_ul_harq_processes(UE->ul_harq_processes, NR_MAX_ULSCH_HARQ_PROCESSES, UE->frame_parms.N_RB_UL, UE->frame_parms.nb_antennas_tx);
 
+  UE->nrLDPC_coding_interface_flag = gNB->nrLDPC_coding_interface_flag;
+
+  if (UE->nrLDPC_coding_interface_flag) {
+    initFloatingCoresTpool(1, &nrUE_params.Tpool, false, "UE-tpool");
+  }
+
   unsigned char harq_pid = 0;
   unsigned int TBS = 8424;
   unsigned int available_bits;
@@ -531,7 +537,11 @@ int main(int argc, char **argv)
   unsigned int G = available_bits;
 
   if (input_fd == NULL) {
-    nr_ulsch_encoding(UE, ulsch_ue, frame_parms, harq_pid, TBS>>3, G);
+    if (UE->nrLDPC_coding_interface_flag) {
+      nr_ulsch_encoding_slot(UE, ulsch_ue, 0, 0, 1, &harq_pid, &G);
+    } else {
+      nr_ulsch_encoding(UE, ulsch_ue, frame_parms, harq_pid, TBS>>3, G);
+    }
   }
   
   printf("\n");
@@ -595,18 +605,26 @@ int main(int argc, char **argv)
       exit(-1);
 #endif
 
-     int nbDecode = nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul, frame, subframe, harq_pid, G);
-     int nb_ok = 0;
-     if (nbDecode > 0)
-       while (nbDecode > 0) {
-         notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
-         ret = nr_postDecode_sim(gNB, req, &nb_ok);
-         delNotifiedFIFO_elt(req);
-         nbDecode--;
-       }
+      if (gNB->nrLDPC_coding_interface_flag) {
+        nr_ulsch_decoding_slot(gNB, frame_parms, frame, subframe, &G, &UE_id, 1);
+        bool crc_valid = check_crc(harq_process_gNB->b, lenWithCrc(1, (harq_process_gNB->TBS) << 3), crcType(1, (harq_process_gNB->TBS) << 3));
+        if (!crc_valid) {
+          n_errors++;
+        }
+      } else {
+        int nbDecode = nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul, frame, subframe, harq_pid, G);
+        int nb_ok = 0;
+        if (nbDecode > 0)
+          while (nbDecode > 0) {
+            notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
+            ret = nr_postDecode_sim(gNB, req, &nb_ok);
+            delNotifiedFIFO_elt(req);
+            nbDecode--;
+          }
 
-      if (ret)
-        n_errors++;
+        if (ret)
+          n_errors++;
+      }
     }
     
     printf("*****************************************\n");

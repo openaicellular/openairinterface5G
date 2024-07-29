@@ -380,7 +380,7 @@ int main(int argc, char **argv)
 	RC.gNB[0] = calloc(1, sizeof(PHY_VARS_gNB));
 	gNB = RC.gNB[0];
 	initNamedTpool(gNBthreads, &gNB->threadPool, true, "gNB-tpool");
-        initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
+  initFloatingCoresTpool(dlsch_threads, &nrUE_params.Tpool, false, "UE-tpool");
 	//gNB_config = &gNB->gNB_config;
 	frame_parms = &gNB->frame_parms; //to be initialized I suppose (maybe not necessary for PBCH)
 	frame_parms->nb_antennas_tx = n_tx;
@@ -430,6 +430,9 @@ int main(int argc, char **argv)
 
 	//nr_init_frame_parms_ue(&UE->frame_parms);
 	//init_nr_ue_transport(UE, 0);
+
+  UE->nrLDPC_coding_interface_flag = gNB->nrLDPC_coding_interface_flag;
+
   NR_UE_DLSCH_t dlsch_ue[NR_MAX_NB_LAYERS > 4? 2:1] = {0};
   int num_codeword = NR_MAX_NB_LAYERS > 4? 2:1;
   nr_ue_dlsch_init(dlsch_ue, num_codeword, 5);
@@ -513,7 +516,13 @@ int main(int argc, char **argv)
         unsigned char output[rel15->rbSize * NR_SYMBOLS_PER_SLOT * NR_NB_SC_PER_RB * 8 * NR_MAX_NB_LAYERS] __attribute__((aligned(32)));
         bzero(output,rel15->rbSize * NR_SYMBOLS_PER_SLOT * NR_NB_SC_PER_RB * 8 * NR_MAX_NB_LAYERS);
 	if (input_fd == NULL) {
-	  nr_dlsch_encoding(gNB, frame, slot, &dlsch->harq_process, frame_parms,output,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+    if (gNB->nrLDPC_coding_interface_flag) {
+      msgDataTx.num_pdsch_slot = 1;
+      unsigned char *p_output = output;
+	    nr_dlsch_encoding_slot(gNB, &msgDataTx, frame, slot, frame_parms, &p_output, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    } else {
+	    nr_dlsch_encoding(gNB, frame, slot, &dlsch->harq_process, frame_parms, output, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    }
 	}
 
 	for (SNR = snr0; SNR < snr1; SNR += snr_step) {
@@ -569,20 +578,35 @@ int main(int argc, char **argv)
       }
       uint32_t dlsch_bytes = a_segments*1056;  // allocated bytes per segment
       __attribute__ ((aligned(32))) uint8_t b[dlsch_bytes];
-      ret = nr_dlsch_decoding(UE,
-                              &proc,
-                              0,
-                              channel_output_fixed,
-                              &UE->frame_parms,
-                              dlsch0_ue,
-                              harq_process,
-                              frame,
-                              nb_symb_sch,
-                              slot,
-                              harq_pid,
-                              dlsch_bytes,
-                              b,
-                              available_bits);
+      if (gNB->nrLDPC_coding_interface_flag) {
+        uint8_t DLSCH_ids[1] = {0};
+        short *p_channel_output_fixed = channel_output_fixed;
+        uint8_t *p_b = b;
+        int available_bits_array[1] = { available_bits };
+        ret = nr_dlsch_decoding_slot(UE,
+                                     &proc,
+                                     dlsch0_ue,
+                                     &p_channel_output_fixed,
+                                     &p_b,
+                                     available_bits_array,
+                                     1,
+                                     DLSCH_ids);
+      } else {
+        ret = nr_dlsch_decoding(UE,
+                                &proc,
+                                0,
+                                channel_output_fixed,
+                                &UE->frame_parms,
+                                dlsch0_ue,
+                                harq_process,
+                                frame,
+                                nb_symb_sch,
+                                slot,
+                                harq_pid,
+                                dlsch_bytes,
+                                b,
+                                available_bits);
+      }
 
       vcd_signal_dumper_dump_function_by_name(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_DECODING0, VCD_FUNCTION_OUT);
 

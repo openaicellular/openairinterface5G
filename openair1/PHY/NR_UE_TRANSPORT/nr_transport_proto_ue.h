@@ -175,29 +175,29 @@ void nr_conjch0_mult_ch1(int *ch0,
                          unsigned short nb_rb,
                          unsigned char output_shift0);
 
-/** \brief This is the top-level entry point for DLSCH decoding in UE.  It should be replicated on several
+/** \brief This is the top-level entry point for DLSCH decoding in UE. It should be replicated on several
     threads (on multi-core machines) corresponding to different HARQ processes. The routine first
-    computes the segmentation information, followed by rate dematching and sub-block deinterleaving the of the
+    computes the segmentation information, followed by rate dematching and sub-block deinterleaving of the
     received LLRs computed by dlsch_demodulation for each transport block segment. It then calls the
-    turbo-decoding algorithm for each segment and stops after either after unsuccesful decoding of at least
-    one segment or correct decoding of all segments.  Only the segment CRCs are check for the moment, the
-    overall CRC is ignored.  Finally transport block reassembly is performed.
-    @param phy_vars_ue Pointer to ue variables
-    @param proc
-    @param eNB_id
-    @param dlsch_llr Pointer to LLR values computed by dlsch_demodulation
-    @param frame_parms Pointer to frame descriptor
-    @param dlsch Pointer to DLSCH descriptor
-    @param harq_process
-    @param frame Frame number
-    @param nb_symb_sch
-    @param nr_slot_rx Slot number
-    @param harq_pid
-    @param b_size
-    @param b
+    LDPC decoding algorithm for each segment and stops after either unsuccesful decoding of at least
+    one segment or correct decoding of all segments.Only the segment CRCs are checked for the moment, the
+    overall CRC is ignored. Finally transport block reassembly is performed.
+    @param[in] phy_vars_ue Pointer to ue variables
+    @param[in] proc
+    @param[in] eNB_id
+    @param[in] dlsch_llr Pointer to LLR values computed by dlsch_demodulation
+    @param[in] frame_parms Pointer to frame descriptor
+    @param[in] dlsch Pointer to DLSCH descriptor
+    @param[in] harq_process
+    @param[in] frame Frame number
+    @param[in] nb_symb_sch
+    @param[in] nr_slot_rx Slot number
+    @param[in] harq_pid
+    @param[in] b_size
+    @param[in] b
+    @param[in] G
     @returns 0 on success, 1 on unsuccessful decoding
 */
-
 uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
                            const UE_nr_rxtx_proc_t *proc,
                            int eNB_id,
@@ -213,12 +213,71 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
                            uint8_t b[b_size],
                            int G);
 
+/** \brief This is the alternative top-level entry point for DLSCH decoding in UE.
+    It handles all the HARQ processes in only one call. The routine first
+    computes the segmentation information and then call LDPC decoder on the
+    received LLRs computed by dlsch_demodulation.
+    It stops after either unsuccesful decoding of at least
+    one segment or correct decoding of all segments. Only the segment CRCs are checked for the moment, the
+    overall CRC is ignored. Finally transport block reassembly is performed.
+    @param[in] phy_vars_ue Pointer to ue variables
+    @param[in] proc
+    @param[in] dlsch_llr Pointers to LLR values computed by dlsch_demodulation
+    @param[in] b
+    @param[in] G array of Gs
+    @param[in] nb_dlsch number of active downlink shared channels
+    @param[in] DLSCH_ids array of active downlink shared channels
+    @returns 0 on success, 1 on unsuccessful decoding
+*/
+uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
+                                const UE_nr_rxtx_proc_t *proc,
+                                NR_UE_DLSCH_t *dlsch,
+                                short **dlsch_llr,
+                                uint8_t **b,
+                                int *G,
+                                int nb_dlsch,
+                                uint8_t *DLSCH_ids);
+
+/** \brief This is the top-level entry point for ULSCH encoding in UE. It should be replicated on several
+    threads (on multi-core machines) corresponding to different HARQ processes. The routine first
+    computes the segmentation information, followed by LDPC encoding algorithm of the
+    Transport Block for each transport block segment. It then calls the
+    rate dematching and sub-block deinterleaving for each segment.
+    @param[in] phy_vars_ue Pointer to ue variables
+    @param[in] ulsch Pointer to ULSCH descriptor
+    @param[in] frame_parms Pointer to frame descriptor
+    @param[in] harq_pid HARQ process id
+    @param[in] tb_size Transport Block size
+    @param[in] G
+    @returns 0 on success, -1 on unsuccessful decoding
+*/
 int nr_ulsch_encoding(PHY_VARS_NR_UE *ue,
                      NR_UE_ULSCH_t *ulsch,
                      NR_DL_FRAME_PARMS* frame_parms,
                      uint8_t harq_pid,
                      uint32_t tb_size,
                      unsigned int G);
+
+/** \brief This is the alternative top-level entry point for ULSCH encoding in UE.
+    It handles all the HARQ processes in only one call. The routine first
+    computes the segmentation information, followed by LDPC encoding algorithm of the
+    Transport Block.
+    @param[in] phy_vars_ue pointer to ue variables
+    @param[in] ulsch Pointer to ULSCH descriptor
+    @param[in] frame frame index
+    @param[in] slot slot index
+    @param[in] nb_harq number of HARQ processes
+    @param[in] harq_pids array of HARQ process ids
+    @param[in] G array of Gs
+    @returns 0 on success, -1 on unsuccessful decoding
+*/
+int nr_ulsch_encoding_slot(PHY_VARS_NR_UE *ue,
+                           NR_UE_ULSCH_t *ulsch,
+                           const uint32_t frame,
+                           const uint8_t slot,
+                           int nb_harq,
+                           uint8_t *harq_pids,
+                           unsigned int *G);
 
 /*! \brief Perform PUSCH scrambling. TS 38.211 V15.4.0 subclause 6.3.1.1
   @param[in] in Pointer to input bits
@@ -240,8 +299,14 @@ void nr_pusch_codeword_scrambling(uint8_t *in,
     - scrambling
     - modulation
     - transform precoding
+    @param[in] UE pointer to ue variables
+    @param[in] harq_pid
+    @param[in] frame frame index
+    @param[in] slot slot index
+    @param[in] gNB_id gNB index
+    @param[in] phy_data PHY layer informations
+    @param[in] c16_t
 */
-
 void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
                             const unsigned char harq_pid,
                             const uint32_t frame,
@@ -249,6 +314,25 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
                             const int gNB_id,
                             nr_phy_data_tx_t *phy_data,
                             c16_t **txdataF);
+
+/** \brief Alternative entry point to UE uplink shared channels procedures.
+    It handles all the HARQ processes in only one call.
+    Performs the following functionalities:
+    - encoding
+    - scrambling
+    - modulation
+    - transform precoding
+    @param[in] UE pointer to ue variables
+    @param[in] frame frame index
+    @param[in] slot slot index
+    @param[in] phy_data PHY layer informations
+    @param[in] c16_t
+*/
+void nr_ue_ulsch_procedures_slot(PHY_VARS_NR_UE *UE,
+                                 const uint32_t frame,
+                                 const uint8_t slot,
+                                 nr_phy_data_tx_t *phy_data,
+                                 c16_t **txdataF);
 
 /** \brief This function does IFFT for PUSCH
 */
