@@ -372,61 +372,13 @@ void nr_sl_rf_card_config_freq(PHY_VARS_NR_UE *ue,
                                openair0_config_t *openair0_cfg,
                                int freq_offset);
 
-/** \brief This function is the top-level entry point to PDSCH demodulation, after frequency-domain transformation and channel
-   estimation.  It performs
-    - RB extraction (signal and channel estimates)
-    - channel compensation (matched filtering)
-    - RE extraction (pilot, PBCH, synch. signals)
-    - antenna combining (MRC, Alamouti, cycling)
-    - LLR computation
-    This function supports TM1, 2, 3, 5, and 6.
-    @param ue Pointer to PHY variables
-    @param proc
-    @prama dlsch
-    @param symbol Symbol on which to act (within sub-frame)
-    @param first_symbol_flag set to 1 on first DLSCH symbol
-    @param harq_pid
-    @param pdsch_est_size
-    @param dl_ch_estimates
-    @param llr
-    @param dl_valid_re
-    @param rxdataF
-    @param llr_offset
-    @param log2_maxhrx_size_symbol
-    @param rx_size_symbol
-    @param nbRx
-    @param rxdataF_comp
-    @param ptrs_phase_per_slot
-    @param ptrs_re_per_slot
-*/
-int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
-                const UE_nr_rxtx_proc_t *proc,
-                NR_UE_DLSCH_t dlsch[2],
-                unsigned char symbol,
-                bool first_symbol_flag,
-                unsigned char harq_pid,
-                uint32_t pdsch_est_size,
-                int32_t dl_ch_estimates[][pdsch_est_size],
-                int16_t *llr[2],
-                uint32_t dl_valid_re[NR_SYMBOLS_PER_SLOT],
-                c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP],
-                uint32_t llr_offset[NR_SYMBOLS_PER_SLOT],
-                int32_t *log2_maxh,
-                int rx_size_symbol,
-                int nbRx,
-                int32_t rxdataF_comp[][nbRx][rx_size_symbol * NR_SYMBOLS_PER_SLOT],
-                c16_t ptrs_phase_per_slot[][NR_SYMBOLS_PER_SLOT],
-                int32_t ptrs_re_per_slot[][NR_SYMBOLS_PER_SLOT],
-                int G,
-                uint32_t nvar);
-
 int32_t generate_nr_prach(PHY_VARS_NR_UE *ue, uint8_t gNB_id, int frame, uint8_t slot);
 
 void dump_nrdlsch(PHY_VARS_NR_UE *ue,uint8_t gNB_id,uint8_t nr_slot_rx,unsigned int *coded_bits_per_codeword,int round,  unsigned char harq_pid);
 void nr_a_sum_b(c16_t *input_x, c16_t *input_y, unsigned short nb_rb);
 
 void nr_generate_psbch_llr(const NR_DL_FRAME_PARMS *frame_parms,
-                           const c16_t rxdataF[][frame_parms->ofdm_symbol_size],
+                           const c16_t rxdataF[][ALNARS_32_8(frame_parms->ofdm_symbol_size)],
                            const c16_t dl_ch_estimates[][frame_parms->ofdm_symbol_size],
                            int symbol,
                            int *psbch_e_rx_offset,

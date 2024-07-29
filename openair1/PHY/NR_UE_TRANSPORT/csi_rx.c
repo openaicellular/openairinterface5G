@@ -206,7 +206,7 @@ static void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
                                          const uint8_t j_cdm[16],
                                          const uint8_t k_overline[16],
                                          const uint8_t l_overline[16],
-                                         const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
+                                         const c16_t rxdataF[][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                                          const int symbol,
                                          c16_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
                                          nr_csi_symbol_res_t *res)
@@ -297,7 +297,7 @@ void nr_ue_csi_rs_symbol_procedures(
     const nr_csi_phy_parms_t *csi_phy_parms,
     const int symbol,
     const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
-    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
     c16_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size],
     nr_csi_symbol_res_t *csi_symb_res)
 {
@@ -693,12 +693,13 @@ int nr_csi_rs_cqi_estimation(const uint32_t precoded_sinr,
   return 0;
 }
 
-void nr_csi_im_symbol_power_estimation(const PHY_VARS_NR_UE *ue,
-                                       const UE_nr_rxtx_proc_t *proc,
-                                       const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
-                                       const int symbol,
-                                       const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
-                                       nr_csi_symbol_res_t *csi_im_res)
+void nr_csi_im_symbol_power_estimation(
+    const PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
+    const int symbol,
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
+    nr_csi_symbol_res_t *csi_im_res)
 {
   const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
 

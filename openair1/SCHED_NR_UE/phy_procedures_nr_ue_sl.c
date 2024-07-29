@@ -107,7 +107,7 @@ void nr_fill_sl_rx_indication(sl_nr_rx_indication_t *rx_ind,
 static void nr_psbch_symbol_process(PHY_VARS_NR_UE *ue,
                                     const UE_nr_rxtx_proc_t *proc,
                                     const int symbol,
-                                    const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
+                                    const c16_t rxdataF[][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                                     int *psbch_e_rx_offset,
                                     int16_t psbch_e_rx[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2],
                                     int16_t psbch_unClipped[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2],
@@ -170,7 +170,7 @@ static int nr_psbch_process(PHY_VARS_NR_UE *ue,
                             nr_phy_data_t *phy_data,
                             const UE_nr_rxtx_proc_t *proc,
                             const int symbol,
-                            const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
+                            const c16_t rxdataF[][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                             int *psbch_e_rx_offset,
                             int16_t psbch_e_rx[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2],
                             int16_t psbch_unClipped[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2],
@@ -207,7 +207,22 @@ static int nr_psbch_process(PHY_VARS_NR_UE *ue,
   return sampleShift;
 }
 
-int psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
+void sl_slot_init(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, nr_ue_phy_slot_data_t *slot_data)
+{
+  sl_nr_ue_phy_params_t *sl_phy_params = &ue->SL_UE_PHY_PARAMS;
+  NR_DL_FRAME_PARMS *fp = &sl_phy_params->sl_frame_params;
+  slot_data->psbch_ch_estimates = malloc16(sizeof(*slot_data->psbch_ch_estimates) * fp->nb_antennas_rx * fp->ofdm_symbol_size);
+  slot_data->psbch_e_rx = malloc16(sizeof(*slot_data->psbch_e_rx) * SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2);
+  slot_data->psbch_unClipped = malloc16(sizeof(*slot_data->psbch_unClipped) * SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2);
+  slot_data->e_rx_offset = 0;
+}
+
+int psbch_pscch_processing(PHY_VARS_NR_UE *ue,
+                           const UE_nr_rxtx_proc_t *proc,
+                           nr_phy_data_t *phy_data,
+                           nr_ue_phy_slot_data_t *slot_data,
+                           int symbol,
+                           const c16_t rxdataF[][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)])
 {
   int frame_rx = proc->frame_rx;
   int nr_slot_rx = proc->nr_slot_rx;
@@ -220,29 +235,19 @@ int psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr
 
   LOG_D(NR_PHY, " ****** Sidelink RX-Chain for Frame.Slot %d.%d ******  \n", frame_rx % 1024, nr_slot_rx);
 
-  const uint32_t rxdataF_sz = fp->samples_per_slot_wCP;
-  __attribute__((aligned(32))) c16_t rxdataF[fp->nb_antennas_rx][rxdataF_sz];
-
   if (phy_data->sl_rx_action == SL_NR_CONFIG_TYPE_RX_PSBCH) {
     // VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PSBCH, VCD_FUNCTION_IN);
     LOG_D(NR_PHY, " ----- PSBCH RX TTI: frame.slot %d.%d ------  \n", frame_rx % 1024, nr_slot_rx);
 
-    __attribute__((aligned(32))) struct complex16 dl_ch_estimates_time[fp->nb_antennas_rx][fp->ofdm_symbol_size];
-
-    int16_t psbch_e_rx[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2] = {0};
-    int16_t psbch_unClippled[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2] = {0};
-    int e_rx_offset=0;
-    /* TODO: Remove loop over symbols in later commit. */
-    for (int sym = 0; sym < NR_SYMBOLS_PER_SLOT; sym++) {
-      nr_slot_fep(ue, fp, proc, sym, rxdataF, link_type_sl);
-      __attribute__((aligned(32))) c16_t rxdataF_symb[fp->nb_antennas_rx][fp->ofdm_symbol_size];
-      for(int aarx=0;aarx<fp->nb_antennas_rx;aarx++){
-        /* TODO: Remove this buffer reshaping in later commit after rxdataF is in right format */
-        memcpy(rxdataF_symb[aarx], &rxdataF[aarx][sym * fp->ofdm_symbol_size], sizeof(c16_t) * fp->ofdm_symbol_size);
-      }
-      sampleShift =
-          nr_psbch_process(ue, phy_data, proc, sym, rxdataF_symb, &e_rx_offset, psbch_e_rx, psbch_unClippled, dl_ch_estimates_time);
-    }
+    sampleShift = nr_psbch_process(ue,
+                                   phy_data,
+                                   proc,
+                                   symbol,
+                                   rxdataF,
+                                   &slot_data->e_rx_offset,
+                                   *((int16_t(*)[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2]) slot_data->psbch_e_rx),
+                                   *((int16_t(*)[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2]) slot_data->psbch_unClipped),
+                                   *((c16_t(*)[fp->nb_antennas_rx][fp->ofdm_symbol_size])slot_data->psbch_ch_estimates));
 
     if (frame_rx % 64 == 0) {
       LOG_I(NR_PHY, "============================================\n");

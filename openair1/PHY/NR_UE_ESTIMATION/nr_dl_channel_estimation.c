@@ -79,7 +79,7 @@ int nr_prs_channel_estimation(const uint8_t gNB_id,
                               const PHY_VARS_NR_UE *ue,
                               const UE_nr_rxtx_proc_t *proc,
                               const prs_config_t *prs_cfg,
-                              const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                              const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                               prs_meas_t **prs_meas,
                               c16_t ch_est_out[ue->frame_parms.ofdm_symbol_size])
 {
@@ -578,7 +578,7 @@ c32_t nr_pbch_dmrs_correlation(const NR_DL_FRAME_PARMS *fp,
                                const int Nid_cell,
                                const int ssb_start_subcarrier,
                                const uint32_t nr_gold_pbch[NR_PBCH_DMRS_LENGTH_DWORD],
-                               const c16_t rxdataF[fp->nb_antennas_rx][fp->ofdm_symbol_size])
+                               const c16_t rxdataF[fp->nb_antennas_rx][ALNARS_32_8(fp->ofdm_symbol_size)])
 {
   AssertFatal(dmrss >= 0 && dmrss < 3, "symbol %d is illegal for PBCH DM-RS \n", dmrss);
 
@@ -835,7 +835,7 @@ void nr_pdcch_channel_estimation(const PHY_VARS_NR_UE *ue,
                                  const uint16_t BWPStart,
                                  const int32_t pdcch_est_size,
                                  c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
-                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
+                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)])
 {
   int slot = proc->nr_slot_rx;
   unsigned char aarx;

@@ -668,6 +668,38 @@ typedef struct nr_phy_data_s {
 
 } nr_phy_data_t;
 
+typedef struct {
+  /* PDCCH */
+  int numMonitoringOcc;
+  int numSymbPdcch;
+  int pdcchLlrSize;
+  int startSymbPdcch;
+  int stopSymbPdcch;
+  c16_t *pdcchLlr;
+
+  /* PBCH */
+  int ssbIndex;
+  int pbchSymbCnt;
+  c16_t *pbch_ch_est_time;
+  int16_t *pbch_e_rx;
+
+  /* PDSCH */
+  c16_t *pdsch_ch_estimates;
+  c16_t *rxdataF_ext;
+
+  /* CSI */
+  c16_t *csi_rs_ls_estimates;
+  nr_csi_phy_parms_t csi_phy_parms;
+  nr_csi_symbol_res_t csi_rs_res;
+  nr_csi_symbol_res_t csi_im_res;
+
+  /* PSBCH */
+  int e_rx_offset;
+  c16_t *psbch_ch_estimates;
+  int16_t *psbch_e_rx;
+  int16_t *psbch_unClipped;
+} nr_ue_phy_slot_data_t;
+
 enum stream_status_e { STREAM_STATUS_UNSYNC, STREAM_STATUS_SYNCING, STREAM_STATUS_SYNCED};
 /* this structure is used to pass both UE phy vars and
  * proc to the function UE_thread_rxn_txnp4

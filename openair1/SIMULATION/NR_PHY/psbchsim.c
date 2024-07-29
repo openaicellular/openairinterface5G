@@ -25,6 +25,8 @@
 #include "common/utils/load_module_shlib.h"
 #include "PHY/MODULATION/nr_modulation.h"
 #include "NR_SL-SSB-TimeAllocation-r16.h"
+#include "PHY/MODULATION/modulation_UE.h"
+#include "openair1/SIMULATION/NR_PHY/nr_unitary_defs.h"
 
 void e1_bearer_context_setup(const e1ap_bearer_setup_req_t *req)
 {
@@ -37,12 +39,6 @@ void e1_bearer_context_modif(const e1ap_bearer_setup_req_t *req)
 void e1_bearer_release_cmd(const e1ap_bearer_release_cmd_t *cmd)
 {
   abort();
-}
-void exit_function(const char *file, const char *function, const int line, const char *s, const int assert)
-{
-  const char *msg = s == NULL ? "no comment" : s;
-  printf("Exiting at: %s:%d %s(), %s\n", file, line, function, msg);
-  exit(-1);
 }
 int8_t nr_rrc_RA_succeeded(const module_id_t mod_id, const uint8_t gNB_index)
 {
@@ -62,7 +58,6 @@ instance_t CUuniqInstance = 0;
 openair0_config_t openair0_cfg[1];
 
 RAN_CONTEXT_t RC;
-int oai_exit = 0;
 char *uecap_file;
 
 void nr_rrc_ue_generate_RRCSetupRequest(module_id_t module_id, const uint8_t gNB_index)
@@ -596,8 +591,8 @@ int main(int argc, char **argv)
               0.0); // IQ phase imbalance (rad)
       }
 
-      for (int i = 0; i < frame_length_complex_samples; i++) {
-        for (int aa = 0; aa < frame_parms->nb_antennas_rx; aa++) {
+      for (int aa = 0; aa < frame_parms->nb_antennas_rx; aa++) {
+        for (int i = 0; i < frame_length_complex_samples; i++) {
           UE_RX->common_vars.rxdata[aa][i].r = (short)(r_re[aa][i] + sqrt(sigma2 / 2) * gaussdouble(0.0, 1.0));
           UE_RX->common_vars.rxdata[aa][i].i = (short)(r_im[aa][i] + sqrt(sigma2 / 2) * gaussdouble(0.0, 1.0));
         }
@@ -618,8 +613,20 @@ int main(int argc, char **argv)
                       UE_RX->SL_UE_PHY_PARAMS.sync_params.N_sl_id);
           sl_uerx->psbch.rx_ok = 1;
         }
-      } else
-        psbch_pscch_processing(UE_RX, &proc, &phy_data_rx);
+      } else {
+        nr_ue_phy_slot_data_t data = {0};
+        sl_slot_init(&proc, UE_RX, &data);
+        for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+          const int symbSize = ALNARS_32_8(frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples0);
+          __attribute__((aligned(32))) c16_t rxdata[frame_parms->nb_antennas_rx][symbSize];
+          __attribute__((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size)];
+          slot_fep_unitary_helper(&proc, frame_parms, symbol, UE_RX->common_vars.rxdata, rxdata, rxdataF);
+          psbch_pscch_processing(UE_RX, &proc, &phy_data_rx, &data, symbol, rxdataF);
+        }
+        free_and_zero(data.psbch_ch_estimates);
+        free_and_zero(data.psbch_e_rx);
+        free_and_zero(data.psbch_unClipped);
+      }
 
     } // noise trials
 

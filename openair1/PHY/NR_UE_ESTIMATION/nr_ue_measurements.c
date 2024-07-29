@@ -221,7 +221,7 @@ int nr_ue_calculate_ssb_rsrp(const NR_DL_FRAME_PARMS *fp,
 void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
                                  const int ssb_index,
                                  const UE_nr_rxtx_proc_t *proc,
-                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
+                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)])
 {
   const NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
 
@@ -246,7 +246,7 @@ void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
 // - psd_awgn (AWGN power spectral density):     dBm/Hz
 void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
                             const UE_nr_rxtx_proc_t *proc,
-                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
+                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)])
 {
   const int slot = proc->nr_slot_rx;
   const int16_t *rxF_sss;
@@ -323,7 +323,7 @@ void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
 int nr_sl_psbch_rsrp_measurements(sl_nr_ue_phy_params_t *sl_phy_params,
                                   const NR_DL_FRAME_PARMS *fp,
                                   const int symbol,
-                                  const c16_t rxdataF[][fp->ofdm_symbol_size],
+                                  const c16_t rxdataF[][ALNARS_32_8(fp->ofdm_symbol_size)],
                                   bool use_SSS)
 {
   SL_NR_UE_PSBCH_t *psbch_rx = &sl_phy_params->psbch;

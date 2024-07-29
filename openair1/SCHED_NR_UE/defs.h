@@ -92,10 +92,27 @@
 */
 void phy_procedures_nrUE_TX(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_tx_t *phy_data);
 
-int pbch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data);
-void nr_ue_pdsch_procedures_symbol(void *params);
+int pbch_processing(PHY_VARS_NR_UE *UE,
+                    const UE_nr_rxtx_proc_t *proc,
+                    const int symbol,
+                    const c16_t rxdataF[UE->frame_parms.nb_antennas_rx][ALNARS_32_8(UE->frame_parms.ofdm_symbol_size)],
+                    int *ssbIndex,
+                    c16_t pbch_ch_est_time[UE->frame_parms.nb_antennas_rx][ALNARS_32_8(UE->frame_parms.ofdm_symbol_size)],
+                    int16_t pbch_e_rx[NR_POLAR_PBCH_E],
+                    int *pbchSymbCnt);
 
-void pdsch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data);
+void pdsch_processing(PHY_VARS_NR_UE *ue,
+                      const UE_nr_rxtx_proc_t *proc,
+                      nr_phy_data_t *phy_data,
+                      int symbol,
+                      c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
+                      c16_t *rxdataF_ext,
+                      c16_t *pdsch_ch_estimates);
+
+void prs_processing(const PHY_VARS_NR_UE *ue,
+                    const UE_nr_rxtx_proc_t *proc,
+                    const int symbol,
+                    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
 
 void processSlotTX(void *arg);
 
@@ -142,7 +159,17 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
                            const void *typeSpecific,
                            uint8_t *b);
 
-void nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data);
+void nr_ue_pdcch_slot_init(nr_phy_data_t *phyData, UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, nr_ue_phy_slot_data_t *slot_data);
+void nr_ue_pdsch_slot_init(nr_phy_data_t *phyData, UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, nr_ue_phy_slot_data_t *slot_data);
+void nr_ue_pbch_slot_init(nr_phy_data_t *phyData, UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, nr_ue_phy_slot_data_t *slot_data);
+void nr_ue_csi_slot_init(nr_phy_data_t *phyData, UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, nr_ue_phy_slot_data_t *slot_data);
+
+bool nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
+                            const UE_nr_rxtx_proc_t *proc,
+                            nr_phy_data_t *phy_data,
+                            nr_ue_phy_slot_data_t *slot_data,
+                            int symbol,
+                            c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
 
 bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
                             const UE_nr_rxtx_proc_t *proc,
@@ -165,7 +192,7 @@ void nr_pdcch_generate_llr(const PHY_VARS_NR_UE *ue,
                            const nr_phy_data_t *phy_data,
                            const int llrSize,
                            const int max_monOcc,
-                           const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                           const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                            c16_t llr[phy_data->phy_pdcch_config.nb_search_space * max_monOcc * llrSize]);
 
 void nr_pdcch_dci_indication(const UE_nr_rxtx_proc_t *proc,
@@ -175,12 +202,20 @@ void nr_pdcch_dci_indication(const UE_nr_rxtx_proc_t *proc,
                              nr_phy_data_t *phy_data,
                              const c16_t llr[phy_data->phy_pdcch_config.nb_search_space * max_monOcc * llrSize]);
 
-void nr_csi_im_symbol_power_estimation(const PHY_VARS_NR_UE *ue,
-                                       const UE_nr_rxtx_proc_t *proc,
-                                       const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
-                                       const int symbol,
-                                       const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
-                                       nr_csi_symbol_res_t *csi_im_res);
+void csi_processing(PHY_VARS_NR_UE *ue,
+                    const UE_nr_rxtx_proc_t *proc,
+                    nr_phy_data_t *phy_data,
+                    int symbol,
+                    nr_ue_phy_slot_data_t *slot_data,
+                    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
+
+void nr_csi_im_symbol_power_estimation(
+    const PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
+    const int symbol,
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
+    nr_csi_symbol_res_t *csi_im_res);
 
 void nr_ue_csi_im_procedures(const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
                              const nr_csi_symbol_res_t *res,
@@ -198,7 +233,7 @@ void nr_ue_csi_rs_symbol_procedures(
     const nr_csi_phy_parms_t *csi_phy_parms,
     const int symbol,
     const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
-    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
     c16_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size],
     nr_csi_symbol_res_t *csi_symb_res);
 
@@ -210,7 +245,13 @@ void nr_ue_csi_rs_procedures(
     nr_csi_symbol_res_t *res,
     int32_t csi_rs_ls_estimated_channel[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size]);
 
-int psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data);
+void sl_slot_init(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, nr_ue_phy_slot_data_t *slot_data);
+int psbch_pscch_processing(PHY_VARS_NR_UE *ue,
+                           const UE_nr_rxtx_proc_t *proc,
+                           nr_phy_data_t *phy_data,
+                           nr_ue_phy_slot_data_t *slot_data,
+                           int symbol,
+                           const c16_t rxdataF[][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
 void phy_procedures_nrUE_SL_TX(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_tx_t *phy_data);
 /*! \brief This function prepares the sl indication to pass to the MAC
  */
@@ -233,7 +274,7 @@ int nr_pdsch_generate_channel_estimates(
     const UE_nr_rxtx_proc_t *proc,
     const int symbol,
     const NR_UE_DLSCH_t *dlsch,
-    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
     uint32_t *nvar,
     c16_t channel_estimates[dlsch->Nl][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
@@ -242,7 +283,7 @@ void nr_generate_pdsch_extracted_rxdataF(
     const UE_nr_rxtx_proc_t *proc,
     const int symbol,
     const NR_UE_DLSCH_t *dlsch,
-    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
     c16_t rxdataF_ext[ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB]);
 
 void free_pdsch_slot_proc_buffers(nr_ue_symb_data_t *symb_data);

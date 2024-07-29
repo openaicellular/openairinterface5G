@@ -130,12 +130,13 @@ int sl_nr_slot_fep(PHY_VARS_NR_UE *ue,
 }
 
 /* rxdata & rxdataF should be 16 bytes aligned */
-void nr_symbol_fep(const NR_DL_FRAME_PARMS *frame_parms,
-                   const int slot,
-                   const unsigned char symbol,
-                   const int link_type,
-                   const c16_t *rxdata[frame_parms->nb_antennas_rx],
-                   c16_t *rxdataF[frame_parms->nb_antennas_rx])
+void nr_symbol_fep(
+    const NR_DL_FRAME_PARMS *frame_parms,
+    const int slot,
+    const unsigned char symbol,
+    const int link_type,
+    const c16_t rxdata[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples0)],
+    c16_t rxdataF[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size)])
 {
   AssertFatal(symbol < frame_parms->symbols_per_slot,
               "slot_fep: symbol must be between 0 and %d\n",
@@ -155,60 +156,12 @@ void nr_symbol_fep(const NR_DL_FRAME_PARMS *frame_parms,
   }
 }
 
-int nr_slot_fep(PHY_VARS_NR_UE *ue,
-                NR_DL_FRAME_PARMS *frame_parms,
-                const UE_nr_rxtx_proc_t *proc,
-                unsigned char symbol,
-                c16_t rxdataF[][frame_parms->samples_per_slot_wCP],
-                uint32_t linktype)
-{
-  const NR_UE_COMMON *common_vars = &ue->common_vars;
-  int Ns = proc->nr_slot_rx;
-
-  AssertFatal(symbol < frame_parms->symbols_per_slot,
-              "slot_fep: symbol must be between 0 and %d\n",
-              frame_parms->symbols_per_slot - 1);
-  AssertFatal(Ns < frame_parms->slots_per_frame, "slot_fep: Ns must be between 0 and %d\n", frame_parms->slots_per_frame - 1);
-
-  unsigned int nb_prefix_samples = frame_parms->nb_prefix_samples;
-  unsigned int nb_prefix_samples0 = (ue->is_synchronized) ? frame_parms->nb_prefix_samples0 : nb_prefix_samples;
-
-  unsigned int rx_offset = frame_parms->get_samples_slot_timestamp(Ns,frame_parms,0);
-  unsigned int abs_symbol = Ns * frame_parms->symbols_per_slot + symbol;
-  for (int idx_symb = Ns * frame_parms->symbols_per_slot; idx_symb <= abs_symbol; idx_symb++)
-    rx_offset += (idx_symb % (0x7 << frame_parms->numerology_index)) ? nb_prefix_samples : nb_prefix_samples0;
-  rx_offset += frame_parms->ofdm_symbol_size * symbol;
-
-  // use OFDM symbol from within 1/8th of the CP to avoid ISI
-  rx_offset -= (nb_prefix_samples / frame_parms->ofdm_offset_divisor);
-
-  LOG_D(PHY,
-        "slot_fep: slot %d, symbol %d, nb_prefix_samples %u, nb_prefix_samples0 %u, rx_offset %u energy %d\n",
-        Ns,
-        symbol,
-        nb_prefix_samples,
-        nb_prefix_samples0,
-        rx_offset,
-        dB_fixed(signal_energy((int32_t *)&common_vars->rxdata[0][rx_offset], frame_parms->ofdm_symbol_size)));
-
-  const c16_t *rxdata_symb_ptr[frame_parms->nb_antennas_rx];
-  c16_t *rxdataF_symb_ptr[frame_parms->nb_antennas_rx];
-  for (unsigned char aa = 0; aa < frame_parms->nb_antennas_rx; aa++) {
-    rxdata_symb_ptr[aa] = &common_vars->rxdata[aa][rx_offset];
-    rxdataF_symb_ptr[aa] = &rxdataF[aa][frame_parms->ofdm_symbol_size * symbol];
-  }
-  start_meas(&ue->rx_dft_stats);
-  nr_symbol_fep(&ue->frame_parms, Ns, symbol, linktype, rxdata_symb_ptr, rxdataF_symb_ptr);
-  stop_meas(&ue->rx_dft_stats);
-  return 0;
-}
-
 int nr_slot_fep_init_sync(const NR_DL_FRAME_PARMS *frame_parms,
                           const unsigned int symbol,
                           const unsigned int sample_offset,
                           const c16_t **rxdata,
                           const unsigned int link_type,
-                          c16_t rxdataF[][frame_parms->samples_per_slot_wCP])
+                          c16_t rxdataF[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size)])
 {
   const int slot = 0;
 
@@ -219,31 +172,26 @@ int nr_slot_fep_init_sync(const NR_DL_FRAME_PARMS *frame_parms,
   unsigned int nb_prefix_samples = frame_parms->nb_prefix_samples;
   unsigned int frame_length_samples = frame_parms->samples_per_frame;
 
-  // This is for misalignment issues
-  c16_t tmp_dft_in[frame_parms->nb_antennas_rx][8192] __attribute__((aligned(32)));
-
   unsigned int rx_offset = sample_offset + nb_prefix_samples + (frame_parms->ofdm_symbol_size + nb_prefix_samples) * symbol;
 
-  const c16_t *rxdata_symb_ptr[frame_parms->nb_antennas_rx];
-  c16_t *rxdataF_symb_ptr[frame_parms->nb_antennas_rx];
+  __attribute__((aligned(32)))
+  c16_t rxdata_symb[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples0)];
   for (unsigned char aa = 0; aa < frame_parms->nb_antennas_rx; aa++) {
     rx_offset %= frame_length_samples * 2;
 
     if (rx_offset + frame_parms->ofdm_symbol_size > frame_length_samples * 2) {
       // rxdata is 2 frames len
       // we have to wrap on the end
-      memcpy(&tmp_dft_in[aa][0], &rxdata[aa][rx_offset], (frame_length_samples * 2 - rx_offset) * sizeof(int32_t));
-      memcpy(&tmp_dft_in[aa][frame_length_samples * 2 - rx_offset],
+      memcpy(rxdata_symb[aa], &rxdata[aa][rx_offset], (frame_length_samples * 2 - rx_offset) * sizeof(c16_t));
+      memcpy(rxdata_symb[aa] + (frame_length_samples * 2 - rx_offset),
              &rxdata[aa][0],
-             (frame_parms->ofdm_symbol_size - (frame_length_samples * 2 - rx_offset)) * sizeof(int32_t));
-      rxdata_symb_ptr[aa] = &tmp_dft_in[aa][0];
+             (frame_parms->ofdm_symbol_size - (frame_length_samples * 2 - rx_offset)) * sizeof(c16_t));
     } else {
-      rxdata_symb_ptr[aa] = &rxdata[aa][rx_offset];
+      memcpy(rxdata_symb[aa], &rxdata[aa][rx_offset], sizeof(c16_t) * frame_parms->ofdm_symbol_size);
     }
-    rxdataF_symb_ptr[aa] = &rxdataF[aa][frame_parms->ofdm_symbol_size * symbol];
   }
 
-  nr_symbol_fep(frame_parms, slot, symbol, link_type, rxdata_symb_ptr, rxdataF_symb_ptr);
+  nr_symbol_fep(frame_parms, slot, symbol, link_type, rxdata_symb, rxdataF);
 
   return 0;
 }

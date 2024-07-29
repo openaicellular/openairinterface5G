@@ -536,7 +536,7 @@ static void nr_rx_pdcch_symbol(const PHY_VARS_NR_UE *ue,
                                const int ss_idx,
                                const nr_phy_data_t *phy_data,
                                const int llrSize,
-                               const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                               const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                                c16_t llr[llrSize])
 {
   const NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
@@ -565,7 +565,7 @@ static void nr_rx_pdcch_symbol(const PHY_VARS_NR_UE *ue,
   int rb_offset;
   get_coreset_rballoc(coreset->frequency_domain_resource, &n_rb, &rb_offset);
 
-  nr_pdcch_extract_rbs_single(ue->frame_parms.ofdm_symbol_size,
+  nr_pdcch_extract_rbs_single(ALNARS_32_8(ue->frame_parms.ofdm_symbol_size),
                               rxdataF,
                               pdcch_est_size,
                               pdcch_dl_ch_estimates,
@@ -705,7 +705,7 @@ void nr_pdcch_generate_llr(const PHY_VARS_NR_UE *ue,
                            const nr_phy_data_t *phy_data,
                            const int llrSize,
                            const int max_monOcc,
-                           const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                           const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                            c16_t llr[phy_data->phy_pdcch_config.nb_search_space * max_monOcc * llrSize])
 {
   const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;

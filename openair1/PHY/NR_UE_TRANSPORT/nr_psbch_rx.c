@@ -109,7 +109,7 @@ static void nr_psbch_extract(uint32_t dataF_sz,
 }
 
 void nr_generate_psbch_llr(const NR_DL_FRAME_PARMS *frame_parms,
-                           const c16_t rxdataF[][frame_parms->ofdm_symbol_size],
+                           const c16_t rxdataF[][ALNARS_32_8(frame_parms->ofdm_symbol_size)],
                            const c16_t dl_ch_estimates[][frame_parms->ofdm_symbol_size],
                            int symbol,
                            int *psbch_e_rx_offset,
@@ -120,7 +120,7 @@ void nr_generate_psbch_llr(const NR_DL_FRAME_PARMS *frame_parms,
   __attribute__((aligned(32))) struct complex16 rxdataF_ext[frame_parms->nb_antennas_rx][nb_re + 1];
   __attribute__((aligned(32))) struct complex16 dl_ch_estimates_ext[frame_parms->nb_antennas_rx][nb_re + 1];
   // memset(dl_ch_estimates_ext,0, sizeof  dl_ch_estimates_ext);
-  nr_psbch_extract(frame_parms->ofdm_symbol_size,
+  nr_psbch_extract(ALNARS_32_8(frame_parms->ofdm_symbol_size),
                    rxdataF,
                    dl_ch_estimates,
                    rxdataF_ext,

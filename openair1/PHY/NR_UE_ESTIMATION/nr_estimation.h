@@ -40,7 +40,7 @@ int nr_prs_channel_estimation(const uint8_t gNB_id,
                               const PHY_VARS_NR_UE *ue,
                               const UE_nr_rxtx_proc_t *proc,
                               const prs_config_t *prs_cfg,
-                              const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                              const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)],
                               prs_meas_t **prs_meas,
                               c16_t ch_est_out[ue->frame_parms.ofdm_symbol_size]);
 
@@ -59,15 +59,16 @@ void peak_estimator(int32_t *buffer, int32_t buf_len, int32_t *peak_idx, int32_t
 /*!
 \brief This function performs channel estimation including frequency and temporal interpolation
 */
-void nr_pdcch_channel_estimation(const PHY_VARS_NR_UE *ue,
-                                 const UE_nr_rxtx_proc_t *proc,
-                                 const unsigned char symbol,
-                                 const fapi_nr_coreset_t *coreset,
-                                 const uint16_t first_carrier_offset,
-                                 const uint16_t BWPStart,
-                                 const int32_t pdcch_est_size,
-                                 c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
-                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
+void nr_pdcch_channel_estimation(
+    const PHY_VARS_NR_UE *ue,
+    const UE_nr_rxtx_proc_t *proc,
+    const unsigned char symbol,
+    const fapi_nr_coreset_t *coreset,
+    const uint16_t first_carrier_offset,
+    const uint16_t BWPStart,
+    const int32_t pdcch_est_size,
+    c16_t pdcch_dl_ch_estimates[][pdcch_est_size],
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
 
 c32_t nr_pbch_dmrs_correlation(const NR_DL_FRAME_PARMS *fp,
                                const UE_nr_rxtx_proc_t *proc,
@@ -76,7 +77,7 @@ c32_t nr_pbch_dmrs_correlation(const NR_DL_FRAME_PARMS *fp,
                                const int Nid_cell,
                                const int ssb_start_subcarrier,
                                const uint32_t nr_gold_pbch[NR_PBCH_DMRS_LENGTH_DWORD],
-                               const c16_t rxdataF[fp->nb_antennas_rx][fp->ofdm_symbol_size]);
+                               const c16_t rxdataF[fp->nb_antennas_rx][ALNARS_32_8(fp->ofdm_symbol_size)]);
 
 int nr_pbch_channel_estimation(const NR_DL_FRAME_PARMS *fp,
                                const sl_nr_ue_phy_params_t *sl_phy_params,
@@ -124,14 +125,15 @@ int nr_ue_calculate_ssb_rsrp(const NR_DL_FRAME_PARMS *fp,
                              const c16_t rxdataF[][fp->ofdm_symbol_size],
                              int ssb_start_subcarrier);
 
-void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
-                                 const int ssb_index,
-                                 const UE_nr_rxtx_proc_t *proc,
-                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
+void nr_ue_ssb_rsrp_measurements(
+    PHY_VARS_NR_UE *ue,
+    const int ssb_index,
+    const UE_nr_rxtx_proc_t *proc,
+    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
 
 void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
                             const UE_nr_rxtx_proc_t *proc,
-                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
+                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
 
 void phy_adjust_gain_nr(PHY_VARS_NR_UE *ue,
                         uint32_t rx_power_fil_dB,
@@ -160,7 +162,7 @@ float_t get_nr_RSRP(module_id_t Mod_id,uint8_t CC_id,uint8_t gNB_index);
 int nr_sl_psbch_rsrp_measurements(sl_nr_ue_phy_params_t *sl_phy_params,
                                   const NR_DL_FRAME_PARMS *fp,
                                   const int symbol,
-                                  const c16_t rxdataF[][fp->ofdm_symbol_size],
+                                  const c16_t rxdataF[][ALNARS_32_8(fp->ofdm_symbol_size)],
                                   bool use_SSS);
 /** @}*/
 #endif

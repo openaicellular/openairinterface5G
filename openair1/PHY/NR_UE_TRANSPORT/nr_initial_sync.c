@@ -245,19 +245,14 @@ void nr_scan_ssb(void *arg)
     /* time samples in buffer rxdata are used as input of FFT -> FFT results are stored in the frequency buffer rxdataF */
     /* rxdataF stores SS/PBCH from beginning of buffers in the same symbol order as in time domain */
 
-    const uint32_t rxdataF_sz = fp->samples_per_slot_wCP;
-    __attribute__((aligned(32))) c16_t rxdataF[fp->nb_antennas_rx][rxdataF_sz];
-    __attribute__((aligned(32))) c16_t rxdataF_symb[NR_N_SYMBOLS_SSB][fp->nb_antennas_rx][fp->ofdm_symbol_size];
+    __attribute__((aligned(32))) c16_t rxdataF[NR_N_SYMBOLS_SSB][fp->nb_antennas_rx][ALNARS_32_8(fp->ofdm_symbol_size)];
     for (int i = 0; i < NR_N_SYMBOLS_SSB; i++) {
       nr_slot_fep_init_sync(fp,
                             i,
                             frame_id * fp->samples_per_frame + ssbInfo->ssbOffset,
                             (const c16_t **)rxdata,
                             link_type_dl,
-                            rxdataF);
-      // TODO: In later commit, call the modified symbol demod function and remove the following memcpy.
-      for(int aarx = 0; aarx < fp->nb_antennas_rx; aarx++)
-        memcpy(rxdataF_symb[i][aarx], &rxdataF[aarx][i * fp->ofdm_symbol_size], sizeof(c16_t) * fp->ofdm_symbol_size);
+                            rxdataF[i]);
     }
 
     int freq_offset_sss = 0;
@@ -272,7 +267,7 @@ void nr_scan_ssb(void *arg)
                                                &metric_tdd_ncp,
                                                &phase_tdd_ncp,
                                                &freq_offset_sss,
-                                               rxdataF_symb);
+                                               rxdataF);
 #ifdef DEBUG_INITIAL_SYNCH
     LOG_I(PHY,
           "TDD Normal prefix: sss detection result; %d, CellId %d metric %d, phase %d, measured offset %d\n",
@@ -294,9 +289,9 @@ void nr_scan_ssb(void *arg)
                                                          &ssbInfo->ssbIndex,
                                                          &ssbInfo->symbolOffset,
                                                          &ssbInfo->pbchResult,
-                                                         rxdataF_symb); // start pbch detection at first symbol after pss
+                                                         rxdataF); // start pbch detection at first symbol after pss
       if (ssbInfo->syncRes.cell_detected) {
-        int rsrp_db_per_re = nr_ue_calculate_ssb_rsrp(ssbInfo->fp, ssbInfo->proc, rxdataF_symb[2], ssbInfo->gscnInfo.ssbFirstSC);
+        int rsrp_db_per_re = nr_ue_calculate_ssb_rsrp(ssbInfo->fp, ssbInfo->proc, rxdataF[2], ssbInfo->gscnInfo.ssbFirstSC);
         ssbInfo->adjust_rxgain = TARGET_RX_POWER - rsrp_db_per_re;
         LOG_I(PHY, "pbch rx ok. rsrp:%d dB/RE, adjust_rxgain:%d dB\n", rsrp_db_per_re, ssbInfo->adjust_rxgain);
       }

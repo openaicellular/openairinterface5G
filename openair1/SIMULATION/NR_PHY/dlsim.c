@@ -1111,11 +1111,23 @@ int main(int argc, char **argv)
         ue_dci_configuration(UE_mac, &dl_config, frame, slot);
         nr_ue_scheduled_response(&scheduled_response);
 
-        pbch_processing(UE, &UE_proc, &phy_data);
-        nr_ue_pdcch_procedures(UE, &UE_proc, &phy_data);
-        pdsch_processing(UE,
-                         &UE_proc,
-                         &phy_data);
+        nr_ue_phy_slot_data_t slot_data = {0};
+        nr_ue_pdcch_slot_init(&phy_data, &UE_proc, UE, &slot_data);
+        for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+          const int symbSize = ALNARS_32_8(frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples0);
+          __attribute__((aligned(32))) c16_t rxdata[frame_parms->nb_antennas_rx][symbSize];
+          __attribute__((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size)];
+          slot_fep_unitary_helper(&UE_proc, frame_parms, symbol, UE->common_vars.rxdata, rxdata, rxdataF);
+          bool pdcchDone = nr_ue_pdcch_procedures(UE, &UE_proc, &phy_data, &slot_data, symbol, rxdataF);
+          if (pdcchDone) {
+            nr_ue_pdsch_slot_init(&phy_data, &UE_proc, UE, &slot_data);
+          }
+          pdsch_processing(UE, &UE_proc, &phy_data, symbol, rxdataF, slot_data.rxdataF_ext, slot_data.pdsch_ch_estimates);
+          memcpy(UE->phy_sim_rxdataF + (symbol * frame_parms->ofdm_symbol_size * sizeof(c16_t)),
+                 rxdataF[0],
+                 sizeof(c16_t) * frame_parms->ofdm_symbol_size);
+        }
+
         //----------------------------------------------------------
         //---------------------- count errors ----------------------
         //----------------------------------------------------------

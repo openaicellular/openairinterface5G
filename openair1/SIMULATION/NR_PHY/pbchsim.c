@@ -114,9 +114,12 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
 {
 }
 
-void nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
-{
-}
+bool nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
+                            const UE_nr_rxtx_proc_t *proc,
+                            nr_phy_data_t *phy_data,
+                            nr_ue_phy_slot_data_t *slot_data,
+                            int symbol,
+                            c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ALNARS_32_8(ue->frame_parms.ofdm_symbol_size)]);
 
 void nr_phy_config_request_sim_pbchsim(PHY_VARS_gNB *gNB,
                                int N_RB_DL,
@@ -614,8 +617,6 @@ int main(int argc, char **argv)
 
   processingData_L1tx_t msgDataTx;
   // generate signal
-  const uint32_t rxdataF_sz = UE->frame_parms.samples_per_slot_wCP;
-  __attribute__ ((aligned(32))) c16_t rxdataF[UE->frame_parms.nb_antennas_rx][rxdataF_sz];
   if (input_fd==NULL) {
 
     for (i=0; i<frame_parms->Lmax; i++) {
@@ -788,14 +789,13 @@ int main(int argc, char **argv)
         proc.gNB_id = 0;
         int16_t pbch_e_rx[NR_POLAR_PBCH_E];
         for (int i = UE->symbol_offset + 1; i < UE->symbol_offset + 4; i++) {
-          nr_slot_fep(UE, frame_parms, &proc, i % frame_parms->symbols_per_slot, rxdataF, link_type_dl);
-          __attribute__((aligned(32))) struct complex16 rxdataF_symb[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
+          const int symbSize = ALNARS_32_8(frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples0);
+          __attribute__((aligned(32))) c16_t rxdata[frame_parms->nb_antennas_rx][symbSize];
+          __attribute__((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size)];
+          slot_fep_unitary_helper(&proc, frame_parms, i, UE->common_vars.rxdata, rxdata, rxdataF);
           __attribute__((aligned(32))) struct complex16 dl_ch_estimates[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
 
           for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
-            memcpy(rxdataF_symb[aarx],
-                   &rxdataF[0][i * frame_parms->ofdm_symbol_size],
-                   sizeof(c16_t) * frame_parms->ofdm_symbol_size);
             nr_pbch_channel_estimation(frame_parms,
                                        &UE->SL_UE_PHY_PARAMS,
                                        &proc,
@@ -805,7 +805,7 @@ int main(int argc, char **argv)
                                        false,
                                        frame_parms->Nid_cell,
                                        frame_parms->ssb_start_subcarrier,
-                                       rxdataF_symb[aarx],
+                                       rxdataF[aarx],
                                        dl_ch_estimates[aarx]);
           }
           nr_generate_pbch_llr(UE,
@@ -814,7 +814,7 @@ int main(int argc, char **argv)
                                ssb_index % 8,
                                Nid_cell,
                                frame_parms->ssb_start_subcarrier,
-                               rxdataF_symb,
+                               rxdataF,
                                dl_ch_estimates,
                                pbch_e_rx);
         }
