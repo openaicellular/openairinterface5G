@@ -104,10 +104,8 @@ int get_reestab_count(char *buf, int debug, telnet_printfunc_t prnt)
   return 0;
 }
 
-int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
+int fetch_rnti(char *buf, telnet_printfunc_t prnt)
 {
-  if (!RC.nrmac)
-    ERROR_MSG_RET("no MAC/RLC present, cannot trigger reestablishment\n");
   int rnti = -1;
   if (!buf) {
     rnti = get_single_ue_rnti_mac();
@@ -118,9 +116,15 @@ int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
     if (rnti < 1 || rnti >= 0xfffe)
       ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
   }
+  return rnti;
+}
 
+int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
+{
+  if (!RC.nrmac)
+    ERROR_MSG_RET("no MAC/RLC present, cannot trigger reestablishment\n");
+  int rnti = fetch_rnti(buf, prnt);
   nr_rlc_test_trigger_reestablishment(rnti);
-
   prnt("Reset RLC counters of UE RNTI %04x to trigger reestablishment\n", rnti);
   return 0;
 }
