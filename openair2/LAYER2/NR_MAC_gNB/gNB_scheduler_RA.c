@@ -2190,6 +2190,7 @@ void nr_schedule_RA(module_id_t module_idP,
         if (ra->contention_resolution_timer < 0) {
           LOG_W(NR_MAC, "(%d.%d) RA Contention Resolution timer expired for UE 0x%04x, RA procedure failed...\n", frameP, slotP, ra->rnti);
           nr_mac_release_ue(mac, ra->rnti);
+          nr_mac_trigger_release_complete(mac, ra->rnti);
           nr_clear_ra_proc(ra);
           continue;
         }

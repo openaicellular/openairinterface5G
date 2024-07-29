@@ -29,6 +29,8 @@
 #include "openair3/ocp-gtpu/gtp_itf.h"
 #include "openair2/LAYER2/nr_pdcp/nr_pdcp_oai_api.h"
 
+#include "executables/softmodem-common.h"
+
 #include "uper_decoder.h"
 #include "uper_encoder.h"
 
@@ -95,6 +97,52 @@ static bool check_plmn_identity(const f1ap_plmn_t *check_plmn, const f1ap_plmn_t
   return plmn->mcc == check_plmn->mcc && plmn->mnc_digit_length == check_plmn->mnc_digit_length && plmn->mnc == check_plmn->mnc;
 }
 
+static void du_clear_all_ue_states()
+{
+  gNB_MAC_INST *mac = RC.nrmac[0];
+  NR_SCHED_LOCK(&mac->sched_lock);
+
+  NR_UE_info_t *UE = *mac->UE_info.list;
+
+  instance_t f1inst = get_f1_gtp_instance();
+
+  while (UE != NULL) {
+    int rnti = UE->rnti;
+    nr_mac_release_ue(mac, rnti);
+    // free all F1 contexts
+    if (du_exists_f1_ue_data(rnti))
+      du_remove_f1_ue_data(rnti);
+    newGtpuDeleteAllTunnels(f1inst, rnti);
+    UE = *mac->UE_info.list;
+  }
+  NR_SCHED_UNLOCK(&mac->sched_lock);
+}
+
+void f1_reset_cu_initiated(const f1ap_reset_t *reset)
+{
+  LOG_I(MAC, "F1 Reset initiated by CU\n");
+
+  f1ap_reset_ack_t ack = {0};
+  if(reset->reset_type == F1AP_RESET_ALL) {
+    du_clear_all_ue_states();
+    ack = (f1ap_reset_ack_t) {
+      .transaction_id = reset->transaction_id
+    };
+  } else {
+    // reset->reset_type == F1AP_RESET_PART_OF_F1_INTERFACE
+    AssertFatal(1==0, "Not implemented yet\n");
+  }
+
+  gNB_MAC_INST *mac = RC.nrmac[0];
+  mac->mac_rrc.f1_reset_acknowledge(&ack);
+}
+
+void f1_reset_acknowledge_du_initiated(const f1ap_reset_ack_t *ack)
+{
+  (void) ack;
+  AssertFatal(false, "%s() not implemented yet\n", __func__);
+}
+
 void f1_setup_response(const f1ap_setup_resp_t *resp)
 {
   LOG_I(MAC, "received F1 Setup Response from CU %s\n", resp->gNB_CU_name);
@@ -126,6 +174,24 @@ void f1_setup_response(const f1ap_setup_resp_t *resp)
     mac->f1_config.setup_resp->gNB_CU_name = strdup(resp->gNB_CU_name);
 
   NR_SCHED_UNLOCK(&mac->sched_lock);
+
+  // NOTE: Before accepting any UEs, we should initialize the UE states.
+  // This is to handle cases when DU loses the existing SCTP connection,
+  // and reestablishes a new connection to either a new CU or the same CU.
+  // This triggers a new F1 Setup Request from DU to CU as per the specs.
+  // Reinitializing the UE states is necessary to avoid any inconsistent states
+  // between DU and CU.
+  // NOTE2: do not reset in phy_test, because there is a pre-configured UE in
+  // this case. Once NSA/phy-test use F1, this might be lifted, because
+  // creation of a UE will be requested from higher layers.
+
+  // TS38.473 [Sec 8.2.3.1]: "This procedure also re-initialises the F1AP UE-related
+  // contexts (if any) and erases all related signalling connections
+  // in the two nodes like a Reset procedure would do."
+  if (!get_softmodem_params()->phy_test) {
+    LOG_I(MAC, "Clearing the DU's UE states before, if any.\n");
+    du_clear_all_ue_states();
+  }
 }
 
 void f1_setup_failure(const f1ap_setup_failure_t *failure)
@@ -615,6 +681,7 @@ void ue_context_release_command(const f1ap_ue_context_release_cmd_t *cmd)
   if (UE->UE_sched_ctrl.ul_failure || cmd->rrc_container_length == 0) {
     /* The UE is already not connected anymore or we have nothing to forward*/
     nr_mac_release_ue(mac, cmd->gNB_DU_ue_id);
+    nr_mac_trigger_release_complete(mac, cmd->gNB_DU_ue_id);
   } else {
     /* UE is in sync: forward release message and mark to be deleted
      * after UL failure */

@@ -205,6 +205,7 @@ These modes of operation are supported:
   - F1 UE Context modification required
   - F1 UE Context release req/cmd/complete
   - F1 gNB CU configuration update
+  - F1 Reset (handled at DU only, full reset only)
 - Interface with RRC
 - Interface with GTP-u (tunnel creation/handling for F1-U interface)
 - One CU(-CP) can handle multiple DUs
