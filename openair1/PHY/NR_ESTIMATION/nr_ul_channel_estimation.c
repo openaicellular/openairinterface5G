@@ -501,7 +501,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
  // pointers of arrays with size of rx antennas
  // used to collect individual data from the thread pool
  int nb_antennas_rx = gNB->frame_parms.nb_antennas_rx;
- delay_t **delay_arr = (delay_t **)malloc(nb_antennas_rx * sizeof(delay_t *));
+ delay_t *delay_arr[nb_antennas_rx];
  uint64_t *noise_amp2_arr[nb_antennas_rx];
  int *max_ch_arr[nb_antennas_rx];
  int *nest_count_arr[nb_antennas_rx];
@@ -574,8 +574,13 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
           noise_amp2 += *(noise_amp2_arr[aarx]);
           nest_count += *(nest_count_arr[aarx]);
  }
-
- *delay = *(delay_arr[nb_antennas_rx - 1]);
+// getting the maximum delay
+ *delay = *(delay_arr[0]);
+ for (int aarx = 1; aarx<gNB->frame_parms.nb_antennas_rx; aarx++){
+         if (delay_arr[aarx]->est_delay >= delay->est_delay){
+         *delay = *(delay_arr[aarx]);
+         }
+ }
 
 #ifdef DEBUG_CH
  fclose(debug_ch_est);
@@ -599,6 +604,7 @@ for (int i = 0; i < nb_antennas_rx; ++i) {
   free(max_ch_arr[i]);
   free(noise_amp2_arr[i]);
   free(nest_count_arr[i]);
+  free(delay_arr[i]);
 }
 
  return 0;
