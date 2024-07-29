@@ -35,9 +35,6 @@
 /* exe */
 #include <common/utils/nr/nr_common.h>
 
-/* PHY */
-#include "openair1/PHY/impl_defs_top.h"
-
 /* MAC */
 #include "NR_MAC_COMMON/nr_mac.h"
 #include "NR_MAC_COMMON/nr_mac_common.h"
@@ -2209,7 +2206,11 @@ void build_ssb_to_ro_map(NR_UE_MAC_INST_t *mac)
   LOG_D(NR_MAC,"Map SSB to RO done\n");
 }
 
-static bool schedule_uci_on_pusch(NR_UE_MAC_INST_t *mac, frame_t frame_tx, int slot_tx, const PUCCH_sched_t *pucch)
+static bool schedule_uci_on_pusch(NR_UE_MAC_INST_t *mac,
+                                  frame_t frame_tx,
+                                  int slot_tx,
+                                  const PUCCH_sched_t *pucch,
+                                  NR_UE_UL_BWP_t *current_UL_BWP)
 {
   fapi_nr_ul_config_request_pdu_t *ulcfg_pdu = lockGet_ul_iterator(mac, frame_tx, slot_tx);
   if (!ulcfg_pdu)
@@ -2224,29 +2225,37 @@ static bool schedule_uci_on_pusch(NR_UE_MAC_INST_t *mac, frame_t frame_tx, int s
       NR_PUCCH_Resource_t *pucchres = pucch->pucch_resource;
       int nr_of_symbols = 0;
       int start_symbol_index = 0;
-      switch(pucchres->format.present) {
-        case NR_PUCCH_Resource__format_PR_format0 :
-          nr_of_symbols = pucchres->format.choice.format0->nrofSymbols;
-          start_symbol_index = pucchres->format.choice.format0->startingSymbolIndex;
-          break;
-        case NR_PUCCH_Resource__format_PR_format1 :
-          nr_of_symbols = pucchres->format.choice.format1->nrofSymbols;
-          start_symbol_index = pucchres->format.choice.format1->startingSymbolIndex;
-          break;
-        case NR_PUCCH_Resource__format_PR_format2 :
-          nr_of_symbols = pucchres->format.choice.format2->nrofSymbols;
-          start_symbol_index = pucchres->format.choice.format2->startingSymbolIndex;
-          break;
-        case NR_PUCCH_Resource__format_PR_format3 :
-          nr_of_symbols = pucchres->format.choice.format3->nrofSymbols;
-          start_symbol_index = pucchres->format.choice.format3->startingSymbolIndex;
-          break;
-        case NR_PUCCH_Resource__format_PR_format4 :
-          nr_of_symbols = pucchres->format.choice.format4->nrofSymbols;
-          start_symbol_index = pucchres->format.choice.format4->startingSymbolIndex;
-          break;
-        default :
-          AssertFatal(false, "Undefined PUCCH format \n");
+      if (pucch->initial_pucch_id > -1 && pucch->pucch_resource == NULL) {
+        const int idx = *current_UL_BWP->pucch_ConfigCommon->pucch_ResourceCommon;
+        const initial_pucch_resource_t pucch_resourcecommon = get_initial_pucch_resource(idx);
+        start_symbol_index = pucch_resourcecommon.startingSymbolIndex;
+        nr_of_symbols = pucch_resourcecommon.nrofSymbols;
+      }
+      else {
+        switch(pucchres->format.present) {
+          case NR_PUCCH_Resource__format_PR_format0 :
+            nr_of_symbols = pucchres->format.choice.format0->nrofSymbols;
+            start_symbol_index = pucchres->format.choice.format0->startingSymbolIndex;
+            break;
+          case NR_PUCCH_Resource__format_PR_format1 :
+            nr_of_symbols = pucchres->format.choice.format1->nrofSymbols;
+            start_symbol_index = pucchres->format.choice.format1->startingSymbolIndex;
+            break;
+          case NR_PUCCH_Resource__format_PR_format2 :
+            nr_of_symbols = pucchres->format.choice.format2->nrofSymbols;
+            start_symbol_index = pucchres->format.choice.format2->startingSymbolIndex;
+            break;
+          case NR_PUCCH_Resource__format_PR_format3 :
+            nr_of_symbols = pucchres->format.choice.format3->nrofSymbols;
+            start_symbol_index = pucchres->format.choice.format3->startingSymbolIndex;
+            break;
+          case NR_PUCCH_Resource__format_PR_format4 :
+            nr_of_symbols = pucchres->format.choice.format4->nrofSymbols;
+            start_symbol_index = pucchres->format.choice.format4->startingSymbolIndex;
+            break;
+          default :
+            AssertFatal(false, "Undefined PUCCH format \n");
+        }
       }
       int final_symbol = nr_of_symbols + start_symbol_index;
       // PUCCH overlapping in time with PUSCH
@@ -2355,7 +2364,7 @@ void nr_ue_pucch_scheduler(NR_UE_MAC_INST_t *mac, frame_t frameP, int slotP)
       mac->nr_ue_emul_l1.num_csi_reports = pucch[j].n_csi;
 
       // checking if we need to schedule pucch[j] on PUSCH
-      if (schedule_uci_on_pusch(mac, frameP, slotP, &pucch[j]))
+      if (schedule_uci_on_pusch(mac, frameP, slotP, &pucch[j], mac->current_UL_BWP))
         continue;
 
       fapi_nr_ul_config_request_pdu_t *pdu = lockGet_ul_config(mac, frameP, slotP, FAPI_NR_UL_CONFIG_TYPE_PUCCH);
