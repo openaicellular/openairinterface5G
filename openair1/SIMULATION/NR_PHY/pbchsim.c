@@ -618,8 +618,6 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
-  nr_gold_pbch(UE->nr_gold_pbch, Nid_cell, frame_parms->Lmax);
-
   processingData_L1tx_t msgDataTx;
   // generate signal
   const uint32_t rxdataF_sz = UE->frame_parms.samples_per_slot_wCP;
@@ -803,7 +801,6 @@ int main(int argc, char **argv)
 
           nr_pbch_channel_estimation(&UE->frame_parms,
                                      &UE->SL_UE_PHY_PARAMS,
-                                     UE->nr_gold_pbch,
                                      estimateSz,
                                      dl_ch_estimates,
                                      dl_ch_estimates_time,

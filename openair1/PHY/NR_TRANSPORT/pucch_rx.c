@@ -1145,26 +1145,21 @@ void nr_decode_pucch2(PHY_VARS_gNB *gNB,
 
     // first compute DMRS component
 
-    uint32_t x1 = 0, x2 = 0, sGold = 0;
-    uint8_t *sGold8 = (uint8_t *)&sGold;
     const int scramble = pucch_pdu->dmrs_scrambling_id * 2;
     // fixme: when MR2754 will be merged, use the gold sequence cache instead of regenerate each time
-    x2 = ((1ULL << 17) * ((NR_NUMBER_OF_SYMBOLS_PER_SLOT * slot + pucch_pdu->start_symbol_index + symb + 1) * (scramble + 1))
-          + scramble)
-         % (1U << 31); // c_init calculation according to TS38.211 subclause
+    uint32_t x2 =
+        ((1ULL << 17) * ((NR_NUMBER_OF_SYMBOLS_PER_SLOT * slot + pucch_pdu->start_symbol_index + symb + 1) * (scramble + 1))
+         + scramble)
+        % (1U << 31); // c_init calculation according to TS38.211 subclause
 #ifdef DEBUG_NR_PUCCH_RX
     printf("slot %d, start_symbol_index %d, symbol %d, dmrs_scrambling_id %d\n",
            slot,pucch_pdu->start_symbol_index,symb,pucch_pdu->dmrs_scrambling_id);
 #endif
-    int reset = 1;
-    for (int i=0; i<=(pucch_pdu->prb_start>>2); i++) {
-      sGold = lte_gold_generic(&x1, &x2, reset);
-      reset = 0;
-    }
-
-    for (int group = 0; group < ngroup; group++) {
+    uint32_t *sGold = gold_cache(x2, pucch_pdu->prb_start / 4 + ngroup / 2);
+    for (int group = 0, goldIdx = pucch_pdu->prb_start / 4; group < ngroup; group++) {
       // each group has 8*nc_group_size elements, compute 1 complex correlation with DMRS per group
       // non-coherent combining across groups
+      uint8_t *sGold8 = (uint8_t *)&sGold[goldIdx];
       simde__m64 dmrs_re = byte2m64_re[sGold8[(group & 1) << 1]];
       int16_t *dmrs_re16 = (int16_t *)&dmrs_re;
       simde__m64 dmrs_im = byte2m64_im[sGold8[(group & 1) << 1]];
@@ -1237,22 +1232,22 @@ void nr_decode_pucch2(PHY_VARS_gNB *gNB,
       } //aa    
 
       if ((group & 1) == 1)
-        sGold = lte_gold_generic(&x1, &x2, 0);
+        goldIdx++;
     } // group
   } // symb
 
-  uint32_t x1, x2, sGold = 0;
   // unscrambling
-  x2 = ((pucch_pdu->rnti)<<15)+pucch_pdu->data_scrambling_id;
-  sGold = lte_gold_generic(&x1, &x2, 1);
-  uint8_t *sGold8 = (uint8_t *)&sGold;
+  uint32_t x2 = ((pucch_pdu->rnti) << 15) + pucch_pdu->data_scrambling_id;
 #ifdef DEBUG_NR_PUCCH_RX
   printf("x2 %x\n", x2);
 #endif
+  uint32_t *sGold = gold_cache(x2, pucch_pdu->nr_of_symbols * prb_size_ext / 2);
+  int goldIdx = 0;
   for (int symb=0;symb<pucch_pdu->nr_of_symbols;symb++) {
     simde__m64 c_re[4], c_im[4];
     int re_off=0;
     for (int prb=0;prb<prb_size_ext;prb+=2,re_off+=16) {
+      uint8_t *sGold8 = (uint8_t *)(sGold + goldIdx);
       for (int z = 0; z < 4; z++) {
         c_re[z] = byte2m64_re[sGold8[z]];
         c_im[z] = byte2m64_im[sGold8[z]];
@@ -1332,7 +1327,7 @@ void nr_decode_pucch2(PHY_VARS_gNB *gNB,
                r_re_ext[aa][symb][re_off+15],r_im_ext[aa][symb][re_off+15]);
 #endif      
       }
-      sGold = lte_gold_generic(&x1, &x2, 0);
+      goldIdx++;
 #ifdef DEBUG_NR_PUCCH_RX
       printf("\n");
 #endif

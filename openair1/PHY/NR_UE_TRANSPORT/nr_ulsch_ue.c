@@ -57,34 +57,22 @@
 
 void nr_pusch_codeword_scrambling_uci(uint8_t *in, uint32_t size, uint32_t Nid, uint32_t n_RNTI, uint32_t* out)
 {
-  uint8_t reset, b_idx;
-  uint32_t x1 = 0, x2 = 0, s = 0, temp_out = 0;
-
-  reset = 1;
-  x2 = (n_RNTI<<15) + Nid;
-
+  uint32_t *seq = gold_cache((n_RNTI << 15) + Nid, (size + 31) / 32);
   for (int i=0; i<size; i++) {
-    b_idx = i&0x1f;
-    if (b_idx==0) {
-      s = lte_gold_generic(&x1, &x2, reset);
-      reset = 0;
-      if (i)
-        out++;
-    }
+    int idx = i / 32;
+    int b_idx = i % 32;
     if (in[i]==NR_PUSCH_x)
-      *out ^= 1<<b_idx;
+      out[idx] ^= 1 << b_idx;
     else if (in[i]==NR_PUSCH_y){
-      if (b_idx!=0)
-        *out ^= (*out & (1<<(b_idx-1)))<<1;
+      if (b_idx)
+        out[idx] ^= (out[idx] & (1 << (b_idx - 1))) << 1;
       else{
-
-        temp_out = *(out-1);
-        *out ^= temp_out>>31;
-
+        uint32_t temp_out = out[idx - 1];
+        out[idx] ^= temp_out >> 31;
       }
     }
     else
-      *out ^= (((in[i])&1) ^ ((s>>b_idx)&1))<<b_idx;
+      out[idx] ^= (((in[i]) & 1) ^ ((seq[idx] >> b_idx) & 1)) << b_idx;
     //printf("i %d b_idx %d in %d s 0x%08x out 0x%08x\n", i, b_idx, in[i], s, *out);
   }
 }
@@ -240,12 +228,6 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
   /////////////////////////DMRS Modulation/////////////////////////
   ///////////
 
-  if(pusch_pdu->ul_dmrs_scrambling_id != UE->scramblingID_ulsch[pusch_pdu->scid])  {
-    UE->scramblingID_ulsch[pusch_pdu->scid] = pusch_pdu->ul_dmrs_scrambling_id;
-    nr_init_pusch_dmrs(UE, pusch_pdu->scid, pusch_pdu->ul_dmrs_scrambling_id);
-  }
-
-  uint32_t ***pusch_dmrs = UE->nr_gold_pusch_dmrs[slot];
   uint16_t n_dmrs = (pusch_pdu->bwp_start + start_rb + nb_rb)*((dmrs_type == pusch_dmrs_type1) ? 6:4);
   c16_t mod_dmrs[n_dmrs] __attribute((aligned(16)));
 
@@ -382,7 +364,13 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
           // TODO: performance improvement, we can skip the modulation of DMRS symbols outside the bandwidth part
           // Perform this on gold sequence, not required when SC FDMA operation is done,
           LOG_D(PHY,"DMRS in symbol %d\n",l);
-          nr_modulation(pusch_dmrs[l][pusch_pdu->scid],
+          const uint32_t *gold = nr_gold_pusch(frame_parms->N_RB_UL,
+                                               frame_parms->symbols_per_slot,
+                                               pusch_pdu->ul_dmrs_scrambling_id,
+                                               pusch_pdu->scid,
+                                               slot,
+                                               l);
+          nr_modulation(gold,
                         n_dmrs * 2,
                         DMRS_MOD_ORDER,
                         (int16_t *)mod_dmrs); // currently only codeword 0 is modulated. Qm = 2 as DMRS is QPSK modulated
@@ -395,7 +383,13 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
 
         if(is_ptrs_symbol(l, ulsch_ue->ptrs_symbols)) {
           is_ptrs_sym = 1;
-          nr_modulation(pusch_dmrs[l][pusch_pdu->scid], nb_rb, DMRS_MOD_ORDER, (int16_t *)mod_ptrs);
+          const uint32_t *gold = nr_gold_pusch(frame_parms->N_RB_UL,
+                                               frame_parms->symbols_per_slot,
+                                               pusch_pdu->ul_dmrs_scrambling_id,
+                                               pusch_pdu->scid,
+                                               slot,
+                                               l);
+          nr_modulation(gold, nb_rb, DMRS_MOD_ORDER, (int16_t *)mod_ptrs);
         }
       }
 

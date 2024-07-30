@@ -42,7 +42,7 @@ extern const char nr_W_4l_4p[5][4][4];
   @param[out] out, complex valued modulated symbols
 */
 
-void nr_modulation(uint32_t *in,
+void nr_modulation(const uint32_t *in,
                    uint32_t length,
                    uint16_t mod_order,
                    int16_t *out);

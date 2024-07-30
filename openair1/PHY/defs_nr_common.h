@@ -122,8 +122,6 @@ typedef struct {
 } nr_srs_info_t;
 
 typedef struct {
-  uint16_t csi_gold_init;
-  uint32_t ***nr_gold_csi_rs;
   uint8_t csi_rs_generated_signal_bits;
   int32_t **csi_rs_generated_signal;
   bool csi_im_meas_computed;

@@ -703,11 +703,6 @@ int main(int argc, char *argv[])
 
   init_nr_ue_transport(UE);
 
-  for(int n_scid = 0; n_scid<2; n_scid++) {
-    UE->scramblingID_ulsch[n_scid] = frame_parms->Nid_cell;
-    nr_init_pusch_dmrs(UE, frame_parms->Nid_cell, n_scid);
-  }
-
   //Configure UE
   nr_l2_init_ue(1);
   NR_UE_MAC_INST_t* UE_mac = get_mac_inst(0);
