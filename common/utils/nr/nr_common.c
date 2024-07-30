@@ -105,6 +105,16 @@ int get_supported_band_index(int scs, frequency_range_t freq_range, int n_rbs)
   return (-1); // not found
 }
 
+int get_smallest_supported_bandwidth_index(int scs, frequency_range_t frequency_range, int n_rbs)
+{
+  int scs_index = scs + frequency_range;
+  for (int i = 0; i < 12; i++) {
+    if (n_rbs <= tables_5_3_2[scs_index][i])
+      return i;
+  }
+  return -1; // not found
+}
+
 // Table 5.2-1 NR operating bands in FR1 & FR2 (3GPP TS 38.101)
 // Table 5.4.2.3-1 Applicable NR-ARFCN per operating band in FR1 & FR2 (3GPP TS 38.101)
 // Notes:
@@ -299,64 +309,30 @@ void check_ssb_raster(uint64_t freq, int band, int scs)
               band);
 }
 
-int get_supported_bw_mhz(frequency_range_t frequency_range, int scs, int nb_rb)
+int get_supported_bw_mhz(frequency_range_t frequency_range, int bw_index)
 {
-  int bw_index = get_supported_band_index(scs, frequency_range, nb_rb);
   if (frequency_range == FR1) {
-    switch (bw_index) {
-      case 0 :
-        return 5; // 5MHz
-      case 1 :
-        return 10;
-      case 2 :
-        return 15;
-      case 3 :
-        return 20;
-      case 4 :
-        return 25;
-      case 5 :
-        return 30;
-      case 6 :
-        return 40;
-      case 7 :
-        return 50;
-      case 8 :
-        return 60;
-      case 9 :
-        return 80;
-      case 10 :
-        return 90;
-      case 11 :
-        return 100;
-      default :
-        AssertFatal(false, "Invalid band index for FR1 %d\n", bw_index);
-    }
-  }
-  else {
-    switch (bw_index) {
-      case 0 :
-        return 50; // 50MHz
-      case 1 :
-        return 100;
-      case 2 :
-        return 200;
-      case 3 :
-        return 400;
-      default :
-        AssertFatal(false, "Invalid band index for FR2 %d\n", bw_index);
-    }
+    int bandwidth_index_to_mhz[] = {5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 90, 100};
+    AssertFatal(bw_index >= 0 && bw_index <= sizeofArray(bandwidth_index_to_mhz),
+                "Bandwidth index %d is invalid\n",
+                bw_index);
+    return bandwidth_index_to_mhz[bw_index];
+  } else {
+    int bandwidth_index_to_mhz[] = {50, 100, 200, 400};
+    AssertFatal(bw_index >= 0 && bw_index <= sizeofArray(bandwidth_index_to_mhz),
+                "Bandwidth index %d is invalid\n",
+                bw_index);
+    return bandwidth_index_to_mhz[bw_index];
   }
 }
 
-bool compare_relative_ul_channel_bw(int nr_band, int scs, int nb_ul, frame_type_t frame_type)
+bool compare_relative_ul_channel_bw(int nr_band, int scs, int channel_bandwidth, frame_type_t frame_type)
 {
   // 38.101-1 section 6.2.2
   // Relative channel bandwidth <= 4% for TDD bands and <= 3% for FDD bands
   int index = get_nr_table_idx(nr_band, scs);
-
-  int band_size_khz = get_supported_bw_mhz(nr_band > 256 ? FR2 : FR1, scs, nb_ul) * 1000;
   float limit = frame_type == TDD ? 0.04 : 0.03;
-  float rel_bw = (float) (band_size_khz) / (float) (nr_bandtable[index].ul_max - nr_bandtable[index].ul_min);
+  float rel_bw = (float) (2 * channel_bandwidth * 1000) / (float) (nr_bandtable[index].ul_max - nr_bandtable[index].ul_min);
   return rel_bw > limit;
 }
 

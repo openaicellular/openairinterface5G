@@ -70,7 +70,7 @@ These modes of operation are supported:
    - DMRS configuration type 1 and 2
    - Single and multiple DMRS symbols
    - PTRS support
-   - Support for 1, 2 and 4 TX antennas
+   - Support for up to 4 TX antennas
    - Support for up to 2 layers
    - Support for 256 QAM
 *  NR-CSIRS Generation of sequence at PHY
@@ -79,7 +79,7 @@ These modes of operation are supported:
    - DMRS configuration type 1 and 2
    - Single and multiple DMRS symbols
    - PTRS support
-   - Support for up to 2 RX antenna
+   - Support for up to 4 RX antennas
    - Support for up to 2 layers
    - Support for 256 QAM
 *  NR-PUCCH
@@ -205,6 +205,7 @@ These modes of operation are supported:
   - F1 UE Context modification required
   - F1 UE Context release req/cmd/complete
   - F1 gNB CU configuration update
+  - F1 Reset (handled at DU only, full reset only)
 - Interface with RRC
 - Interface with GTP-u (tunnel creation/handling for F1-U interface)
 - One CU(-CP) can handle multiple DUs
@@ -237,7 +238,8 @@ These modes of operation are supported:
 ##  NR UE PHY Layer ##
 
 *  Initial synchronization
-   - the UE needs to know the position in frequency of the SSBs (via command line parameter in SA)
+   - non-blind synchronization (information required: carrier frequency, bandwidth, numerology)
+   - option to search SSB inside the bandwidth available
 *  Time tracking based on PBCH DMRS
 *  Frequency offset estimation based on PSS and SSS
 *  15kHz and 30kHz SCS for FR1 and 120 kHz SCS for FR2
@@ -292,7 +294,7 @@ These modes of operation are supported:
 
 *  MAC -> PHY configuration via UE FAPI P5 interface
 *  Basic MAC to control PHY via UE FAPI P7 interface
-*  PHY -> MAC indication (needs some improvement)
+*  PHY -> MAC indication
 
 ## NR UE Higher Layers ##
 
@@ -314,19 +316,21 @@ These modes of operation are supported:
    - format 01 (C-RNTI)
 * UCI processing
    - ACK/NACK processing
-   - Triggering periodic SR
-   - CSI measurement reporting
+   - Scheduling request procedures
+   - CSI measurement reporting (periodic and aperiodic)
 * DLSCH scheduler
    - Configuration of fapi PDU according to DCI
    - HARQ procedures
 * ULSCH scheduler
    - Configuration of fapi PDU according to DCI
+   - Buffer status reporting procedures
    - Logical channel prioritization of 'data from any logical channel'
+   - UCI on PUSCH
 * NR-CSIRS scheduler
   - Scheduling of NR-CSIRS reception
   - Fill UCI for CSI measurement reporting
 * Scheduler procedures for SRS transmission
-   - Periodic SRS transmission
+   - Periodic and aperiodic SRS transmission
 * Bandwidth part (BWP) operation
    - Operation in configured dedicated BWP through RRCSetup or RRCReconfiguration
 
@@ -363,6 +367,7 @@ These modes of operation are supported:
    - RRCSetupRequest/RRCSetup/RRCSetupComplete
    - RRC Uplink/Downlink Information transfer carrying NAS messages transparently
    - RRC Reconfiguration/Reconfiguration complete
+   - RRCReestablishmentRequest/RRC Reestablishment/Reestablishment complete
    - Support for master cell group configuration
    - Reception of UECapabilityEnquiry, encoding and transmission of UECapability
 * Interface with PDCP: configuration, DCCH and CCCH message handling

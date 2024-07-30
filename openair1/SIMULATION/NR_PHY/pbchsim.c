@@ -161,8 +161,9 @@ void nr_phy_config_request_sim_pbchsim(PHY_VARS_gNB *gNB,
   if (mu>2) fp->nr_band = 257;
   else fp->nr_band = 78;
   fp->threequarter_fs= 0;
-
-  gNB_config->carrier_config.dl_bandwidth.value = get_supported_bw_mhz(fp->nr_band > 256 ? FR2 : FR1, mu, N_RB_DL);
+  frequency_range_t frequency_range = fp->nr_band > 256 ? FR2 : FR1;
+  int bw_index = get_supported_band_index(mu, frequency_range, N_RB_DL);
+  gNB_config->carrier_config.dl_bandwidth.value = get_supported_bw_mhz(frequency_range, bw_index);
 
   fp->ofdm_offset_divisor = UINT_MAX;
   nr_init_frame_parms(gNB_config, fp);
@@ -618,8 +619,6 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
-  nr_gold_pbch(UE->nr_gold_pbch, Nid_cell, frame_parms->Lmax);
-
   processingData_L1tx_t msgDataTx;
   // generate signal
   const uint32_t rxdataF_sz = UE->frame_parms.samples_per_slot_wCP;
@@ -803,7 +802,6 @@ int main(int argc, char **argv)
 
           nr_pbch_channel_estimation(&UE->frame_parms,
                                      &UE->SL_UE_PHY_PARAMS,
-                                     UE->nr_gold_pbch,
                                      estimateSz,
                                      dl_ch_estimates,
                                      dl_ch_estimates_time,

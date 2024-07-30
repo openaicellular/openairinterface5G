@@ -112,7 +112,7 @@ const char nr_W_4l_4p[5][4][4] = {
     {{'1', '1', '1', '1'}, {'1', 'n', '1', 'n'}, {'j', 'j', 'o', 'o'}, {'j', 'o', 'o', 'j'}} // pmi 4
 };
 
-void nr_modulation(uint32_t *in,
+void nr_modulation(const uint32_t *in,
                    uint32_t length,
                    uint16_t mod_order,
                    int16_t *out)
@@ -120,8 +120,8 @@ void nr_modulation(uint32_t *in,
   uint16_t mask = ((1<<mod_order)-1);
   int32_t* nr_mod_table32;
   int32_t* out32 = (int32_t*) out;
-  uint8_t* in_bytes = (uint8_t*) in;
-  uint64_t* in64 = (uint64_t*) in;
+  const uint8_t *in_bytes = (const uint8_t *)in;
+  const uint64_t *in64 = (const uint64_t *)in;
   int64_t* out64 = (int64_t*) out;
   uint32_t i=0;
 

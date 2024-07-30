@@ -196,6 +196,7 @@ void e1_bearer_context_setup(const e1ap_bearer_setup_req_t *req)
                      cu_up_ue_id,
                      &DRB_configList,
                      &security_parameters);
+    ASN_STRUCT_RESET(asn_DEF_NR_DRB_ToAddModList, &DRB_configList.list);
     if (f1inst >= 0) { /* we have F1(-U) */
       teid_t dummy_teid = 0xffff; // we will update later with answer from DU
       in_addr_t dummy_address = {0}; // IPv4, updated later with answer from DU

@@ -280,9 +280,11 @@ static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_Ant
 
   // Carrier configuration
   struct NR_FrequencyInfoDL *frequencyInfoDL = scc->downlinkConfigCommon->frequencyInfoDL;
-  cfg->carrier_config.dl_bandwidth.value = get_supported_bw_mhz(*frequencyInfoDL->frequencyBandList.list.array[0] > 256 ? FR2 : FR1,
-                                                                frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                                                frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+  frequency_range_t frequency_range = *frequencyInfoDL->frequencyBandList.list.array[0] > 256 ? FR2 : FR1;
+  int bw_index = get_supported_band_index(frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
+                                          frequency_range,
+                                          frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+  cfg->carrier_config.dl_bandwidth.value = get_supported_bw_mhz(frequency_range, bw_index);
   cfg->carrier_config.dl_bandwidth.tl.tag = NFAPI_NR_CONFIG_DL_BANDWIDTH_TAG; // temporary
   cfg->num_tlv++;
   LOG_I(NR_MAC, "DL_Bandwidth:%d\n", cfg->carrier_config.dl_bandwidth.value);
@@ -308,9 +310,11 @@ static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_Ant
     }
   }
   struct NR_FrequencyInfoUL *frequencyInfoUL = scc->uplinkConfigCommon->frequencyInfoUL;
-  cfg->carrier_config.uplink_bandwidth.value = get_supported_bw_mhz(*frequencyInfoUL->frequencyBandList->list.array[0] > 256 ? FR2 : FR1,
-                                                                    frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                                                    frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+  frequency_range = *frequencyInfoUL->frequencyBandList->list.array[0] > 256 ? FR2 : FR1;
+  bw_index = get_supported_band_index(frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
+                                      frequency_range,
+                                      frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
+  cfg->carrier_config.uplink_bandwidth.value = get_supported_bw_mhz(frequency_range, bw_index);
   cfg->carrier_config.uplink_bandwidth.tl.tag = NFAPI_NR_CONFIG_UPLINK_BANDWIDTH_TAG; // temporary
   cfg->num_tlv++;
   LOG_I(NR_MAC, "DL_Bandwidth:%d\n", cfg->carrier_config.uplink_bandwidth.value);
@@ -343,7 +347,7 @@ static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_Ant
   }
 
   uint32_t band = *frequencyInfoDL->frequencyBandList.list.array[0];
-  frequency_range_t frequency_range = band < 100 ? FR1 : FR2;
+  frequency_range = band < 100 ? FR1 : FR2;
 
   frame_type_t frame_type = get_frame_type(*frequencyInfoDL->frequencyBandList.list.array[0], *scc->ssbSubcarrierSpacing);
   nrmac->common_channels[0].frame_type = frame_type;

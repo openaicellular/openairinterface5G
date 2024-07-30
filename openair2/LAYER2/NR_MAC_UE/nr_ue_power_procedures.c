@@ -66,16 +66,16 @@ static int get_deltatf(uint16_t nb_of_prbs,
                        int O_UCI);
 
 // ∆MPR according to Table 6.2.2-3 38.101-1
-static float get_delta_mpr(uint16_t nr_band, frame_type_t frame_type, int scs, int N_RB_UL, int n_prbs, int start_prb, int power_class)
+static float get_delta_mpr(uint16_t nr_band, frame_type_t frame_type, int scs, int channel_bandwidth, int n_prbs, int start_prb, int power_class)
 {
-  if (compare_relative_ul_channel_bw(nr_band, scs, N_RB_UL, frame_type)) {
+  if (compare_relative_ul_channel_bw(nr_band, scs, channel_bandwidth, frame_type)) {
     if (power_class == 3) {
-      if ((nr_band == 28 || nr_band == 83) && get_supported_bw_mhz(nr_band > 256 ? FR2 : FR1, scs, N_RB_UL) == 30) {
+      if ((nr_band == 28 || nr_band == 83) && channel_bandwidth == 30) {
         return 0.5f;
       }
     }
     if (power_class == 3 || power_class == 2) {
-      if ((nr_band == 40 || nr_band == 97) && get_supported_bw_mhz(nr_band > 256 ? FR2 : FR1, scs, N_RB_UL) == 100) {
+      if ((nr_band == 40 || nr_band == 97) && channel_bandwidth == 100) {
         return 1.0f;
       }
     }
@@ -168,6 +168,7 @@ float nr_get_Pcmax(int p_Max,
                    uint16_t nr_band,
                    frame_type_t frame_type,
                    frequency_range_t frequency_range,
+                   int channel_bandwidth,
                    int Qm,
                    bool powerBoostPi2BPSK,
                    int scs,
@@ -197,7 +198,7 @@ float nr_get_Pcmax(int p_Max,
     int delta_TC = 0;
 
     float MPR = get_mpr(Qm, N_RB_UL, is_transform_precoding, n_prbs, start_prb, power_class);
-    float delta_MPR = get_delta_mpr(nr_band, frame_type, scs, N_RB_UL, n_prbs, start_prb, power_class);
+    float delta_MPR = get_delta_mpr(nr_band, frame_type, scs, channel_bandwidth, n_prbs, start_prb, power_class);
     int A_MPR = 0; // TODO too complicated to implement for now (see 6.2.3 in 38.101-1)
     int delta_rx_SRS = 0; // TODO for SRS
     int P_MPR = 0; // to ensure compliance with applicable electromagnetic energy absorption requirements
@@ -216,7 +217,13 @@ float nr_get_Pcmax(int p_Max,
     }
     // TODO we need a strategy to select a value between minimum and maximum allowed PC_max
     float pcmax = (pcmax_low + pcmax_high) / 2;
-    LOG_D(MAC, "Configured maximum output power:  %f dBm <= PCMAX %f dBm <= %f dBm \n", pcmax_low, pcmax, pcmax_high);
+    LOG_D(MAC,
+          "Configured maximum output power:  %f dBm <= PCMAX %f dBm <= %f dBm MPR=%.2f deltaMPR=%.2f\n",
+          pcmax_low,
+          pcmax,
+          pcmax_high,
+          MPR,
+          delta_MPR);
     return pcmax;
   } else {
     // FR2 TODO it is even more complex because it is radiated power
@@ -224,12 +231,11 @@ float nr_get_Pcmax(int p_Max,
   }
 }
 
-float nr_get_Pcmin(int scs, int nr_band, int N_RB_UL) {
-  int band_index = get_supported_band_index(nr_band > 256 ? FR2 : FR1, scs, N_RB_UL);
+float nr_get_Pcmin(int bandwidth_index) {
   const float table_38101_6_3_1_1[] = {
     -40, -40, -40, -40, -39, -38.2, -37.5, -37, -36.5, -35.2, -34.6, -34, -33.5, -33
   };
-  return table_38101_6_3_1_1[band_index];
+  return table_38101_6_3_1_1[bandwidth_index];
 }
 
 // This is not entirely correct. In certain k2/k1/k0 settings we might postpone accumulating delta_PUCCH until next HARQ feedback
@@ -341,6 +347,7 @@ int16_t get_pucch_tx_power_ue(NR_UE_MAC_INST_t *mac,
                             mac->nr_band,
                             mac->frame_type,
                             mac->frequency_range,
+                            current_UL_BWP->channel_bandwidth,
                             2,
                             false,
                             mac->current_UL_BWP->scs,
@@ -348,7 +355,7 @@ int16_t get_pucch_tx_power_ue(NR_UE_MAC_INST_t *mac,
                             format_type == 2,
                             1,
                             start_prb);
-  int P_CMIN = nr_get_Pcmin(mac->current_UL_BWP->scs, mac->nr_band,  mac->current_UL_BWP->BWPSize);
+  float P_CMIN = current_UL_BWP->P_CMIN;
   int16_t pathloss = compute_nr_SSB_PL(mac, mac->ssb_measurements.ssb_rsrp_dBm);
 
   if (power_config->twoPUCCH_PC_AdjustmentStates && *power_config->twoPUCCH_PC_AdjustmentStates > 1) {
@@ -522,6 +529,7 @@ int get_pusch_tx_power_ue(NR_UE_MAC_INST_t *mac,
                             mac->nr_band,
                             mac->frame_type,
                             mac->frequency_range,
+                            mac->current_UL_BWP->channel_bandwidth,
                             qm,
                             false,
                             mac->current_UL_BWP->scs,
@@ -553,7 +561,7 @@ int get_pusch_tx_power_ue(NR_UE_MAC_INST_t *mac,
 
   // TODO: compute pathoss using correct reference
   int16_t pathloss = compute_nr_SSB_PL(mac, mac->ssb_measurements.ssb_rsrp_dBm);
-  int P_CMIN = nr_get_Pcmin(mac->current_UL_BWP->scs, mac->nr_band,  mac->current_UL_BWP->BWPSize);
+  int P_CMIN = mac->current_UL_BWP->P_CMIN;
 
   float pusch_power_without_f_b_f_c = P_O_PUSCH + M_pusch_component + alpha * pathloss + DELTA_TF;
 

@@ -529,7 +529,7 @@ void set_dl_maxmimolayers(NR_PDSCH_ServingCellConfig_t *pdsch_servingcellconfig,
 
   NR_FeatureSets_t *fs = uecap ? uecap->featureSets : NULL;
   if (fs) {
-    const int bw_mhz = get_supported_bw_mhz(freq_range, scs, bw_size);
+    const int bw_mhz = get_supported_bw_mhz(freq_range, get_supported_band_index(scs, freq_range, bw_size));
     // go through UL feature sets and look for one with current SCS
     for (int i = 0; i < fs->featureSetsDownlinkPerCC->list.count; i++) {
       NR_FeatureSetDownlinkPerCC_t *dl_fs = fs->featureSetsDownlinkPerCC->list.array[i];

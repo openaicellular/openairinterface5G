@@ -248,6 +248,7 @@ float nr_get_Pcmax(int p_Max,
                    uint16_t nr_band,
                    frame_type_t frame_type,
                    frequency_range_t frequency_range,
+                   int channel_bandwidth_index,
                    int Qm,
                    bool powerBoostPi2BPSK,
                    int scs,
@@ -256,7 +257,7 @@ float nr_get_Pcmax(int p_Max,
                    int n_prbs,
                    int start_prb);
 
-float nr_get_Pcmin(int scs, int nr_band, int N_RB_UL);
+float nr_get_Pcmin(int bandwidth_index);
 
 int get_sum_delta_pucch(NR_UE_MAC_INST_t *mac, int slot, frame_t frame);
 

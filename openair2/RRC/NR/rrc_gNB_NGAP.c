@@ -335,13 +335,14 @@ static int decodePDUSessionResourceSetup(pdusession_t *session)
         return -1;
     }
   }
-  ASN_STRUCT_FREE_CONTENTS_ONLY(asn_DEF_NGAP_PDUSessionResourceSetupRequestTransfer,pdusessionTransfer );
+  ASN_STRUCT_FREE(asn_DEF_NGAP_PDUSessionResourceSetupRequestTransfer, pdusessionTransfer);
 
   return 0;
 }
 
 void trigger_bearer_setup(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, pdusession_t *sessions, uint64_t ueAggMaxBitRateDownlink)
 {
+  AssertFatal(UE->as_security_active, "logic bug: security should be active when activating DRBs\n");
   e1ap_bearer_setup_req_t bearer_req = {0};
 
   e1ap_nssai_t cuup_nssai = {0};
@@ -813,7 +814,6 @@ void rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ(MessageDef *msg_p, instance_t ins
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
   PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, 0, GNB_FLAG_YES, UE->rnti, 0, 0, 0);
   gNB_RRC_INST *rrc = RC.nrrrc[ctxt.module_id];
-  LOG_I(NR_RRC, "[gNB %ld] gNB_ue_ngap_id %u \n", instance, msg->gNB_ue_ngap_id);
 
   if (ue_context_p == NULL) {
     MessageDef *msg_fail_p = NULL;
@@ -825,7 +825,25 @@ void rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ(MessageDef *msg_p, instance_t ins
     return ;
   }
 
-  AssertFatal(UE->rrc_ue_id == msg->gNB_ue_ngap_id, "logic bug\n");
+  DevAssert(UE->rrc_ue_id == msg->gNB_ue_ngap_id);
+  LOG_I(NR_RRC, "UE %d: received PDU session setup request\n", UE->rrc_ue_id);
+
+  if (!UE->as_security_active) {
+    LOG_E(NR_RRC, "UE %d: no security context active for UE, rejecting PDU session setup request\n", UE->rrc_ue_id);
+    MessageDef *msg_resp = itti_alloc_new_message(TASK_RRC_GNB, 0, NGAP_PDUSESSION_SETUP_RESP);
+    ngap_pdusession_setup_resp_t *resp = &NGAP_PDUSESSION_SETUP_RESP(msg_resp);
+    resp->gNB_ue_ngap_id = UE->rrc_ue_id;
+    resp->nb_of_pdusessions_failed = msg->nb_pdusessions_tosetup;
+    for (int i = 0; i < resp->nb_of_pdusessions_failed; ++i) {
+      pdusession_failed_t *f = &resp->pdusessions_failed[i];
+      f->pdusession_id = msg->pdusession_setup_params[i].pdusession_id;
+      f->cause = NGAP_CAUSE_PROTOCOL;
+      f->cause_value = NGAP_CAUSE_PROTOCOL_MSG_NOT_COMPATIBLE_WITH_RECEIVER_STATE;
+    }
+    itti_send_msg_to_task(TASK_NGAP, instance, msg_resp);
+    return;
+  }
+
   UE->amf_ue_ngap_id = msg->amf_ue_ngap_id;
   trigger_bearer_setup(rrc, UE, msg->nb_pdusessions_tosetup, msg->pdusession_setup_params, msg->ueAggMaxBitRateDownlink);
   return;

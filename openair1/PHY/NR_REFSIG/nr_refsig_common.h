@@ -19,33 +19,17 @@
  *      contact@openairinterface.org
  */
 
-#ifndef __PHY_NR_TRANSPORT_DCI__H
-#define __PHY_NR_TRANSPORT_DCI__H
+/* Definitions for NR Reference signals */
 
-#include "PHY/defs_gNB.h"
-#include "PHY/NR_REFSIG/nr_refsig.h"
-#include "nfapi/open-nFAPI/nfapi/public_inc/nfapi_nr_interface.h"
+#ifndef __NR_REFSIG_COMMON_H__
+#define __NR_REFSIG_COMMON_H__
 
-void nr_generate_dci_top(processingData_L1tx_t *msgTx,
-                         int slot,
-                         int32_t *txdataF,
-                         int16_t amp,
-                         NR_DL_FRAME_PARMS *frame_parms);
+uint32_t *gold_cache(uint32_t key, int length);
+uint32_t *nr_gold_pbch(int Lmax, int Nid, int n_hf, int ssb);
+uint32_t *nr_gold_pdcch(int N_RB_DL, int symbols_per_slot, unsigned short n_idDMRS, int ns, int l);
+uint32_t *nr_gold_pdsch(int N_RB_DL, int symbols_per_slot, int nid, int nscid, int slot, int symbol);
+uint32_t *nr_gold_pusch(int N_RB_UL, int symbols_per_slot, int Nid, int nscid, int slot, int symbol);
+uint32_t *nr_gold_csi_rs(int N_RB_DL, int symbols_per_slot, int slot, int symb, uint32_t Nid);
+uint32_t *nr_gold_prs(int nid, int slot, int symbol);
 
-int16_t find_nr_pdcch(int frame,int slot, PHY_VARS_gNB *gNB,find_type_t type);
-
-void nr_fill_dci(PHY_VARS_gNB *gNB,
-                 int frame,
-                 int slot,
-		 nfapi_nr_dl_tti_pdcch_pdu *pdcch_pdu);
-
-int16_t find_nr_ul_dci(int frame,int slot, PHY_VARS_gNB *gNB,find_type_t type);
-
-void nr_fill_ul_dci(PHY_VARS_gNB *gNB,
-		    int frame,
-		    int slot,
-		    nfapi_nr_ul_dci_request_pdus_t *pdcch_pdu);
-
-void nr_fill_reg_list(int cce_list[MAX_DCI_CORESET][NR_MAX_PDCCH_AGG_LEVEL * NR_NB_REG_PER_CCE], nfapi_nr_dl_tti_pdcch_pdu_rel15_t *pdcch_pdu_rel15);
-
-#endif //__PHY_NR_TRANSPORT_DCI__H
+#endif
