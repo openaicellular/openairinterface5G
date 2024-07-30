@@ -765,6 +765,13 @@ int main( int argc, char **argv ) {
       p.ru=RC.ru[0];
       load_softscope("nr",&p);
     }
+    sleep(1);
+    scopeParms_t p;
+    p.argc=&argc;
+    p.argv=argv;
+    p.gNB=RC.gNB[0];
+    p.ru=RC.ru[0];
+    load_softscope("im", &p);
 
     if (NFAPI_MODE != NFAPI_MODE_PNF && NFAPI_MODE != NFAPI_MODE_VNF && NFAPI_MODE != NFAPI_MODE_AERIAL) {
       printf("Not NFAPI mode - call init_eNB_afterRU()\n");
