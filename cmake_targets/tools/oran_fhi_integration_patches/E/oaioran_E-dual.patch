@@ -1,5 +1,5 @@
 diff --git a/fhi_lib/app/src/common.h b/fhi_lib/app/src/common.h
-index 7508117..0dbe0bd 100644
+index 7508117..005f0a1 100644
 --- a/fhi_lib/app/src/common.h
 +++ b/fhi_lib/app/src/common.h
 @@ -28,7 +28,7 @@
@@ -343,7 +343,7 @@ index fef64c8..c335e75 100644
  #include <rte_eal.h>
  #include <rte_errno.h>
 diff --git a/fhi_lib/lib/src/xran_main.c b/fhi_lib/lib/src/xran_main.c
-index 89dcc1f..7845248 100644
+index 89dcc1f..8ec63e9 100644
 --- a/fhi_lib/lib/src/xran_main.c
 +++ b/fhi_lib/lib/src/xran_main.c
 @@ -35,7 +35,11 @@
@@ -403,21 +403,16 @@ index 89dcc1f..7845248 100644
  
      printf("O-XU      %d\n", eth_ctx->io_cfg.id);
      printf("HW        %d\n", icx_cpu);
-@@ -1876,11 +1909,10 @@ xran_spawn_workers(void)
+@@ -1876,8 +1909,7 @@ xran_spawn_workers(void)
                  eth_ctx->time_wrk_cfg.arg   = NULL;
                  eth_ctx->time_wrk_cfg.state = 1;
  
 -                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                if(pThCtx == NULL){
-+		if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                      print_err("pThCtx allocation error\n");
--                    return XRAN_STATUS_FAIL;
--                }
-+        	    return XRAN_STATUS_FAIL;
-+    		}
-                 memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                 pThCtx->worker_id    = 0;
-                 pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                     return XRAN_STATUS_FAIL;
+                 }
 @@ -1897,12 +1929,11 @@ xran_spawn_workers(void)
                  eth_ctx->time_wrk_cfg.state = 1;
  
@@ -425,269 +420,425 @@ index 89dcc1f..7845248 100644
 -                /** 0 **/
 -                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                if(pThCtx == NULL){
-+		if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                      print_err("pThCtx allocation error\n");
--                    return XRAN_STATUS_FAIL;
--                }
-+        	    return XRAN_STATUS_FAIL;
-+    		}
+                     return XRAN_STATUS_FAIL;
+                 }
 +                /** 0 **/
                  memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
                  pThCtx->worker_id      = 0;
                  pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -1926,10 +1957,10 @@ xran_spawn_workers(void)
+@@ -1925,8 +1956,7 @@ xran_spawn_workers(void)
+                 }
  
                  /** 1 - CP GEN **/
-                 pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                if(pThCtx == NULL){
-+		if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                      print_err("pThCtx allocation error\n");
--                    return XRAN_STATUS_FAIL;
--                }
-+        	    return XRAN_STATUS_FAIL;
-+    		}
-                 memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                 pThCtx->worker_id      = 1;
-                 pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -1957,10 +1988,10 @@ xran_spawn_workers(void)
+                     return XRAN_STATUS_FAIL;
+                 }
+@@ -1956,8 +1986,7 @@ xran_spawn_workers(void)
+ 
                  p_dev->tx_sym_gen_func = xran_process_tx_sym_cp_on_opt;
  
-                 pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                if(pThCtx == NULL){
-+		if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                      print_err("pThCtx allocation error\n");
--                    return XRAN_STATUS_FAIL;
--                }
-+        	    return XRAN_STATUS_FAIL;
-+    		}
-                 memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                 pThCtx->worker_id    = 0;
-                 pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -1979,11 +2010,10 @@ xran_spawn_workers(void)
+                     return XRAN_STATUS_FAIL;
+                 }
+@@ -1979,11 +2008,10 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++		            if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
 -                        return XRAN_STATUS_FAIL;
 -                    }
-+        	        return XRAN_STATUS_FAIL;
++        	            return XRAN_STATUS_FAIL;
 +    	            }
                      memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
                      pThCtx->worker_id      = 0;
                      pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2281,11 +2311,10 @@ xran_spawn_workers(void)
- 
-                     /* workers */
-                     /** 0  Eth RX */
--                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
--                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
-                         print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 0;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2296,11 +2325,10 @@ xran_spawn_workers(void)
-                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
- 
-                     /** 1  FH RX and BBDEV */
--                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
--                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
-                         print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 1;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2311,11 +2339,10 @@ xran_spawn_workers(void)
-                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
- 
-                     /** 2  FH RX and BBDEV */
--                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
--                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
-                         print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 2;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2326,11 +2353,10 @@ xran_spawn_workers(void)
-                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
- 
-                     /** 3  FH RX and BBDEV */
--                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
--                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
-                         print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 3;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2341,11 +2367,10 @@ xran_spawn_workers(void)
-                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
- 
-                     /**  FH TX and BBDEV */
--                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
--                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
-                         print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 4;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2379,11 +2404,10 @@ xran_spawn_workers(void)
- 
-                     /* workers */
-                     /** 0 **/
--                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
--                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
-                         print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id      = 0;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2406,11 +2430,10 @@ xran_spawn_workers(void)
+@@ -2006,8 +2034,7 @@ xran_spawn_workers(void)
                      }
  
                      /** 1 - CP GEN **/
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id      = 1;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2433,11 +2456,10 @@ xran_spawn_workers(void)
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2033,8 +2060,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id      = 0;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2629,11 +2651,10 @@ xran_spawn_workers(void)
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2048,8 +2074,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 1 - CP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2063,8 +2088,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 2 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2102,8 +2126,7 @@ xran_spawn_workers(void)
+ 
+                     /* workers */
+                     /** 0 **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2117,8 +2140,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 1 - CP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2132,8 +2154,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 2 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2147,8 +2168,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 3 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2186,8 +2206,7 @@ xran_spawn_workers(void)
+ 
+                     /* workers */
+                     /** 0 **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2201,9 +2220,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 1 Eth Tx **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2217,8 +2234,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 2 - CP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2232,8 +2248,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 3 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2247,8 +2262,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 4 UP GEN **/
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id    = 4;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2651,11 +2672,10 @@ xran_spawn_workers(void)
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2281,8 +2295,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0  Eth RX */
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 0;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2666,11 +2686,10 @@ xran_spawn_workers(void)
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2296,11 +2309,10 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1  FH RX and BBDEV */
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++		            if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
 -                        return XRAN_STATUS_FAIL;
 -                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
++        	            return XRAN_STATUS_FAIL;
++    		        }
                      memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
                      pThCtx->worker_id = 1;
                      pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2681,11 +2700,10 @@ xran_spawn_workers(void)
+@@ -2311,8 +2323,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2  FH RX and BBDEV */
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 2;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2696,11 +2714,10 @@ xran_spawn_workers(void)
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2326,8 +2337,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 3  FH RX and BBDEV */
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 3;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2711,11 +2728,10 @@ xran_spawn_workers(void)
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2341,8 +2351,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /**  FH TX and BBDEV */
 -                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
 -                    if(pThCtx == NULL){
-+		    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
                          print_err("pThCtx allocation error\n");
--                        return XRAN_STATUS_FAIL;
--                    }
-+        	        return XRAN_STATUS_FAIL;
-+    		    }
-                     memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
-                     pThCtx->worker_id = 4;
-                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2379,8 +2388,7 @@ xran_spawn_workers(void)
+ 
+                     /* workers */
+                     /** 0 **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2406,8 +2414,7 @@ xran_spawn_workers(void)
+                     }
+ 
+                     /** 1 - CP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2433,8 +2440,7 @@ xran_spawn_workers(void)
+ 
+                     /* workers */
+                     /** 0 **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2448,8 +2454,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 1 - CP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2463,8 +2468,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 2 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2501,8 +2505,7 @@ xran_spawn_workers(void)
+ 
+                     /* workers */
+                     /** 0  FH RX and BBDEV */
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2516,8 +2519,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 1 - CP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2531,8 +2533,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 2 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2546,8 +2547,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 3 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2569,8 +2569,7 @@ xran_spawn_workers(void)
+ 
+                     /* workers */
+                     /** 0 **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2584,8 +2583,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 1 - CP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2599,8 +2597,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 2 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2614,8 +2611,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 3 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2629,8 +2625,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 4 UP GEN **/
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2651,8 +2646,7 @@ xran_spawn_workers(void)
+ 
+                     /* workers */
+                     /** 0  Eth RX */
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2666,8 +2660,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 1  FH RX and BBDEV */
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2681,8 +2674,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 2  FH RX and BBDEV */
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2696,8 +2688,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /** 3  FH RX and BBDEV */
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
+@@ -2711,8 +2702,7 @@ xran_spawn_workers(void)
+                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+ 
+                     /**  FH TX and BBDEV */
+-                    pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+-                    if(pThCtx == NULL){
++                    if (allocate_worker_th_ctx(&pThCtx) != XRAN_STATUS_SUCCESS) {
+                         print_err("pThCtx allocation error\n");
+                         return XRAN_STATUS_FAIL;
+                     }
 diff --git a/fhi_lib/lib/src/xran_mem_mgr.c b/fhi_lib/lib/src/xran_mem_mgr.c
 index 3e401e6..566490d 100644
 --- a/fhi_lib/lib/src/xran_mem_mgr.c
