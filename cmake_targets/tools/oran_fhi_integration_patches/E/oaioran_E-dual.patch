@@ -328,7 +328,7 @@ index 931aceb..a3b53fc 100644
  #include <err.h>
  #include <arpa/inet.h>
 diff --git a/fhi_lib/lib/src/xran_dev.c b/fhi_lib/lib/src/xran_dev.c
-index fef64c8..c335e75 100644
+index fef64c8..896044c 100644
 --- a/fhi_lib/lib/src/xran_dev.c
 +++ b/fhi_lib/lib/src/xran_dev.c
 @@ -35,7 +35,10 @@
@@ -342,6 +342,44 @@ index fef64c8..c335e75 100644
  #include <rte_common.h>
  #include <rte_eal.h>
  #include <rte_errno.h>
+@@ -55,6 +58,28 @@
+ 
+ static struct xran_device_ctx *g_xran_dev_ctx[XRAN_PORTS_NUM] = {NULL, NULL, NULL, NULL};
+ 
++struct xran_device_ctx *
++allocate_device_ctx(size_t xran_ports_num) {
++    void *ptr = NULL;
++
++#if defined(__arm__) || defined(__aarch64__)
++    // ARM-specific memory allocation
++    if (posix_memalign(&ptr, 64, sizeof(struct xran_device_ctx) * xran_ports_num) != 0) {
++        print_err("posix_memalign: pCtx allocation error\n");
++        return NULL;
++    }
++#else
++    // Intel-specific memory allocation
++    ptr = _mm_malloc(sizeof(struct xran_device_ctx) * xran_ports_num, 64);
++    if (ptr == NULL) {
++        print_err("_mm_malloc: pCtx allocation error\n");
++        return NULL;
++    }
++#endif
++
++    return (struct xran_device_ctx *)ptr;
++}
++
+ int32_t
+ xran_dev_create_ctx(uint32_t xran_ports_num)
+ {
+@@ -64,7 +89,7 @@ xran_dev_create_ctx(uint32_t xran_ports_num)
+     if (xran_ports_num > XRAN_PORTS_NUM)
+         return -1;
+ 
+-    pCtx = (struct xran_device_ctx *) _mm_malloc(sizeof(struct xran_device_ctx)*xran_ports_num, 64);
++    pCtx = allocate_device_ctx(xran_ports_num);
+     if(pCtx){
+         for(i = 0; i < xran_ports_num; i++){
+             g_xran_dev_ctx[i] = pCtx;
 diff --git a/fhi_lib/lib/src/xran_main.c b/fhi_lib/lib/src/xran_main.c
 index 89dcc1f..8ec63e9 100644
 --- a/fhi_lib/lib/src/xran_main.c
