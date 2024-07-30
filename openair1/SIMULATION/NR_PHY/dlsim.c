@@ -826,6 +826,7 @@ int main(int argc, char **argv)
   UE->frame_parms.nb_antennas_rx = n_rx;
   UE->frame_parms.nb_antenna_ports_gNB = n_tx;
   UE->max_ldpc_iterations = max_ldpc_iterations;
+  init_nr_ue_phy_cpu_stats(&UE->phy_cpu_stats);
 
   if (run_initial_sync==1)
     UE->is_synchronized = 0;
@@ -1232,36 +1233,10 @@ int main(int argc, char **argv)
       printStatIndent2(&gNB->dlsch_resource_mapping_stats, "DLSCH Resource Mapping time");
       printStatIndent2(&gNB->dlsch_precoding_stats,"DLSCH Layer Precoding time");
 
-      printf("\nUE RX function statistics (per %d us slot)\n",1000>>*scc->ssbSubcarrierSpacing);
-      /*
-      printDistribution(&phy_proc_rx_tot, table_rx,"Total PHY proc rx");
-      printStatIndent(&ue_front_end_tot,"Front end processing");
-      printStatIndent(&dlsch_llr_tot,"rx_pdsch processing");
-      printStatIndent2(&pdsch_procedures_tot,"pdsch processing");
-      printStatIndent2(&dlsch_procedures_tot,"dlsch processing");
-      printStatIndent2(&UE->crnti_procedures_stats,"C-RNTI processing");
-      printStatIndent(&UE->ofdm_demod_stats,"ofdm demodulation");
-      printStatIndent(&UE->dlsch_channel_estimation_stats,"DLSCH channel estimation time");
-      printStatIndent(&UE->dlsch_freq_offset_estimation_stats,"DLSCH frequency offset estimation time");
-      printStatIndent(&dlsch_decoding_tot, "DLSCH Decoding time ");
-      printStatIndent(&UE->dlsch_unscrambling_stats,"DLSCH unscrambling time");
-      printStatIndent(&UE->dlsch_rate_unmatching_stats,"DLSCH Rate Unmatching");
-      printf("|__ DLSCH Turbo Decoding(%d bits), avg iterations: %.1f       %.2f us (%d cycles, %d trials)\n",
-	     UE->dlsch[0][0]->harq_processes[0]->Cminus ?
-	     UE->dlsch[0][0]->harq_processes[0]->Kminus :
-	     UE->dlsch[0][0]->harq_processes[0]->Kplus,
-	     UE->dlsch_tc_intl1_stats.trials/(double)UE->dlsch_tc_init_stats.trials,
-	     (double)UE->dlsch_turbo_decoding_stats.diff/UE->dlsch_turbo_decoding_stats.trials*timeBase,
-	     (int)((double)UE->dlsch_turbo_decoding_stats.diff/UE->dlsch_turbo_decoding_stats.trials),
-	     UE->dlsch_turbo_decoding_stats.trials);
-      printStatIndent2(&UE->dlsch_tc_init_stats,"init");
-      printStatIndent2(&UE->dlsch_tc_alpha_stats,"alpha");
-      printStatIndent2(&UE->dlsch_tc_beta_stats,"beta");
-      printStatIndent2(&UE->dlsch_tc_gamma_stats,"gamma");
-      printStatIndent2(&UE->dlsch_tc_ext_stats,"ext");
-      printStatIndent2(&UE->dlsch_tc_intl1_stats,"turbo internal interleaver");
-      printStatIndent2(&UE->dlsch_tc_intl2_stats,"intl2+HardDecode+CRC");
-      */
+      printf("\nUE function statistics (per %d us slot)\n", 1000 >> *scc->ssbSubcarrierSpacing);
+      for (int i = RX_PDSCH_STATS; i <= DLSCH_PROCEDURES_STATS; i++) {
+        printStatIndent(&UE->phy_cpu_stats.cpu_time_stats[i], UE->phy_cpu_stats.cpu_time_stats[i].meas_name);
+      }
     }
 
     if (n_trials == 1) {

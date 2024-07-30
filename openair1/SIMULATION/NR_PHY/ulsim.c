@@ -950,10 +950,6 @@ int main(int argc, char *argv[])
     reset_meas(&gNB->rx_pusch_symbol_processing_stats);
     reset_meas(&gNB->ulsch_decoding_stats);
     reset_meas(&gNB->ulsch_channel_estimation_stats);
-    reset_meas(&UE->ulsch_ldpc_encoding_stats);
-    reset_meas(&UE->ulsch_rate_matching_stats);
-    reset_meas(&UE->ulsch_interleaving_stats);
-    reset_meas(&UE->ulsch_encoding_stats);
     reset_meas(&gNB->rx_srs_stats);
     reset_meas(&gNB->generate_srs_stats);
     reset_meas(&gNB->get_srs_signal_stats);
@@ -962,6 +958,7 @@ int main(int argc, char *argv[])
     reset_meas(&gNB->srs_report_tlv_stats);
     reset_meas(&gNB->srs_beam_report_stats);
     reset_meas(&gNB->srs_iq_matrix_stats);
+    init_nr_ue_phy_cpu_stats(&UE->phy_cpu_stats);
 
     uint32_t errors_scrambling[16] = {0};
     int n_errors[16] = {0};
@@ -1575,11 +1572,9 @@ int main(int argc, char *argv[])
       printStatIndent(&gNB->ulsch_decoding_stats,"ULSCH total decoding time");
 
       printf("\nUE TX\n");
-      printStatIndent(&UE->ulsch_encoding_stats,"ULSCH total encoding time");
-      printStatIndent2(&UE->ulsch_segmentation_stats,"ULSCH segmentation time");
-      printStatIndent2(&UE->ulsch_ldpc_encoding_stats,"ULSCH LDPC encoder time");
-      printStatIndent2(&UE->ulsch_rate_matching_stats,"ULSCH rate-matching time");
-      printStatIndent2(&UE->ulsch_interleaving_stats,"ULSCH interleaving time");
+      for (int i = PHY_PROC_TX; i <= ULSCH_ENCODING_STATS; i++) {
+        printStatIndent(&UE->phy_cpu_stats.cpu_time_stats[i], UE->phy_cpu_stats.cpu_time_stats[i].meas_name);
+      }
       printStatIndent(&gNB->rx_srs_stats,"RX SRS time");
       printStatIndent2(&gNB->generate_srs_stats,"Generate SRS sequence time");
       printStatIndent2(&gNB->get_srs_signal_stats,"Get SRS signal time");

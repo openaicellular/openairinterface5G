@@ -184,14 +184,12 @@ int nr_slot_fep(PHY_VARS_NR_UE *ue,
       rxdata_ptr = (int16_t *)tmp_dft_in;
     }
 
-    start_meas(&ue->rx_dft_stats);
-
+    start_meas_nr_ue_phy(ue, RX_DFT_STATS);
     dft(dftsize,
         rxdata_ptr,
         (int16_t *)&rxdataF[aa][frame_parms->ofdm_symbol_size*symbol],
         1);
-
-    stop_meas(&ue->rx_dft_stats);
+    stop_meas_nr_ue_phy(ue, RX_DFT_STATS);
 
     apply_nr_rotation_RX(frame_parms, rxdataF[aa], frame_parms->symbol_rotation[linktype], Ns, frame_parms->N_RB_DL, 0, symbol, 1);
   }

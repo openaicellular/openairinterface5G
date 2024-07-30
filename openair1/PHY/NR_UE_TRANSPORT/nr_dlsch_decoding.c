@@ -83,9 +83,9 @@ static bool nr_ue_postDecode(PHY_VARS_NR_UE *phy_vars_ue,
   NR_UE_DLSCH_t *dlsch = (NR_UE_DLSCH_t *) rdata->dlsch;
   int r = rdata->segment_r;
 
-  merge_meas(&phy_vars_ue->dlsch_deinterleaving_stats, &rdata->ts_deinterleave);
-  merge_meas(&phy_vars_ue->dlsch_rate_unmatching_stats, &rdata->ts_rate_unmatch);
-  merge_meas(&phy_vars_ue->dlsch_ldpc_decoding_stats, &rdata->ts_ldpc_decode);
+  merge_meas(&phy_vars_ue->phy_cpu_stats.cpu_time_stats[DLSCH_DEINTERLEAVING_STATS], &rdata->ts_deinterleave);
+  merge_meas(&phy_vars_ue->phy_cpu_stats.cpu_time_stats[DLSCH_RATE_UNMATCHING_STATS], &rdata->ts_rate_unmatch);
+  merge_meas(&phy_vars_ue->phy_cpu_stats.cpu_time_stats[DLSCH_LDPC_DECODING_STATS], &rdata->ts_ldpc_decode);
 
   bool decodeSuccess = (rdata->decodeIterations < (1+dlsch->max_ldpc_iterations));
 

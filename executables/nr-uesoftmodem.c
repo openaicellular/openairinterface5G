@@ -503,6 +503,7 @@ int main(int argc, char **argv)
 
         set_options(CC_id, UE[CC_id]);
         NR_UE_MAC_INST_t *mac = get_mac_inst(inst);
+        init_nr_ue_phy_cpu_stats(&UE[CC_id]->phy_cpu_stats);
 
         if (get_softmodem_params()->sa || get_softmodem_params()->sl_mode) { // set frame config to initial values from command line
                                                                             // and assume that the SSB is centered on the grid
