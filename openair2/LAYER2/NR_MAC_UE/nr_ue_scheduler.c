@@ -81,7 +81,10 @@ fapi_nr_ul_config_request_pdu_t *lockGet_ul_config(NR_UE_MAC_INST_t *mac, frame_
   NR_TDD_UL_DL_ConfigCommon_t *tdd_config = mac->tdd_UL_DL_ConfigurationCommon;
 
   // Check if requested on the right slot
-  AssertFatal(is_nr_UL_slot(tdd_config, slot_tx, mac->frame_type) != 0, "UL config_request called at wrong slot %d\n", slot_tx);
+  if (!is_nr_UL_slot(tdd_config, slot_tx, mac->frame_type)) {
+    LOG_E(NR_MAC, "Lock of UL config for PDU type %d called for slot %d which is not UL\n", pdu_type, slot_tx);
+    return NULL;
+  }
 
   AssertFatal(mac->ul_config_request != NULL, "mac->ul_config_request not initialized, logic bug\n");
   fapi_nr_ul_config_request_t *ul_config = mac->ul_config_request + slot_tx;
@@ -220,7 +223,10 @@ fapi_nr_ul_config_request_pdu_t *lockGet_ul_iterator(NR_UE_MAC_INST_t *mac, fram
 {
   NR_TDD_UL_DL_ConfigCommon_t *tdd_config = mac->tdd_UL_DL_ConfigurationCommon;
   //Check if requested on the right slot
-  AssertFatal(is_nr_UL_slot(tdd_config, slot_tx, mac->frame_type) != 0, "UL config_request called at wrong slot %d\n", slot_tx);
+  if (!is_nr_UL_slot(tdd_config, slot_tx, mac->frame_type)) {
+    LOG_E(NR_MAC, "UL lock iterator called for slot %d which is not UL\n", slot_tx);
+    return NULL;
+  }
   AssertFatal(mac->ul_config_request != NULL, "mac->ul_config_request not initialized, logic bug\n");
   return fapiLockIterator(mac->ul_config_request + slot_tx, frame_tx, slot_tx);
 }
