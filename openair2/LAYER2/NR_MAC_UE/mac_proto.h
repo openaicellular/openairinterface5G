@@ -171,13 +171,21 @@ void nr_ue_send_sdu(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info, in
 
 void nr_ue_process_mac_pdu(NR_UE_MAC_INST_t *mac,nr_downlink_indication_t *dl_info, int pdu_id);
 
+typedef struct {
+  union {
+    NR_BSR_SHORT s;
+    NR_BSR_LONG l;
+    NR_BSR_SHORT_TRUNCATED t;
+    uint8_t lc_bsr[8];
+  } bsr;
+  enum { b_none, b_long, b_short, b_trunc } type_bsr;
+} type_bsr_t;
+
 int nr_write_ce_ulsch_pdu(uint8_t *mac_ce,
                           NR_UE_MAC_INST_t *mac,
                           uint8_t power_headroom, // todo: NR_POWER_HEADROOM_CMD *power_headroom,
-                          uint16_t *crnti,
-                          NR_BSR_SHORT *truncated_bsr,
-                          NR_BSR_SHORT *short_bsr,
-                          NR_BSR_LONG  *long_bsr);
+                          rnti_t crnti,
+                          const type_bsr_t *bsr);
 
 void config_dci_pdu(NR_UE_MAC_INST_t *mac,
                     fapi_nr_dl_config_request_t *dl_config,
@@ -186,14 +194,6 @@ void config_dci_pdu(NR_UE_MAC_INST_t *mac,
                     const NR_SearchSpace_t *ss);
 
 void ue_dci_configuration(NR_UE_MAC_INST_t *mac, fapi_nr_dl_config_request_t *dl_config, const frame_t frame, const int slot);
-
-uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
-                      int cc_id,
-                      frame_t frameP,
-                      sub_frame_t subframe,
-                      uint8_t gNB_index,
-                      uint8_t *ulsch_buffer,
-                      uint32_t buflen);
 
 void set_harq_status(NR_UE_MAC_INST_t *mac,
                      uint8_t pucch_id,

@@ -122,6 +122,11 @@ static inline int get_mac_len(uint8_t *pdu, uint32_t pdu_len, uint16_t *mac_ce_l
     *mac_subheader_len = sizeof(*s);
     *mac_ce_len = s->L;
   }
+  if (*mac_ce_len > pdu_len) {
+    LOG_E(NR_MAC, "MAC sdu len impossible (%d)\n", *mac_ce_len);
+    return false;
+  }
+
   return true;
 }
 
@@ -144,15 +149,7 @@ typedef struct {
   uint8_t LcgID4: 1;        // octet 1 [4]
   uint8_t LcgID5: 1;        // octet 1 [5]
   uint8_t LcgID6: 1;        // octet 1 [6]
-  uint8_t LcgID7: 1;        // octet 1 [7]
-  uint8_t Buffer_size0: 8;  // octet 2 [7:0]
-  uint8_t Buffer_size1: 8;  // octet 3 [7:0]
-  uint8_t Buffer_size2: 8;  // octet 4 [7:0]
-  uint8_t Buffer_size3: 8;  // octet 5 [7:0]
-  uint8_t Buffer_size4: 8;  // octet 6 [7:0]
-  uint8_t Buffer_size5: 8;  // octet 7 [7:0]
-  uint8_t Buffer_size6: 8;  // octet 8 [7:0]
-  uint8_t Buffer_size7: 8;  // octet 9 [7:0]
+  uint8_t LcgID7: 1; // octet 1 [7]
 } __attribute__ ((__packed__)) NR_BSR_LONG;
 
 typedef NR_BSR_LONG NR_BSR_LONG_TRUNCATED;

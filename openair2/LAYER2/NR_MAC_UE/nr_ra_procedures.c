@@ -742,7 +742,8 @@ void nr_ue_get_rach(NR_UE_MAC_INST_t *mac, int CC_id, frame_t frame, uint8_t gNB
 
       } else if (!get_softmodem_params()->sa) {
         uint8_t temp_pdu[16] = {0};
-        size_sdu = nr_write_ce_ulsch_pdu(temp_pdu, mac, 0,  &(mac->crnti), NULL, NULL, NULL);
+        type_bsr_t tmp = {.type_bsr = b_none};
+        size_sdu = nr_write_ce_ulsch_pdu(temp_pdu, mac, 0, mac->crnti, &tmp);
         ra->Msg3_size = size_sdu;
       }
     } else if (ra->RA_window_cnt != -1) { // RACH is active

@@ -204,13 +204,6 @@ typedef struct {
 } NR_LC_SCHEDULING_INFO;
 
 typedef struct {
-  // buffer status for each lcgid
-  uint8_t BSR; // should be more for mesh topology
-  // keep the number of bytes in rlc buffer for each lcgid
-  int32_t BSR_bytes;
-} NR_LCG_SCHEDULING_INFO;
-
-typedef struct {
   bool active_SR_ID;
   /// SR pending as defined in 38.321
   bool pending;
@@ -226,8 +219,6 @@ typedef struct {
 typedef struct {
   // lcs scheduling info
   NR_LC_SCHEDULING_INFO lc_sched_info[NR_MAX_NUM_LCID];
-  // lcg scheduling info
-  NR_LCG_SCHEDULING_INFO lcg_sched_info[NR_MAX_NUM_LCGID];
   // SR INFO
   nr_sr_info_t sr_info[NR_MAX_SR_ID];
   /// BSR report flag management
