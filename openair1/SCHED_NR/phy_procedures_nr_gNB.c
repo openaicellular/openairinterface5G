@@ -739,7 +739,7 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
         "frame %d, slot %d: UL signal energy %d\n",
         frame_rx,
         slot_rx,
-        signal_energy_nodc((int32_t *)&gNB->common_vars.rxdataF[0][soffset + offset + (47 * 12)], 12 * 18));
+        signal_energy_nodc(&gNB->common_vars.rxdataF[0][soffset + offset + (47 * 12)], 12 * 18));
 
   start_meas(&gNB->phy_proc_rx);
 
@@ -771,7 +771,7 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
                 "frame %d, slot %d: PUCCH signal energy %d\n",
                 frame_rx,
                 slot_rx,
-                signal_energy_nodc((int32_t *)&gNB->common_vars.rxdataF[0][soffset + offset], 12));
+                signal_energy_nodc(&gNB->common_vars.rxdataF[0][soffset + offset], 12));
 
           nr_decode_pucch0(gNB,
                            frame_rx,
