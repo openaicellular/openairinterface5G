@@ -347,7 +347,7 @@ typedef struct {
   /// total signal over antennas
   uint32_t ulsch_power_tot;
   /// measured RX noise power
-  int ulsch_noise_power[8];
+  uint32_t ulsch_noise_power[8];
   /// total noise over antennas
   uint32_t ulsch_noise_power_tot;
   /// \brief llr values.
@@ -516,6 +516,8 @@ typedef struct {
   fourDimArray_t *n0_subband_power;
   //! estimated avg noise power per RB per RX ant (dB)
   fourDimArray_t *n0_subband_power_dB;
+  //! estimated avg power per RB per RX ant (lin)
+  fourDimArray_t *ul_rx_power;
   //! estimated avg subband noise power (dB)
   unsigned int n0_subband_power_avg_dB;
   //! estimated avg subband noise power per antenna (dB)
