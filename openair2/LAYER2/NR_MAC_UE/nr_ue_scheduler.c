@@ -106,6 +106,7 @@ fapi_nr_ul_config_request_pdu_t *lockGet_ul_config(NR_UE_MAC_INST_t *mac, frame_
   }
   fapi_nr_ul_config_request_pdu_t *pdu = ul_config->ul_config_list + ul_config->number_pdus++;
   pdu->pdu_type = pdu_type;
+  pdu->transaction_id = mac->transaction_id++;
   pdu->lock = &ul_config->mutex_ul_config;
   pdu->privateNBpdus = &ul_config->number_pdus;
   LOG_D(NR_MAC, "Added ul pdu for %d.%d, type %d\n", frame_tx, slot_tx, pdu_type);
@@ -540,7 +541,8 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
                         RAR_grant_t *rar_grant,
                         uint16_t rnti,
                         int ss_type,
-                        const nr_dci_format_t dci_format)
+                        const nr_dci_format_t dci_format,
+                        uint32_t transaction_id)
 {
   uint16_t l_prime_mask = 0;
   int N_PRB_oh  = 0;
@@ -951,6 +953,20 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
                                                      delta_pusch,
                                                      is_rar_tx_retx,
                                                      pusch_config_pdu->transform_precoding);
+
+  int P_CMAX = nr_get_Pcmax(mac->p_Max,
+                            mac->nr_band,
+                            mac->frame_type,
+                            mac->frequency_range,
+                            mac->current_UL_BWP->channel_bandwidth,
+                            pusch_config_pdu->qam_mod_order,
+                            false,
+                            mac->current_UL_BWP->scs,
+                            mac->current_UL_BWP->BWPSize,
+                            pusch_config_pdu->transform_precoding,
+                            pusch_config_pdu->rb_size,
+                            pusch_config_pdu->rb_start);
+  nr_mac_get_transaction_data(mac, transaction_id)->ulsch_alloc_data.P_CMAX = P_CMAX;
 
   pusch_config_pdu->ldpcBaseGraph = get_BG(pusch_config_pdu->pusch_data.tb_size << 3, pusch_config_pdu->target_code_rate);
 
@@ -1453,17 +1469,7 @@ void nr_ue_ul_scheduler(NR_UE_MAC_INST_t *mac, nr_uplink_indication_t *ul_info)
             && (mac->state == UE_CONNECTED || (ra->ra_state == nrRA_WAIT_RAR && ra->cfra))) {
           // Getting IP traffic to be transmitted
           int tx_power = ulcfg_pdu->pusch_config_pdu.tx_power;
-          int P_CMAX = nr_get_Pcmax(mac->p_Max,
-                                    mac->nr_band,
-                                    mac->frame_type,
-                                    mac->frequency_range,
-                                    ulcfg_pdu->pusch_config_pdu.qam_mod_order,
-                                    false,
-                                    mac->current_UL_BWP->scs,
-                                    mac->current_UL_BWP->BWPSize,
-                                    ulcfg_pdu->pusch_config_pdu.transform_precoding,
-                                    ulcfg_pdu->pusch_config_pdu.rb_size,
-                                    ulcfg_pdu->pusch_config_pdu.rb_start);
+          int P_CMAX = nr_mac_get_transaction_data(mac, ulcfg_pdu->transaction_id)->ulsch_alloc_data.P_CMAX;
 
           nr_ue_get_sdu(mac, cc_id, frame_tx, slot_tx, gNB_index, ulsch_input_buffer, TBS_bytes, tx_power, P_CMAX);
           ulcfg_pdu->pusch_config_pdu.tx_request_body.fapiTxPdu = ulsch_input_buffer;

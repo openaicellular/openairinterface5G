@@ -395,6 +395,7 @@ typedef struct {
 
 typedef struct {
   int pdu_type;
+  uint32_t transaction_id;
   union {
     fapi_nr_ul_config_prach_pdu prach_config_pdu;
     fapi_nr_ul_config_pucch_pdu pucch_config_pdu;

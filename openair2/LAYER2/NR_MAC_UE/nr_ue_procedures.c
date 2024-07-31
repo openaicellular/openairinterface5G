@@ -517,7 +517,8 @@ static int nr_ue_process_dci_ul_00(NR_UE_MAC_INST_t *mac,
                                 NULL,
                                 dci_ind->rnti,
                                 dci_ind->ss_type,
-                                NR_UL_DCI_FORMAT_0_0);
+                                NR_UL_DCI_FORMAT_0_0,
+                                pdu->transaction_id);
   if (ret != 0)
     remove_ul_config_last_item(pdu);
   release_ul_config(pdu, false);
@@ -614,7 +615,8 @@ static int nr_ue_process_dci_ul_01(NR_UE_MAC_INST_t *mac,
                                 NULL,
                                 dci_ind->rnti,
                                 dci_ind->ss_type,
-                                NR_UL_DCI_FORMAT_0_1);
+                                NR_UL_DCI_FORMAT_0_1,
+                                pdu->transaction_id);
   if (ret != 0)
     remove_ul_config_last_item(pdu);
   release_ul_config(pdu, false);
@@ -4077,7 +4079,8 @@ static void nr_ue_process_rar(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *d
                                     &rar_grant,
                                     rnti,
                                     NR_SearchSpace__searchSpaceType_PR_common,
-                                    NR_DCI_NONE);
+                                    NR_DCI_NONE,
+                                    pdu->transaction_id);
       if (ret != 0)
         remove_ul_config_last_item(pdu);
       release_ul_config(pdu, false);

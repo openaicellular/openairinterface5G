@@ -163,6 +163,8 @@
 #define SS_PBCH_INDEX                   53
 #define PRACH_MASK_INDEX                54
 #define RESERVED_NR_DCI                 55
+// Use power of 2 for fast modulo
+#define MAX_CONCURRENT_TRANSACTIONS    (1 << 8)
 
 // Define the UE L2 states with X-Macro
 #define NR_UE_L2_STATES \
@@ -508,6 +510,12 @@ typedef enum {
   ON_PUSCH
 } CSI_mapping_t;
 
+typedef union {
+  struct {
+    int16_t P_CMAX;
+  } ulsch_alloc_data;
+} fapi_transaction_data_t;
+
 /*!\brief Top level UE MAC structure */
 typedef struct NR_UE_MAC_INST_s {
   module_id_t ue_id;
@@ -606,6 +614,11 @@ typedef struct NR_UE_MAC_INST_s {
   bool pucch_power_control_initialized;
   int f_b_f_c;
   bool pusch_power_control_initialized;
+
+  // Contains extra data for fapi messages - data that is not needed by the fapi interface
+  // but is necessary for MAC to process responses correctly.
+  _Atomic(uint32_t) transaction_id;
+  fapi_transaction_data_t transaction_data[MAX_CONCURRENT_TRANSACTIONS];
 } NR_UE_MAC_INST_t;
 
 /*@}*/

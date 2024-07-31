@@ -404,7 +404,8 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
                         RAR_grant_t *rar_grant,
                         uint16_t rnti,
                         int ss_type,
-                        const nr_dci_format_t dci_format);
+                        const nr_dci_format_t dci_format,
+                        uint32_t transaction_id);
 
 int nr_rrc_mac_config_req_sl_preconfig(module_id_t module_id,
                                        NR_SL_PreconfigurationNR_r16_t *sl_preconfiguration,
@@ -450,4 +451,33 @@ void nr_mac_rrc_sl_mib_ind(const module_id_t module_id,
                            const sdu_size_t pdu_len,
                            const uint16_t rx_slss_id);
 
+static inline uint32_t diff_timestamp_u32(uint32_t a, uint32_t b) {
+  uint32_t diff;
+  if (a < b) {
+   // basic case: a before b
+   // ---|---a-----b---|----
+   diff = b - a;
+   if (diff > UINT32_MAX / 2) {
+     // special case where a is too far from b, therefore b or a is assumed to have wrapped around
+     // ---|-a--------b|-a'--
+     diff = a + (UINT32_MAX - b);
+   }
+  } else {
+   // basic case: b before a
+   // ---|---b-----a---|----
+   diff = a - b;
+   if (diff > UINT32_MAX / 2) {
+     // special case where a is too far from b, therefore b or a is assumed to have wrapped around
+     // ---|-b--------a|-b'--
+     diff = b + (UINT32_MAX - a);
+   }
+  }
+  return diff;
+}
+
+static inline fapi_transaction_data_t *nr_mac_get_transaction_data(NR_UE_MAC_INST_t *mac, uint32_t transaction_id) {
+   uint32_t diff = diff_timestamp_u32(transaction_id, mac->transaction_id);
+   AssertFatal(diff < MAX_CONCURRENT_TRANSACTIONS, "Too many concurrent transactions\n");
+   return &mac->transaction_data[transaction_id % MAX_CONCURRENT_TRANSACTIONS];
+}
 #endif
