@@ -1109,12 +1109,10 @@ int main(int argc, char **argv)
         add_noise(UE->common_vars.rxdata, (const double **) r_re, (const double **) r_im, sigma2, slot_length, slot_offset, ts, delay, pdu_bit_map, 0x1, frame_parms->nb_antennas_rx);
         dl_config.sfn = frame;
         dl_config.slot = slot;
-        ue_dci_configuration(UE_mac, &dl_config, frame, slot);
+        nr_downlink_indication_t dl_indication = {.phy_data = &phy_data};
+        ue_dci_configuration(UE_mac, &dl_config, frame, slot, dl_indication.def_dci_pdu_rel15);
         nr_ue_scheduled_response(&scheduled_response);
-
-        pbch_pdcch_processing(UE,
-                              &UE_proc,
-                              &phy_data);
+        pbch_pdcch_processing(UE, &UE_proc, &dl_indication);
         pdsch_processing(UE,
                          &UE_proc,
                          &phy_data);

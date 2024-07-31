@@ -577,16 +577,13 @@ typedef struct NR_UE_MAC_INST_s {
 
   NR_SSB_meas_t ssb_measurements;
 
-  dci_pdu_rel15_t def_dci_pdu_rel15[NR_MAX_SLOTS_PER_FRAME][8];
-
   // Defined for abstracted mode
-  nr_downlink_indication_t dl_info;
   NR_UE_HARQ_STATUS_t dl_harq_info[NR_MAX_HARQ_PROCESSES];
   NR_UL_HARQ_INFO_t ul_harq_info[NR_MAX_HARQ_PROCESSES];
 
   nr_emulated_l1_t nr_ue_emul_l1;
 
-  pthread_mutex_t mutex_dl_info;
+  pthread_mutex_t mutex_dl_info; // used only in FAPI or L2 simulator, likely useless since dl_info is now local variable
 
   //SIDELINK MAC PARAMETERS
   sl_nr_ue_mac_params_t *SL_MAC_PARAMS;

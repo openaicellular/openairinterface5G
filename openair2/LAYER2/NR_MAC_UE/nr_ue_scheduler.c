@@ -1204,7 +1204,7 @@ void nr_ue_dl_scheduler(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info
     nr_schedule_csi_for_im(mac, rx_frame, rx_slot);
   }
 
-  ue_dci_configuration(mac, dl_config, rx_frame, rx_slot);
+  ue_dci_configuration(mac, dl_config, rx_frame, rx_slot, dl_info->def_dci_pdu_rel15);
 
   if (mac->ul_time_alignment.ta_apply != no_ta)
     schedule_ta_command(dl_config, &mac->ul_time_alignment);

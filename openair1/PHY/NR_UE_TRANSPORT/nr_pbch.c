@@ -465,78 +465,84 @@ int nr_rx_pbch(PHY_VARS_NR_UE *ue,
                                                     NR_POLAR_PBCH_AGGREGATION_LEVEL);
   pbch_a_prime = tmp;
 
-  nr_downlink_indication_t dl_indication;
   fapi_nr_rx_indication_t rx_ind = {0};
-  uint16_t number_pdus = 1;
+  if (!decoderState) { // successful decoding
 
-  if (decoderState) {
-    if (ue) { // decoding failed in synced state
-      nr_fill_dl_indication(&dl_indication, NULL, &rx_ind, proc, ue, NULL);
-      nr_fill_rx_indication(&rx_ind, FAPI_NR_RX_PDU_TYPE_SSB, ue, NULL, NULL, number_pdus, proc, NULL, NULL);
-      if (ue->if_inst && ue->if_inst->dl_indication)
-        ue->if_inst->dl_indication(&dl_indication);
+    //  printf("polar decoder output 0x%08x\n",pbch_a_prime);
+    // Decoder reversal
+    pbch_a_prime = (uint32_t)reverse_bits(pbch_a_prime, NR_POLAR_PBCH_PAYLOAD_BITS);
+
+    // payload un-scrambling
+    M = (Lmax == 64) ? (NR_POLAR_PBCH_PAYLOAD_BITS - 6) : (NR_POLAR_PBCH_PAYLOAD_BITS - 3);
+    nushift = ((pbch_a_prime >> 24) & 1) ^ (((pbch_a_prime >> 6) & 1) << 1);
+    pbch_a_interleaved = 0;
+    nr_pbch_unscrambling(pbch_e_rx,
+                         Nid_cell,
+                         nushift,
+                         M,
+                         NR_POLAR_PBCH_PAYLOAD_BITS,
+                         1,
+                         unscrambling_mask,
+                         pbch_a_prime,
+                         &pbch_a_interleaved);
+    uint32_t out = 0;
+
+    for (int i = 0; i < 32; i++) {
+      out |= ((pbch_a_interleaved >> i) & 1) << (pbch_deinterleaving_pattern[i]);
+#ifdef DEBUG_PBCH
+      printf("i %d in 0x%08x out 0x%08x ilv %d (in>>i)&1) 0x%08x\n",
+             i,
+             pbch_a_interleaved,
+             out,
+             pbch_deinterleaving_pattern[i],
+             (pbch_a_interleaved >> i) & 1);
+#endif
     }
-    return(decoderState);
-  }
-  //  printf("polar decoder output 0x%08x\n",pbch_a_prime);
-  // Decoder reversal
-  pbch_a_prime = (uint32_t)reverse_bits(pbch_a_prime, NR_POLAR_PBCH_PAYLOAD_BITS);
 
-  //payload un-scrambling
-  M = (Lmax == 64)? (NR_POLAR_PBCH_PAYLOAD_BITS - 6) : (NR_POLAR_PBCH_PAYLOAD_BITS - 3);
-  nushift = ((pbch_a_prime>>24)&1) ^ (((pbch_a_prime>>6)&1)<<1);
-  pbch_a_interleaved=0;
-  nr_pbch_unscrambling(pbch_e_rx, Nid_cell, nushift, M, NR_POLAR_PBCH_PAYLOAD_BITS,
-		       1, unscrambling_mask, pbch_a_prime, &pbch_a_interleaved);
-  //printf("nushift %d sfn 3rd %d 2nd %d", nushift,((pbch_a_prime>>6)&1), ((pbch_a_prime>>24)&1) );
-  //payload deinterleaving
-  //uint32_t in=0;
-  uint32_t out=0;
+    result->xtra_byte = (out >> 24) & 0xff;
 
-  for (int i=0; i<32; i++) {
-    out |= ((pbch_a_interleaved>>i)&1)<<(pbch_deinterleaving_pattern[i]);
-#ifdef DEBUG_PBCH
-    printf("i %d in 0x%08x out 0x%08x ilv %d (in>>i)&1) 0x%08x\n", i, pbch_a_interleaved, out, pbch_deinterleaving_pattern[i], (pbch_a_interleaved>>i)&1);
-#endif
-  }
+    const uint64_t payload = reverse_bits(out, NR_POLAR_PBCH_PAYLOAD_BITS);
 
-  result->xtra_byte = (out>>24)&0xff;
+    for (int i = 0; i < 3; i++)
+      result->decoded_output[i] = (uint8_t)((payload >> ((3 - i) << 3)) & 0xff);
 
-  const uint64_t payload = reverse_bits(out, NR_POLAR_PBCH_PAYLOAD_BITS);
+    *half_frame_bit = (result->xtra_byte >> 4) & 0x01; // computing the half frame index from the extra byte
+    *ssb_index = i_ssb; // ssb index corresponds to i_ssb for Lmax = 4,8
 
-  for (int i=0; i<3; i++)
-    result->decoded_output[i] = (uint8_t)((payload>>((3-i)<<3))&0xff);
+    if (Lmax == 64) { // for Lmax = 64 ssb index 4th,5th and 6th bits are in extra byte
+      for (int i = 0; i < 3; i++)
+        *ssb_index += (((result->xtra_byte >> (7 - i)) & 0x01) << (3 + i));
+    }
 
-  *half_frame_bit = (result->xtra_byte >> 4) & 0x01; // computing the half frame index from the extra byte
-  *ssb_index = i_ssb; // ssb index corresponds to i_ssb for Lmax = 4,8
+    *ret_symbol_offset = nr_get_ssb_start_symbol(frame_parms, *ssb_index);
 
-  if (Lmax == 64) {   // for Lmax = 64 ssb index 4th,5th and 6th bits are in extra byte
-    for (int i=0; i<3; i++)
-      *ssb_index += (((result->xtra_byte >> (7 - i)) & 0x01) << (3 + i));
-  }
-
-  *ret_symbol_offset = nr_get_ssb_start_symbol(frame_parms, *ssb_index);
-
-  if (*half_frame_bit)
-    *ret_symbol_offset += (frame_parms->slots_per_frame >> 1) * frame_parms->symbols_per_slot;
+    if (*half_frame_bit)
+      *ret_symbol_offset += (frame_parms->slots_per_frame >> 1) * frame_parms->symbols_per_slot;
 
 #ifdef DEBUG_PBCH
-  printf("xtra_byte %x payload %x\n", result->xtra_byte, payload);
+    printf("xtra_byte %x payload %x\n", result->xtra_byte, payload);
 
-  for (int i=0; i<(NR_POLAR_PBCH_PAYLOAD_BITS>>3); i++) {
-    //     printf("unscrambling pbch_a[%d] = %x \n", i,pbch_a[i]);
-    printf("[PBCH] decoder payload[%d] = %x\n",i,result->decoded_output[i]);
-  }
+    for (int i = 0; i < (NR_POLAR_PBCH_PAYLOAD_BITS >> 3); i++) {
+      //     printf("unscrambling pbch_a[%d] = %x \n", i,pbch_a[i]);
+      printf("[PBCH] decoder payload[%d] = %x\n", i, result->decoded_output[i]);
+    }
 
 #endif
-
-  if (ue) {
-    nr_fill_dl_indication(&dl_indication, NULL, &rx_ind, proc, ue, NULL);
-    nr_fill_rx_indication(&rx_ind, FAPI_NR_RX_PDU_TYPE_SSB, ue, NULL, NULL, number_pdus, proc, (void *)result, NULL);
-
-    if (ue->if_inst && ue->if_inst->dl_indication)
-      ue->if_inst->dl_indication(&dl_indication);
+    nr_fill_rx_indication(&rx_ind, FAPI_NR_RX_PDU_TYPE_SSB, ue, NULL, NULL, 1, proc, (void *)result, NULL);
+  } else {
+    nr_fill_rx_indication(&rx_ind, FAPI_NR_RX_PDU_TYPE_SSB, ue, NULL, NULL, 1, proc, NULL, NULL);
   }
 
-  return 0;
+  if (ue && ue->if_inst && ue->if_inst->dl_indication) {
+    nr_downlink_indication_t dl_indication = {.gNB_index = proc->gNB_id,
+                                              .module_id = ue->Mod_id,
+                                              .cc_id = ue->CC_id,
+                                              .frame = proc->frame_rx,
+                                              .slot = proc->nr_slot_rx,
+                                              .phy_data = NULL,
+                                              .dci_ind = NULL,
+                                              .rx_ind = &rx_ind};
+    ue->if_inst->dl_indication(&dl_indication);
+  }
+  return decoderState;
 }

@@ -291,11 +291,7 @@ static void fill_dl_info_with_pdcch(fapi_nr_dci_indication_t *dci, nfapi_nr_dl_d
     int num_bytes = (rx_dci->PayloadSizeBits + 7) / 8;
     LOG_D(NR_PHY, "[%d, %d] PDCCH DCI (Payload) for rnti %x with PayloadSizeBits %d, num_bytes %d\n",
           dci->SFN, dci->slot, rx_dci->RNTI, rx_dci->PayloadSizeBits, num_bytes);
-    for (int k = 0; k < num_bytes; k++)
-    {
-        LOG_D(NR_MAC, "PDCCH DCI PDU payload[%d] = %d\n", k, rx_dci->Payload[k]);
-        dci->dci_list[idx].payloadBits[k] = rx_dci->Payload[k];
-    }
+    memcpy(dci->dci_list[idx].payloadBits, rx_dci->Payload, num_bytes);
     dci->dci_list[idx].payloadSize = rx_dci->PayloadSizeBits;
     dci->dci_list[idx].rnti = rx_dci->RNTI;
     dci->dci_list[idx].n_CCE = rx_dci->CceIndex;
@@ -445,7 +441,7 @@ static void copy_dl_tti_req_to_dl_info(nr_downlink_indication_t *dl_info, nfapi_
             rx_ind->sfn = dl_tti_request->SFN;
             rx_ind->slot = dl_tti_request->Slot;
             fill_mib_in_rx_ind(pdu_list, rx_ind, 0, FAPI_NR_RX_PDU_TYPE_SSB);
-            nr_ue_dl_indication(&mac->dl_info);
+            nr_ue_dl_indication(dl_info);
         }
     }
     dl_info->slot = dl_tti_request->Slot;
@@ -679,19 +675,21 @@ static void fill_dci_from_dl_config(nr_downlink_indication_t*dl_ind, fapi_nr_dl_
 void check_and_process_dci(nfapi_nr_dl_tti_request_t *dl_tti_request,
                            nfapi_nr_tx_data_request_t *tx_data_request,
                            nfapi_nr_ul_dci_request_t *ul_dci_request,
-                           nfapi_nr_ul_tti_request_t *ul_tti_request)
+                           nfapi_nr_ul_tti_request_t *ul_tti_request,
+                           nr_downlink_indication_t *dl_info)
 {
     frame_t frame = 0;
     int slot = 0;
     NR_UE_MAC_INST_t *mac = get_mac_inst(0);
 
-    if (pthread_mutex_lock(&mac->mutex_dl_info)) abort();
+    if (pthread_mutex_lock(&mac->mutex_dl_info))
+      abort();
 
     if (dl_tti_request) {
         frame = dl_tti_request->SFN;
         slot = dl_tti_request->Slot;
         LOG_D(NR_PHY, "[%d, %d] dl_tti_request\n", frame, slot);
-        copy_dl_tti_req_to_dl_info(&mac->dl_info, dl_tti_request);
+        copy_dl_tti_req_to_dl_info(dl_info, dl_tti_request);
     }
     /* This checks if the previously recevied DCI matches our current RNTI
        value. The assumption is that if the DCI matches our RNTI, then the
@@ -705,7 +703,7 @@ void check_and_process_dci(nfapi_nr_dl_tti_request_t *dl_tti_request,
             frame = tx_data_request->SFN;
             slot = tx_data_request->Slot;
             LOG_D(NR_PHY, "[%d, %d] PDSCH in tx_request\n", frame, slot);
-            copy_tx_data_req_to_dl_info(&mac->dl_info, tx_data_request);
+            copy_tx_data_req_to_dl_info(dl_info, tx_data_request);
         }
         else {
             LOG_D(NR_MAC, "Unexpected tx_data_req\n");
@@ -715,26 +713,27 @@ void check_and_process_dci(nfapi_nr_dl_tti_request_t *dl_tti_request,
         frame = ul_dci_request->SFN;
         slot = ul_dci_request->Slot;
         LOG_D(NR_PHY, "[%d, %d] ul_dci_request\n", frame, slot);
-        copy_ul_dci_data_req_to_dl_info(&mac->dl_info, ul_dci_request);
+        copy_ul_dci_data_req_to_dl_info(dl_info, ul_dci_request);
     }
     else if (ul_tti_request) {
         frame = ul_tti_request->SFN;
         slot = ul_tti_request->Slot;
         LOG_T(NR_PHY, "[%d, %d] ul_tti_request\n", frame, slot);
-        copy_ul_tti_data_req_to_dl_info(&mac->dl_info, ul_tti_request);
+        copy_ul_tti_data_req_to_dl_info(dl_info, ul_tti_request);
     }
     else {
-        if (pthread_mutex_unlock(&mac->mutex_dl_info)) abort();
-        LOG_T(NR_MAC, "All indications were NULL in %s\n", __FUNCTION__);
-        return;
+      if (pthread_mutex_unlock(&mac->mutex_dl_info))
+        abort();
+      LOG_T(NR_MAC, "All indications were NULL in %s\n", __FUNCTION__);
+      return;
     }
 
     if (dl_tti_request || tx_data_request || ul_dci_request) {
       fapi_nr_dl_config_request_t *dl_config = get_dl_config_request(mac, slot);
-      fill_dci_from_dl_config(&mac->dl_info, dl_config);
+      fill_dci_from_dl_config(dl_info, dl_config);
     }
-    nr_ue_dl_scheduler(mac, &mac->dl_info);
-    nr_ue_dl_indication(&mac->dl_info);
+    nr_ue_dl_scheduler(mac, dl_info);
+    nr_ue_dl_indication(dl_info);
 
     if (pthread_mutex_unlock(&mac->mutex_dl_info))
       abort();
@@ -1064,7 +1063,8 @@ static nr_dci_format_t handle_dci(NR_UE_MAC_INST_t *mac,
                                   unsigned int gNB_index,
                                   frame_t frame,
                                   int slot,
-                                  fapi_nr_dci_indication_pdu_t *dci)
+                                  fapi_nr_dci_indication_pdu_t *dci,
+                                  dci_pdu_rel15_t *def_dci_pdu_rel15)
 {
   // if notification of a reception of a PDCCH transmission of the SpCell is received from lower layers
   // if the C-RNTI MAC CE was included in Msg3
@@ -1072,7 +1072,7 @@ static nr_dci_format_t handle_dci(NR_UE_MAC_INST_t *mac,
   if (mac->ra.msg3_C_RNTI && mac->ra.ra_state == nrRA_WAIT_CONTENTION_RESOLUTION)
     nr_ra_succeeded(mac, gNB_index, frame, slot);
 
-  return nr_ue_process_dci_indication_pdu(mac, frame, slot, dci);
+  return nr_ue_process_dci_indication_pdu(mac, frame, slot, dci, def_dci_pdu_rel15);
 }
 
 static void handle_ssb_meas(NR_UE_MAC_INST_t *mac, uint8_t ssb_index, int16_t rsrp_dbm)
@@ -1156,6 +1156,43 @@ int nr_ue_ul_indication(nr_uplink_indication_t *ul_info)
   return 0;
 }
 
+static uint32_t process_DCIs(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info)
+{
+  uint32_t ret_mask = 0;
+  LOG_T(MAC, "[L2][IF MODULE][DL INDICATION][DCI_IND]\n");
+  for (int i = 0; i < dl_info->dci_ind->number_of_dcis; i++) {
+    LOG_T(MAC, ">>>NR_IF_Module i=%d, dl_info->dci_ind->number_of_dcis=%d\n", i, dl_info->dci_ind->number_of_dcis);
+    nr_dci_format_t dci_format = handle_dci(mac,
+                                            dl_info->gNB_index,
+                                            dl_info->frame,
+                                            dl_info->slot,
+                                            dl_info->dci_ind->dci_list + i,
+                                            dl_info->def_dci_pdu_rel15);
+
+    /* The check below filters out UL_DCIs which are being processed as DL_DCIs. */
+    if (dci_format != NR_DL_DCI_FORMAT_1_0 && dci_format != NR_DL_DCI_FORMAT_1_1) {
+      LOG_D(NR_MAC, "We are filtering a UL_DCI to prevent it from being treated like a DL_DCI\n");
+      continue;
+    }
+    dci_pdu_rel15_t *def_dci_pdu_rel15 = &dl_info->def_dci_pdu_rel15[dci_format];
+    g_harq_pid = def_dci_pdu_rel15->harq_pid;
+    LOG_T(NR_MAC, "Setting harq_pid = %d and dci_index = %d (based on format)\n", g_harq_pid, dci_format);
+
+    ret_mask |= (1 << FAPI_NR_DCI_IND);
+    AssertFatal(nr_ue_if_module_inst[dl_info->module_id] != NULL, "IF module is NULL!\n");
+    fapi_nr_dl_config_request_t *dl_config = get_dl_config_request(mac, dl_info->slot);
+    nr_scheduled_response_t scheduled_response = {.dl_config = dl_config,
+                                                  .mac = mac,
+                                                  .module_id = dl_info->module_id,
+                                                  .CC_id = dl_info->cc_id,
+                                                  .phy_data = dl_info->phy_data};
+    nr_ue_if_module_inst[dl_info->module_id]->scheduled_response(&scheduled_response);
+    memset(def_dci_pdu_rel15, 0, sizeof(*def_dci_pdu_rel15));
+  }
+  dl_info->dci_ind = NULL;
+  return ret_mask;
+}
+
 static uint32_t nr_ue_dl_processing(nr_downlink_indication_t *dl_info)
 {
   uint32_t ret_mask = 0x0;
@@ -1163,38 +1200,8 @@ static uint32_t nr_ue_dl_processing(nr_downlink_indication_t *dl_info)
   NR_UE_MAC_INST_t *mac = get_mac_inst(dl_info->module_id);
 
   // DL indication after reception of DCI or DL PDU
-  if (dl_info->dci_ind && dl_info->dci_ind->number_of_dcis) {
-    LOG_T(MAC, "[L2][IF MODULE][DL INDICATION][DCI_IND]\n");
-    for (int i = 0; i < dl_info->dci_ind->number_of_dcis; i++) {
-      LOG_T(MAC, ">>>NR_IF_Module i=%d, dl_info->dci_ind->number_of_dcis=%d\n", i, dl_info->dci_ind->number_of_dcis);
-      nr_dci_format_t dci_format = handle_dci(mac,
-                                              dl_info->gNB_index,
-                                              dl_info->frame,
-                                              dl_info->slot,
-                                              dl_info->dci_ind->dci_list + i);
-
-      /* The check below filters out UL_DCIs which are being processed as DL_DCIs. */
-      if (dci_format != NR_DL_DCI_FORMAT_1_0 && dci_format != NR_DL_DCI_FORMAT_1_1) {
-        LOG_D(NR_MAC, "We are filtering a UL_DCI to prevent it from being treated like a DL_DCI\n");
-        continue;
-      }
-      dci_pdu_rel15_t *def_dci_pdu_rel15 = &mac->def_dci_pdu_rel15[dl_info->slot][dci_format];
-      g_harq_pid = def_dci_pdu_rel15->harq_pid;
-      LOG_T(NR_MAC, "Setting harq_pid = %d and dci_index = %d (based on format)\n", g_harq_pid, dci_format);
-
-      ret_mask |= (1 << FAPI_NR_DCI_IND);
-      AssertFatal(nr_ue_if_module_inst[dl_info->module_id] != NULL, "IF module is NULL!\n");
-      fapi_nr_dl_config_request_t *dl_config = get_dl_config_request(mac, dl_info->slot);
-      nr_scheduled_response_t scheduled_response = {.dl_config = dl_config,
-                                                    .mac = mac,
-                                                    .module_id = dl_info->module_id,
-                                                    .CC_id = dl_info->cc_id,
-                                                    .phy_data = dl_info->phy_data};
-      nr_ue_if_module_inst[dl_info->module_id]->scheduled_response(&scheduled_response);
-      memset(def_dci_pdu_rel15, 0, sizeof(*def_dci_pdu_rel15));
-    }
-    dl_info->dci_ind = NULL;
-  }
+  if (dl_info->dci_ind && dl_info->dci_ind->number_of_dcis)
+    ret_mask |= process_DCIs(mac, dl_info);
 
   if (dl_info->rx_ind != NULL) {
 
@@ -1268,10 +1275,10 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
   uint32_t ret2 = 0;
   NR_UE_MAC_INST_t *mac = get_mac_inst(dl_info->module_id);
   if (!dl_info->dci_ind && !dl_info->rx_ind)
-    // DL indication to process DCI reception
+    // the call to nr_ue_dl_indication purpose is to schedule DCI reception in this slot
     nr_ue_dl_scheduler(mac, dl_info);
   else
-    // DL indication to process data channels
+    // DL indication to process either DCI either other DL channels
     ret2 = nr_ue_dl_processing(dl_info);
   pthread_mutex_unlock(&mac_IF_mutex);
   return ret2;

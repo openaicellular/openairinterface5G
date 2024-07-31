@@ -122,7 +122,11 @@ csi_payload_t nr_ue_aperiodic_csi_reporting(NR_UE_MAC_INST_t *mac, dci_field_t c
           If the max number of retransmissions is reached, it triggers a new RA  */
 int8_t nr_ue_get_SR(NR_UE_MAC_INST_t *mac, frame_t frame, slot_t slot, NR_SchedulingRequestId_t sr_id);
 
-nr_dci_format_t nr_ue_process_dci_indication_pdu(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, fapi_nr_dci_indication_pdu_t *dci);
+nr_dci_format_t nr_ue_process_dci_indication_pdu(NR_UE_MAC_INST_t *mac,
+                                                 frame_t frame,
+                                                 int slot,
+                                                 fapi_nr_dci_indication_pdu_t *dci,
+                                                 dci_pdu_rel15_t *def_dci_pdu_rel15);
 
 int8_t nr_ue_process_csirs_measurements(NR_UE_MAC_INST_t *mac,
                                         frame_t frame,
@@ -179,13 +183,11 @@ int nr_write_ce_ulsch_pdu(uint8_t *mac_ce,
                           NR_BSR_SHORT *short_bsr,
                           NR_BSR_LONG  *long_bsr);
 
-void config_dci_pdu(NR_UE_MAC_INST_t *mac,
-                    fapi_nr_dl_config_request_t *dl_config,
-                    const int rnti_type,
-                    const int slot,
-                    const NR_SearchSpace_t *ss);
-
-void ue_dci_configuration(NR_UE_MAC_INST_t *mac, fapi_nr_dl_config_request_t *dl_config, const frame_t frame, const int slot);
+void ue_dci_configuration(NR_UE_MAC_INST_t *mac,
+                          fapi_nr_dl_config_request_t *dl_config,
+                          const frame_t frame,
+                          const int slot,
+                          dci_pdu_rel15_t *def_dci_pdu_rel15);
 
 uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
                       int cc_id,

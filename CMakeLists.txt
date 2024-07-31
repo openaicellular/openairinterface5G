@@ -1134,7 +1134,7 @@ set(PHY_SRC_UE ${PHY_SRC_UE} ${OPENAIR1_DIR}/PHY/LTE_UE_TRANSPORT/dlsch_llr_comp
 add_library(PHY_COMMON ${PHY_SRC_COMMON})
 target_link_libraries(PHY_COMMON PRIVATE shlib_loader)
 add_dependencies(PHY_COMMON dfts)
-target_link_libraries(PHY_COMMON PRIVATE asn1_lte_rrc_hdrs)
+target_link_libraries(PHY_COMMON PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
 
 add_library(PHY ${PHY_SRC})
 target_link_libraries(PHY PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
@@ -1151,15 +1151,16 @@ target_link_libraries(PHY_UE PRIVATE ${blas_LIBRARIES} ${cblas_LIBRARIES} ${lapa
 target_include_directories(PHY_UE PRIVATE ${blas_INCLUDE_DIRS} ${lapacke_INCLUDE_DIRS})
 
 add_library(PHY_NR_COMMON ${PHY_NR_SRC_COMMON})
+target_link_libraries(PHY_NR_COMMON PRIVATE asn1_nr_rrc_hdrs)
 
 add_library(PHY_NR ${PHY_NR_SRC})
-target_link_libraries(PHY_NR nr_phy_common nr_common)
+target_link_libraries(PHY_NR nr_phy_common nr_common asn1_nr_rrc_hdrs)
 
 add_library(PHY_NR_UE ${PHY_NR_UE_SRC})
-target_link_libraries(PHY_NR_UE PRIVATE asn1_nr_rrc_hdrs nr_phy_common nr_common)
+target_link_libraries(PHY_NR_UE  nr_phy_common nr_common asn1_nr_rrc_hdrs)
 
 add_library(PHY_RU ${PHY_SRC_RU})
-target_link_libraries(PHY_RU PRIVATE asn1_lte_rrc_hdrs)
+target_link_libraries(PHY_RU PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
 
 #Library for mex functions
 #########################3
@@ -2314,7 +2315,7 @@ foreach(myExe dlsim dlsim_tm7 ulsim pbchsim scansim mbmssim pdcchsim pucchsim pr
     -Wl,--start-group SIMU UTIL SCHED_LIB SCHED_RU_LIB SCHED_UE_LIB PHY_COMMON PHY_NR_COMMON PHY PHY_UE PHY_RU ITTI -Wl,--end-group
     pthread m rt CONFIG_LIB ${T_LIB} dl shlib_loader
     )
-  target_link_libraries(${myExe} PRIVATE asn1_lte_rrc_hdrs)
+  target_link_libraries(${myExe} PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
 
 endforeach(myExe)
 

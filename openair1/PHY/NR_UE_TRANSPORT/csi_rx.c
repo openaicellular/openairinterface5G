@@ -1023,9 +1023,15 @@ void nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue,
   csirs_measurements.i2 = *i2;
   csirs_measurements.cqi = cqi;
   csirs_measurements.radiolink_monitoring = RLM_no_monitoring; // TODO do be activated in case of RLM based on CSI-RS
-  nr_downlink_indication_t dl_indication;
   fapi_nr_rx_indication_t rx_ind = {0};
-  nr_fill_dl_indication(&dl_indication, NULL, &rx_ind, proc, ue, NULL);
+  nr_downlink_indication_t dl_indication = {.gNB_index = proc->gNB_id,
+                                            .module_id = ue->Mod_id,
+                                            .cc_id = ue->CC_id,
+                                            .frame = proc->frame_rx,
+                                            .slot = proc->nr_slot_rx,
+                                            .phy_data = NULL,
+                                            .dci_ind = NULL,
+                                            .rx_ind = &rx_ind};
   nr_fill_rx_indication(&rx_ind, FAPI_NR_CSIRS_IND, ue, NULL, NULL, 1, proc, (void *)&csirs_measurements, NULL);
   if (ue->if_inst && ue->if_inst->dl_indication)
     ue->if_inst->dl_indication(&dl_indication);

@@ -179,7 +179,7 @@ void init_nrUE_standalone_thread(int ue_idx)
   pthread_setname_np(phy_thread, "oai:nrue-stand-phy");
 }
 
-static void process_queued_nr_nfapi_msgs(NR_UE_MAC_INST_t *mac, int sfn_slot)
+static void process_queued_nr_nfapi_msgs(NR_UE_MAC_INST_t *mac, int sfn_slot, nr_downlink_indication_t *dl_info)
 {
   nfapi_nr_rach_indication_t *rach_ind = unqueue_matching(&nr_rach_ind_queue, MAX_QUEUE_SIZE, sfn_slot_matcher, &sfn_slot);
   nfapi_nr_dl_tti_request_t *dl_tti_request = get_queue(&nr_dl_tti_req_queue);
@@ -191,7 +191,7 @@ static void process_queued_nr_nfapi_msgs(NR_UE_MAC_INST_t *mac, int sfn_slot)
             NFAPI_SFNSLOT2SLOT(mac->nr_ue_emul_l1.harq[i].active_ul_harq_sfn_slot), nr_ul_tti_req_queue.num_items);
     nfapi_nr_ul_tti_request_t *ul_tti_request_crc = unqueue_matching(&nr_ul_tti_req_queue, MAX_QUEUE_SIZE, sfn_slot_matcher, &mac->nr_ue_emul_l1.harq[i].active_ul_harq_sfn_slot);
     if (ul_tti_request_crc && ul_tti_request_crc->n_pdus > 0) {
-      check_and_process_dci(NULL, NULL, NULL, ul_tti_request_crc);
+      check_and_process_dci(NULL, NULL, NULL, ul_tti_request_crc, dl_info);
       free_and_zero(ul_tti_request_crc);
     }
   }
@@ -217,7 +217,7 @@ static void process_queued_nr_nfapi_msgs(NR_UE_MAC_INST_t *mac, int sfn_slot)
     else if (dl_tti_request->dl_tti_request_body.nPDUs > 0 && tx_data_request->Number_of_PDUs > 0) {
       if (get_softmodem_params()->nsa)
         save_nr_measurement_info(dl_tti_request);
-      check_and_process_dci(dl_tti_request, tx_data_request, NULL, NULL);
+      check_and_process_dci(dl_tti_request, tx_data_request, NULL, NULL, dl_info);
       free_and_zero(dl_tti_request);
       free_and_zero(tx_data_request);
     }
@@ -227,7 +227,7 @@ static void process_queued_nr_nfapi_msgs(NR_UE_MAC_INST_t *mac, int sfn_slot)
     }
   }
   if (ul_dci_request && ul_dci_request->numPdus > 0) {
-    check_and_process_dci(NULL, NULL, ul_dci_request, NULL);
+    check_and_process_dci(NULL, NULL, ul_dci_request, NULL, dl_info);
     free_and_zero(ul_dci_request);
   }
 }
@@ -273,6 +273,7 @@ static void *NRUE_phy_stub_standalone_pnf_task(void *arg)
       sfn_slot = ch_info->sfn_slot;
       free_and_zero(ch_info);
     }
+    nr_downlink_indication_t dl_info = {0};
 
     frame_t frame = NFAPI_SFNSLOT2SFN(sfn_slot);
     int slot = NFAPI_SFNSLOT2SLOT(sfn_slot);
@@ -288,8 +289,8 @@ static void *NRUE_phy_stub_standalone_pnf_task(void *arg)
 
     if (get_softmodem_params()->sa && mac->mib == NULL) {
       LOG_D(NR_MAC, "We haven't gotten MIB. Lets see if we received it\n");
-      nr_ue_dl_indication(&mac->dl_info);
-      process_queued_nr_nfapi_msgs(mac, sfn_slot);
+      nr_ue_dl_indication(&dl_info);
+      process_queued_nr_nfapi_msgs(mac, sfn_slot, &dl_info);
     }
 
     int CC_id = 0;
@@ -312,15 +313,14 @@ static void *NRUE_phy_stub_standalone_pnf_task(void *arg)
     }
 
     if (is_nr_DL_slot(mac->tdd_UL_DL_ConfigurationCommon, slot)) {
-      memset(&mac->dl_info, 0, sizeof(mac->dl_info));
-      mac->dl_info.cc_id = CC_id;
-      mac->dl_info.gNB_index = gNB_id;
-      mac->dl_info.module_id = mod_id;
-      mac->dl_info.frame = frame;
-      mac->dl_info.slot = slot;
-      mac->dl_info.dci_ind = NULL;
-      mac->dl_info.rx_ind = NULL;
-      nr_ue_dl_indication(&mac->dl_info);
+      dl_info = (nr_downlink_indication_t){.cc_id = CC_id,
+                                           .gNB_index = gNB_id,
+                                           .module_id = mod_id,
+                                           .frame = frame,
+                                           .slot = slot,
+                                           .dci_ind = NULL,
+                                           .rx_ind = NULL};
+      nr_ue_dl_indication(&dl_info);
     }
 
     if (pthread_mutex_unlock(&mac->mutex_dl_info)) abort();
@@ -329,7 +329,7 @@ static void *NRUE_phy_stub_standalone_pnf_task(void *arg)
       LOG_D(NR_MAC, "Slot %d. calling nr_ue_ul_ind()\n", ul_info.slot);
       nr_ue_ul_scheduler(mac, &ul_info);
     }
-    process_queued_nr_nfapi_msgs(mac, sfn_slot);
+    process_queued_nr_nfapi_msgs(mac, sfn_slot, &dl_info);
   }
   return NULL;
 }
@@ -625,14 +625,20 @@ static int UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc
   }
 
   if (proc->rx_slot_type == NR_DOWNLINK_SLOT || proc->rx_slot_type == NR_MIXED_SLOT) {
-
+    nr_downlink_indication_t dl_indication = {0};
     if(UE->if_inst != NULL && UE->if_inst->dl_indication != NULL) {
-      nr_downlink_indication_t dl_indication;
-      nr_fill_dl_indication(&dl_indication, NULL, NULL, proc, UE, phy_data);
+      dl_indication = (nr_downlink_indication_t){.gNB_index = proc->gNB_id,
+                                                 .module_id = UE->Mod_id,
+                                                 .cc_id = UE->CC_id,
+                                                 .frame = proc->frame_rx,
+                                                 .slot = proc->nr_slot_rx,
+                                                 .phy_data = phy_data,
+                                                 .dci_ind = NULL,
+                                                 .rx_ind = NULL};
       UE->if_inst->dl_indication(&dl_indication);
     }
 
-    sampleShift = pbch_pdcch_processing(UE, proc, phy_data);
+    sampleShift = pbch_pdcch_processing(UE, proc, &dl_indication);
     if (phy_data->dlsch[0].active && phy_data->dlsch[0].rnti_type == TYPE_C_RNTI_) {
       // indicate to tx thread to wait for DLSCH decoding
       const int ack_nack_slot = (proc->nr_slot_rx + phy_data->dlsch[0].dlsch_config.k1_feedback) % UE->frame_parms.slots_per_frame;
