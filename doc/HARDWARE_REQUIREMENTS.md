@@ -59,38 +59,38 @@ USRP B2XX or Blade RF are USB based radios recommended to use with USB 3.0. You 
 
 - CPU: 4
 - Memory: 4Gi
-- `avx2` instruction set
-- `sctp` protocol should be enabled
+- Instruction set: `avx2` 
+- Protocol should be enabled: `sctp` 
 - USB 3.0
 
-### Minimum requirements for UE Stack only with USRP B2XXX
+### Minimum requirements for UE Stack only with USRP B2XX
 
 - CPU: X
 - Memory: X
-- `avx2` instruction set
+- Instruction set: `avx2` 
 - USB 3.0
 
 ### Recommended for performance for RAN Stack
 
-- High clock speed CPUs > 4GHz 
+- Boost Frequency > 4GHz 
 - DDR4 or DDR5 RAM
 - Use only performance cores
 - Disable CPU sleep states
 - CPU: X
 - Memory: 4Gi
-- `avx2` instruction set
-- `sctp` protocol should be enabled
+- Instruction set: `avx2` 
+- Protocol should be enabled: `sctp` 
 - USB 3.0
 
-### Recommended for performance for UE Stack only with USRP B2XXX
+### Recommended for performance for UE Stack only with USRP B2XX
 
-- High clock speed CPUs > 4GHz 
+- Boost Frequency > 4GHz 
 - DDR4 or DDR5 RAM 
 - Use only performance cores
 - Disable CPU sleep states
 - CPU: X
 - Memory: 4Gi
-- `avx2` instruction set
+- Instruction set: `avx2` 
 - USB 3.0
 
 Apart from this you should follow [this document](./tuning_and_security.md) to 
@@ -102,30 +102,30 @@ USRP N3XX/X3XX/X4XX requires two dedicated 10G SFP+ connections. For these radio
 
 ### Recommended for performance for RAN Stack
 
-- High clock speed CPUs > 4GHz
+- Boost Frequency > 4GHz 
 - DDR4 or DDR5 RAM 
 - Use only performance cores
 - Disable CPU sleep states
 - CPU: X
 - Memory: X
-- `avx2` instruction set
-- `sctp` protocol should be enabled
+- Instruction set: `avx2` 
+- Protocol should be enabled: `sctp` 
 - (Optional) Realtime kernel to have better Jitter statistics
 - Intel x710/xx710/E-810 or Mellanox connect 5x or 6x
 
 ### Recommended for performance for UE Stack
 
-- High clock speed CPUs > 4GHz 
+- Boost Frequency > 4GHz 
 - DDR4 or DDR5 RAM
 - Use only performance cores
 - Disable CPU sleep states
 - CPU: X
 - Memory: X
-- `avx2` instruction set
+- Instruction set: `avx2` 
 - (Optional) Realtime kernel to have better Jitter statistics
 - Intel x710/xx710/E-810 or Mellanox connect 5x or 6x
 
-In case you are using Mellanox NIC cards then you have to download `mlnx-ofed` and configure your NIC for performance. 
+In case you are using Mellanox NIC cards then you have to download `mlnx-ofed` and configure your NIC for performance.
 
 Apart from this you should follow [this document](./tuning_and_security.md) to 
 tune your system to get high performance. 
