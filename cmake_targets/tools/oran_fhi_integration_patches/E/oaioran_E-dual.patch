@@ -381,7 +381,7 @@ index fef64c8..896044c 100644
          for(i = 0; i < xran_ports_num; i++){
              g_xran_dev_ctx[i] = pCtx;
 diff --git a/fhi_lib/lib/src/xran_main.c b/fhi_lib/lib/src/xran_main.c
-index 89dcc1f..8ec63e9 100644
+index 89dcc1f..6921744 100644
 --- a/fhi_lib/lib/src/xran_main.c
 +++ b/fhi_lib/lib/src/xran_main.c
 @@ -35,7 +35,11 @@
@@ -396,10 +396,32 @@ index 89dcc1f..8ec63e9 100644
  
  #include <rte_common.h>
  #include <rte_eal.h>
-@@ -102,6 +106,30 @@ void tti_to_phy_cb(struct rte_timer *tim, void *arg);
+@@ -102,6 +106,52 @@ void tti_to_phy_cb(struct rte_timer *tim, void *arg);
  
  int32_t xran_pkt_gen_process_ring(struct rte_ring *r);
  
++XranSectorHandleInfo *
++allocate_cc_handle() {
++    void *ptr = NULL;
++
++#if defined(__arm__) || defined(__aarch64__)
++    // ARM-specific memory allocation
++    if (posix_memalign(&ptr, 64, sizeof(XranSectorHandleInfo)) != 0) {
++        fprintf(stderr, "posix_memalign: pCcHandle allocation error\n");
++        return NULL;
++    }
++#else
++    // Intel-specific memory allocation
++    ptr = _mm_malloc(sizeof(XranSectorHandleInfo), 64);
++    if (ptr == NULL) {
++        fprintf(stderr, "_mm_malloc: pCcHandle allocation error\n");
++        return NULL;
++    }
++#endif
++
++    return (XranSectorHandleInfo *)ptr;
++}
++
 +int
 +allocate_worker_th_ctx(struct xran_worker_th_ctx **pThCtx) {
 +    void *ptr = NULL;
@@ -427,7 +449,16 @@ index 89dcc1f..8ec63e9 100644
  void
  xran_updateSfnSecStart(void)
  {
-@@ -1837,8 +1865,13 @@ xran_spawn_workers(void)
+@@ -1366,7 +1416,7 @@ xran_sector_get_instances (uint32_t xran_port, void * pDevHandle, uint16_t nNumI
+     for (i = 0; i < nNumInstances; i++) {
+ 
+         /* Allocate Memory for CC handles */
+-        pCcHandle = (XranSectorHandleInfo *) _mm_malloc( /*"xran_cc_handles",*/ sizeof (XranSectorHandleInfo), 64);
++	pCcHandle = allocate_cc_handle();
+ 
+         if(pCcHandle == NULL)
+             return XRAN_STATUS_RESOURCE;
+@@ -1837,8 +1887,13 @@ xran_spawn_workers(void)
          nWorkerCore = nWorkerCore << 1;
      }
  
@@ -441,7 +472,7 @@ index 89dcc1f..8ec63e9 100644
  
      printf("O-XU      %d\n", eth_ctx->io_cfg.id);
      printf("HW        %d\n", icx_cpu);
-@@ -1876,8 +1909,7 @@ xran_spawn_workers(void)
+@@ -1876,8 +1931,7 @@ xran_spawn_workers(void)
                  eth_ctx->time_wrk_cfg.arg   = NULL;
                  eth_ctx->time_wrk_cfg.state = 1;
  
@@ -451,7 +482,7 @@ index 89dcc1f..8ec63e9 100644
                      print_err("pThCtx allocation error\n");
                      return XRAN_STATUS_FAIL;
                  }
-@@ -1897,12 +1929,11 @@ xran_spawn_workers(void)
+@@ -1897,12 +1951,11 @@ xran_spawn_workers(void)
                  eth_ctx->time_wrk_cfg.state = 1;
  
                  /* workers */
@@ -466,7 +497,7 @@ index 89dcc1f..8ec63e9 100644
                  memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
                  pThCtx->worker_id      = 0;
                  pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -1925,8 +1956,7 @@ xran_spawn_workers(void)
+@@ -1925,8 +1978,7 @@ xran_spawn_workers(void)
                  }
  
                  /** 1 - CP GEN **/
@@ -476,7 +507,7 @@ index 89dcc1f..8ec63e9 100644
                      print_err("pThCtx allocation error\n");
                      return XRAN_STATUS_FAIL;
                  }
-@@ -1956,8 +1986,7 @@ xran_spawn_workers(void)
+@@ -1956,8 +2008,7 @@ xran_spawn_workers(void)
  
                  p_dev->tx_sym_gen_func = xran_process_tx_sym_cp_on_opt;
  
@@ -486,7 +517,7 @@ index 89dcc1f..8ec63e9 100644
                      print_err("pThCtx allocation error\n");
                      return XRAN_STATUS_FAIL;
                  }
-@@ -1979,11 +2008,10 @@ xran_spawn_workers(void)
+@@ -1979,11 +2030,10 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
@@ -501,7 +532,7 @@ index 89dcc1f..8ec63e9 100644
                      memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
                      pThCtx->worker_id      = 0;
                      pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2006,8 +2034,7 @@ xran_spawn_workers(void)
+@@ -2006,8 +2056,7 @@ xran_spawn_workers(void)
                      }
  
                      /** 1 - CP GEN **/
@@ -511,7 +542,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2033,8 +2060,7 @@ xran_spawn_workers(void)
+@@ -2033,8 +2082,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
@@ -521,7 +552,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2048,8 +2074,7 @@ xran_spawn_workers(void)
+@@ -2048,8 +2096,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1 - CP GEN **/
@@ -531,7 +562,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2063,8 +2088,7 @@ xran_spawn_workers(void)
+@@ -2063,8 +2110,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2 UP GEN **/
@@ -541,7 +572,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2102,8 +2126,7 @@ xran_spawn_workers(void)
+@@ -2102,8 +2148,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
@@ -551,7 +582,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2117,8 +2140,7 @@ xran_spawn_workers(void)
+@@ -2117,8 +2162,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1 - CP GEN **/
@@ -561,7 +592,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2132,8 +2154,7 @@ xran_spawn_workers(void)
+@@ -2132,8 +2176,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2 UP GEN **/
@@ -571,7 +602,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2147,8 +2168,7 @@ xran_spawn_workers(void)
+@@ -2147,8 +2190,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 3 UP GEN **/
@@ -581,7 +612,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2186,8 +2206,7 @@ xran_spawn_workers(void)
+@@ -2186,8 +2228,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
@@ -591,7 +622,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2201,9 +2220,7 @@ xran_spawn_workers(void)
+@@ -2201,9 +2242,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1 Eth Tx **/
@@ -602,7 +633,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2217,8 +2234,7 @@ xran_spawn_workers(void)
+@@ -2217,8 +2256,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2 - CP GEN **/
@@ -612,7 +643,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2232,8 +2248,7 @@ xran_spawn_workers(void)
+@@ -2232,8 +2270,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 3 UP GEN **/
@@ -622,7 +653,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2247,8 +2262,7 @@ xran_spawn_workers(void)
+@@ -2247,8 +2284,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 4 UP GEN **/
@@ -632,7 +663,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2281,8 +2295,7 @@ xran_spawn_workers(void)
+@@ -2281,8 +2317,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0  Eth RX */
@@ -642,7 +673,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2296,11 +2309,10 @@ xran_spawn_workers(void)
+@@ -2296,11 +2331,10 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1  FH RX and BBDEV */
@@ -657,7 +688,7 @@ index 89dcc1f..8ec63e9 100644
                      memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
                      pThCtx->worker_id = 1;
                      pThCtx->worker_core_id = core_map[pThCtx->worker_id];
-@@ -2311,8 +2323,7 @@ xran_spawn_workers(void)
+@@ -2311,8 +2345,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2  FH RX and BBDEV */
@@ -667,7 +698,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2326,8 +2337,7 @@ xran_spawn_workers(void)
+@@ -2326,8 +2359,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 3  FH RX and BBDEV */
@@ -677,7 +708,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2341,8 +2351,7 @@ xran_spawn_workers(void)
+@@ -2341,8 +2373,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /**  FH TX and BBDEV */
@@ -687,7 +718,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2379,8 +2388,7 @@ xran_spawn_workers(void)
+@@ -2379,8 +2410,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
@@ -697,7 +728,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2406,8 +2414,7 @@ xran_spawn_workers(void)
+@@ -2406,8 +2436,7 @@ xran_spawn_workers(void)
                      }
  
                      /** 1 - CP GEN **/
@@ -707,7 +738,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2433,8 +2440,7 @@ xran_spawn_workers(void)
+@@ -2433,8 +2462,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
@@ -717,7 +748,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2448,8 +2454,7 @@ xran_spawn_workers(void)
+@@ -2448,8 +2476,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1 - CP GEN **/
@@ -727,7 +758,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2463,8 +2468,7 @@ xran_spawn_workers(void)
+@@ -2463,8 +2490,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2 UP GEN **/
@@ -737,7 +768,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2501,8 +2505,7 @@ xran_spawn_workers(void)
+@@ -2501,8 +2527,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0  FH RX and BBDEV */
@@ -747,7 +778,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2516,8 +2519,7 @@ xran_spawn_workers(void)
+@@ -2516,8 +2541,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1 - CP GEN **/
@@ -757,7 +788,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2531,8 +2533,7 @@ xran_spawn_workers(void)
+@@ -2531,8 +2555,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2 UP GEN **/
@@ -767,7 +798,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2546,8 +2547,7 @@ xran_spawn_workers(void)
+@@ -2546,8 +2569,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 3 UP GEN **/
@@ -777,7 +808,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2569,8 +2569,7 @@ xran_spawn_workers(void)
+@@ -2569,8 +2591,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0 **/
@@ -787,7 +818,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2584,8 +2583,7 @@ xran_spawn_workers(void)
+@@ -2584,8 +2605,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1 - CP GEN **/
@@ -797,7 +828,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2599,8 +2597,7 @@ xran_spawn_workers(void)
+@@ -2599,8 +2619,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2 UP GEN **/
@@ -807,7 +838,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2614,8 +2611,7 @@ xran_spawn_workers(void)
+@@ -2614,8 +2633,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 3 UP GEN **/
@@ -817,7 +848,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2629,8 +2625,7 @@ xran_spawn_workers(void)
+@@ -2629,8 +2647,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 4 UP GEN **/
@@ -827,7 +858,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2651,8 +2646,7 @@ xran_spawn_workers(void)
+@@ -2651,8 +2668,7 @@ xran_spawn_workers(void)
  
                      /* workers */
                      /** 0  Eth RX */
@@ -837,7 +868,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2666,8 +2660,7 @@ xran_spawn_workers(void)
+@@ -2666,8 +2682,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 1  FH RX and BBDEV */
@@ -847,7 +878,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2681,8 +2674,7 @@ xran_spawn_workers(void)
+@@ -2681,8 +2696,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 2  FH RX and BBDEV */
@@ -857,7 +888,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2696,8 +2688,7 @@ xran_spawn_workers(void)
+@@ -2696,8 +2710,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /** 3  FH RX and BBDEV */
@@ -867,7 +898,7 @@ index 89dcc1f..8ec63e9 100644
                          print_err("pThCtx allocation error\n");
                          return XRAN_STATUS_FAIL;
                      }
-@@ -2711,8 +2702,7 @@ xran_spawn_workers(void)
+@@ -2711,8 +2724,7 @@ xran_spawn_workers(void)
                      eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
  
                      /**  FH TX and BBDEV */
