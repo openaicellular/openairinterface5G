@@ -47,6 +47,7 @@
 #include "nfapi_pnf_interface.h"
 #include "nfapi/open-nFAPI/fapi/inc/nr_fapi.h"
 #include "nfapi/open-nFAPI/fapi/inc/nr_fapi_p5_utils.h"
+#include "pnf.h"
 
 /* ----- WLS Operation --- */
 #define FAPI_VENDOR_MSG_HEADER_IND                          0x1A
@@ -62,6 +63,7 @@ typedef struct _fapi_api_queue_elem {
   uint64_t time_stamp;
 } fapi_api_queue_elem_t,
     *p_fapi_api_queue_elem_t;
+
 /* ----------------------- */
 //taken from intel_fapi/fapi_interface, to later remove
 typedef struct {
@@ -69,7 +71,7 @@ typedef struct {
   uint16_t pad;
   uint32_t length;        // Length of the message body in bytes  5G FAPI Table 3-3
 } fapi_msg_t;
-
+int wls_pnf_nr_pack_and_send_p5_message(pnf_t* pnf, nfapi_p4_p5_message_header_t* msg, uint32_t msg_len);
 void *wls_fapi_pnf_nr_start_thread(void *ptr);
 int wls_fapi_nr_pnf_start();
 

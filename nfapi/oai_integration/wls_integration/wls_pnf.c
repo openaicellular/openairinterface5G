@@ -48,7 +48,7 @@ WLS_HANDLE g_phy_wls;
 uint8_t phy_dpdk_init(void);
 uint8_t phy_wls_init(const char *dev_name, uint64_t nWlsMacMemSize, uint64_t nWlsPhyMemSize);
 uint64_t phy_mac_recv();
-uint8_t phy_mac_send();
+uint8_t phy_mac_send(void *msg);
 
 static pnf_t *_this = NULL;
 static nfapi_pnf_config_t *cfg ;
@@ -74,7 +74,7 @@ int wls_fapi_nr_pnf_start()
 
   NFAPI_TRACE(NFAPI_TRACE_INFO, "%s\n", __FUNCTION__);
 
-  _this = (pnf_t *)(cfg->user_data);
+  _this = (pnf_t *)(cfg);
   _this->terminate = 0;
   // Init PNF config
   nfapi_pnf_phy_config_t* phy = (nfapi_pnf_phy_config_t*)malloc(sizeof(nfapi_pnf_phy_config_t));
@@ -84,6 +84,7 @@ int wls_fapi_nr_pnf_start()
   phy->phy_id = 0;
   phy->next = (_this->_public).phys;
   (_this->_public).phys = phy;
+  _this->_public.state = NFAPI_PNF_RUNNING; // not a nFAPI PNF, go immediately to PNF_RUNNING state
 
   // DPDK init
   ret = phy_dpdk_init();
@@ -112,14 +113,6 @@ int wls_fapi_nr_pnf_start()
 
 
   // Should never get here, to be removed, align with present implementation of PNF loop
-  // Send to MAC WLS
-  ret = phy_mac_send();
-  if (!ret) {
-    NFAPI_TRACE(NFAPI_TRACE_ERROR, "[PNF]  Send to FAPI FAPI - Failed\n");
-    return false;
-  }
-  NFAPI_TRACE(NFAPI_TRACE_INFO, "\n[PHY] Send to FAPI - Done\n");
-
   NFAPI_TRACE(NFAPI_TRACE_INFO, "\n[PHY] Exiting...\n");
 
   return true;
@@ -160,12 +153,81 @@ uint8_t phy_wls_init(const char *dev_name, uint64_t nWlsMacMemSize, uint64_t nWl
   }
   return true;
 }
+#define FILL_FAPI_LIST_ELEM(_currElem, _nextElem, _msgType, _numMsgInBlock, _alignOffset)\
+{\
+   _currElem->msg_type             = (uint8_t) _msgType;\
+   _currElem->num_message_in_block = _numMsgInBlock;\
+   _currElem->align_offset         = (uint16_t) _alignOffset;\
+   _currElem->msg_len              = _numMsgInBlock * _alignOffset;\
+   _currElem->p_next               = _nextElem;\
+   _currElem->p_tx_data_elm_list   = NULL;\
+   _currElem->time_stamp           = 0;\
+}
+int wls_pnf_nr_pack_and_send_p5_message(pnf_t* pnf, nfapi_p4_p5_message_header_t* msg, uint32_t msg_len)
+{
+  int packed_len = fapi_nr_p5_message_pack(msg, msg_len,
+                                            pnf->tx_message_buffer,
+                                            sizeof(pnf->tx_message_buffer),
+                                            &pnf->_public.codec_config);
+
+  if (packed_len < 0)
+  {
+    NFAPI_TRACE(NFAPI_TRACE_ERROR, "nfapi_p5_message_pack failed (%d)\n", packed_len);
+    return -1;
+  }
+
+  printf("fapi_nr_p5_message_pack succeeded having packed %d bytes\n", packed_len);
+  printf("in msg, msg_len is %d\n", msg->message_length);
+  // send the header first
+  //g_phy_wls
+  /*
+   * typedef struct {
+uint8_t num_msg;
+// Can be used for Phy Id or Carrier Id  5G FAPI Table 3-2
+uint8_t handle;
+#ifndef OAI_TESTING
+uint8_t pad[2];
+#endif
+} fapi_msg_header_t,
+   * */
+
+  p_fapi_api_queue_elem_t  headerElem = malloc((sizeof(fapi_api_queue_elem_t) + 2)); // 2 is for num_msg and opaque_handle
+  p_fapi_api_queue_elem_t  cfgReqQElem = malloc(sizeof(fapi_api_queue_elem_t)+packed_len-NFAPI_HEADER_LENGTH+6); // body of the message
+  FILL_FAPI_LIST_ELEM(cfgReqQElem, NULL, msg->message_id, 1,  packed_len-NFAPI_HEADER_LENGTH+6);
+  //copy just the body ( and message_id(2 bytes) and message_length(4 bytes) ) to the buffer
+  memcpy((uint8_t *)(cfgReqQElem+1),(pnf->tx_message_buffer + 2),packed_len - 2);
+printf("Message body to send\n");
+  for (int i = 0; i < packed_len - 2; ++i) {
+    printf("0x%02x ",((uint8_t *)(cfgReqQElem+1))[i]);
+  }
+printf("\n");
+  //fapi_message_header_t msgHeader = {.num_msg = 1, .opaque_handle = 0 ,.message_length = msg->message_length, .message_id = msg->message_id};
+  uint8_t wls_header[] = {1,0}; // num_messages ,  opaque_handle
+  p_fapi_api_queue_elem_t elem;
+  FILL_FAPI_LIST_ELEM(headerElem, cfgReqQElem, FAPI_VENDOR_MSG_HEADER_IND, 1, 2);
+  //headerElem->message_body = malloc(sizeof(wls_header));
+  memcpy((uint8_t *)(headerElem+1),wls_header, 2);
+  printf("Message header to send \n");
+  for (int i = 0; i < 2; ++i) {
+    printf("0x%02x ",((uint8_t *)(headerElem+1))[i]);
+  }
+  printf("\n");
+  int retval = 0;
+
+
+  retval = phy_mac_send(headerElem);
+  // send the message body after
+  //return pnf_send_message(pnf, pnf->tx_message_buffer, packed_len, 0/*msg->stream_id*/);
+
+  free(headerElem);
+  free(cfgReqQElem);
+  return retval;
+}
 
 static void procPhyMessages(uint32_t msgSize, void *msg , uint16_t msgId)
 {
 
   //Should be able to be casted into already present fapi p5 header format, to fix, dependent on changes on L2 to follow fapi_message_header_t in nr_fapi.h
-  fapi_msg_t *header  = (fapi_msg_t *)msg;
   printf("[PHY] Received Msg ID 0x%02x\n", msgId);
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[PHY] Received Msg ID 0x%02x\n", msgId);
 
@@ -186,6 +248,9 @@ static void procPhyMessages(uint32_t msgSize, void *msg , uint16_t msgId)
       nfapi_pnf_config_t* config = &(_this->_public);
 
       int unpack_result = fapi_nr_p5_message_unpack(msg, msgSize, &req, sizeof(req), NULL);
+      req.carrier_config.dl_grid_size[1].value = 273;
+      req.carrier_config.ul_grid_size[1].value = 273;
+
       // TODO: Process and use the message
       if(config->state == NFAPI_PNF_RUNNING)
       {
@@ -295,25 +360,66 @@ uint64_t phy_mac_recv()
   return l2Msg;
 }
 
-uint8_t phy_mac_send()
+uint8_t phy_mac_send(void *msg)
 {
-  uint64_t pa_block = 0;
-  uint8_t ret = false;
-  uint32_t i;
+  uint8_t ret = 0;
+  uint32_t msgLen =0;
+  p_fapi_api_queue_elem_t currMsg = NULL;
 
-  for (i = 0; i < NUM_PHY_MSGS; i++) {
-    pa_block = (uint64_t)WLS_DequeueBlock((void *)g_phy_wls);
-    if (!pa_block) {
-      NFAPI_TRACE(NFAPI_TRACE_ERROR, "\n[PHY] FAPI2PHY WLS Dequeue block %d error\n", i);
+
+
+  if(msg)
+  {
+    currMsg = (p_fapi_api_queue_elem_t)msg;
+    msgLen = currMsg->msg_len + sizeof(fapi_api_queue_elem_t);
+    if(currMsg->p_next == NULL)
+    {
+      printf("\nERROR  -->  LWR MAC : There cannot be only one block to send");
       return false;
     }
+    //WLS_EnqueueBlock(g_phy_wls, WLS_VA2PA(g_phy_wls, currMsg));
+    //WLS_DequeueBlock(g_phy_wls);
 
-    ret = WLS_Put(g_phy_wls, pa_block, WLS_TEST_MSG_SIZE, WLS_TEST_MSG_ID, (i == (NUM_PHY_MSGS - 1)) ? WLS_TF_FIN : 0) == 0 ? true
-                                                                                                                            : false;
-    NFAPI_TRACE(NFAPI_TRACE_INFO, "\n[PHY] FAPI2PHY WLS Put Msg %d \n", i);
-    if (ret == false) {
-      NFAPI_TRACE(NFAPI_TRACE_ERROR, "\n[PHY] FAPI2PHY WLS Put Msg Error %d \n", i);
+    /* Sending first block */
+    ret = WLS_Put(g_phy_wls, WLS_VA2PA(g_phy_wls, currMsg), msgLen, currMsg->msg_type, WLS_SG_FIRST);
+    if(ret != 0)
+    {
+      printf("\nERROR  -->  LWR MAC : Failure in sending message to PHY");
+      return false;
     }
+    currMsg = currMsg->p_next;
+
+    while(currMsg)
+    {
+      /* Sending the next msg */
+      msgLen = currMsg->msg_len + sizeof(fapi_api_queue_elem_t);
+      if(currMsg->p_next != NULL)
+      {
+        ret = WLS_Put(g_phy_wls, WLS_VA2PA(g_phy_wls, currMsg), msgLen, currMsg->msg_type, WLS_SG_NEXT);
+        if(ret != 0)
+        {
+          printf("\nERROR  -->  LWR MAC : Failure in sending message to PHY");
+          return false;
+        }
+        currMsg = currMsg->p_next;
+      }
+      else
+      {
+        /* Sending last msg */
+        ret = WLS_Put(g_phy_wls, WLS_VA2PA(g_phy_wls, currMsg), msgLen, currMsg->msg_type, WLS_SG_LAST);
+        if(ret != 0)
+        {
+          printf("\nERROR  -->  LWR MAC : Failure in sending message to PHY");
+          return false;
+        }
+        currMsg = NULL;
+      }
+    }
+  }else{
+    //msg doesn't exist
+    printf("\nERROR  -->  LWR MAC : msg is NULL");
+    return false;
   }
-  return ret;
+  printf("\nSUCCESS  -->  LWR MAC : Message sent");
+  return true;
 }
