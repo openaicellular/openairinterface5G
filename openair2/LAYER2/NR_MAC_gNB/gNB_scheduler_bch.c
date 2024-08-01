@@ -500,7 +500,7 @@ static void nr_fill_nfapi_dl_sib1_pdu(int Mod_idP,
   dci_payload.time_domain_assignment.val = gNB_mac->sched_ctrlCommon->sched_pdsch.time_domain_allocation;
   dci_payload.mcs = pdsch->mcs;
   dci_payload.rv = pdsch_pdu_rel15->rvIndex[0];
-  dci_payload.harq_pid = 0;
+  dci_payload.harq_pid.val = 0;
   dci_payload.ndi = 0;
   dci_payload.dai[0].val = 0;
   dci_payload.tpc = 0; // table 7.2.1-1 in 38.213

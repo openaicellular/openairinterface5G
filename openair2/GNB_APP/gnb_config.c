@@ -675,6 +675,9 @@ void RCconfig_verify(configmodule_interface_t *cfg, ngran_node_t node_type)
     verify_gnb_param_notset(gnbp, GNB_DO_SRS_IDX, GNB_CONFIG_STRING_DOSRS);
     verify_gnb_param_notset(gnbp, GNB_FORCE256QAMOFF_IDX, GNB_CONFIG_STRING_FORCE256QAMOFF);
     verify_gnb_param_notset(gnbp, GNB_MAXMIMOLAYERS_IDX, GNB_CONFIG_STRING_MAXMIMOLAYERS);
+    verify_gnb_param_notset(gnbp, GNB_DISABLE_HARQ_IDX, GNB_CONFIG_STRING_DISABLE_HARQ);
+    verify_gnb_param_notset(gnbp, GNB_NUM_DL_HARQ_IDX, GNB_CONFIG_STRING_NUM_DL_HARQPROCESSES);
+    verify_gnb_param_notset(gnbp, GNB_NUM_UL_HARQ_IDX, GNB_CONFIG_STRING_NUM_UL_HARQPROCESSES);
 
     // check for some general sections
     verify_section_notset(cfg, NULL, CONFIG_STRING_L1_LIST);
@@ -1213,6 +1216,10 @@ void RCconfig_nr_macrlc(configmodule_interface_t *cfg)
               GNB_CONFIG_STRING_ACTIVE_GNBS,
               num_gnbs);
   paramdef_t GNBParams[] = GNBPARAMS_DESC;
+  /* map parameter checking array instances to parameter definition array instances */
+  checkedparam_t config_check_GNBParams[] = GNBPARAMS_CHECK;
+  for (int i = 0; i < sizeofArray(GNBParams); ++i)
+    GNBParams[i].chkPptr = &(config_check_GNBParams[i]);
   config_getlist(cfg, &GNBParamList, GNBParams, sizeofArray(GNBParams), NULL);
 
   if (NFAPI_MODE != NFAPI_MODE_PNF) {
@@ -1261,16 +1268,20 @@ void RCconfig_nr_macrlc(configmodule_interface_t *cfg)
   config.use_deltaMCS = *GNBParamList.paramarray[0][GNB_USE_DELTA_MCS_IDX].iptr != 0;
   config.maxMIMO_layers = *GNBParamList.paramarray[0][GNB_MAXMIMOLAYERS_IDX].iptr;
   config.disable_harq = *GNBParamList.paramarray[0][GNB_DISABLE_HARQ_IDX].iptr;
+  config.num_dlharq = *GNBParamList.paramarray[0][GNB_NUM_DL_HARQ_IDX].iptr;
+  config.num_ulharq =  *GNBParamList.paramarray[0][GNB_NUM_UL_HARQ_IDX].iptr;
   if (config.disable_harq)
     LOG_W(GNB_APP, "\"disable_harq\" is a REL17 feature and is incompatible with REL15 and REL16 UEs!\n");
   LOG_I(GNB_APP,
-        "CSI-RS %d, SRS %d, 256 QAM %s, delta_MCS %s, maxMIMO_Layers %d, HARQ feedback %s\n",
+        "CSI-RS %d, SRS %d, 256 QAM %s, delta_MCS %s, maxMIMO_Layers %d, HARQ feedback %s, num DLHARQ:%d, num ULHARQ:%d\n",
         config.do_CSIRS,
         config.do_SRS,
         config.force_256qam_off ? "force off" : "may be on",
         config.use_deltaMCS ? "on" : "off",
         config.maxMIMO_layers,
-        config.disable_harq ? "disabled" : "enabled");
+        config.disable_harq ? "disabled" : "enabled",
+        config.num_dlharq,
+        config.num_ulharq);
   int tot_ant = config.pdsch_AntennaPorts.N1 * config.pdsch_AntennaPorts.N2 * config.pdsch_AntennaPorts.XP;
   AssertFatal(config.maxMIMO_layers != 0 && config.maxMIMO_layers <= tot_ant, "Invalid maxMIMO_layers %d\n", config.maxMIMO_layers);
 

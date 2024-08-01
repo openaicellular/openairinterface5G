@@ -2599,6 +2599,108 @@ static NR_MAC_CellGroupConfig_t *configure_mac_cellgroup(const nr_mac_timers_t *
   return mac_CellGroupConfig;
 }
 
+// Set HARQ related IEs according to the number of DL, UL harqprocesses configured
+static void fill_harq_IEs(NR_ServingCellConfig_t *scc, int num_dlharq, int num_ulharq)
+{
+
+  AssertFatal(scc && scc->pdsch_ServingCellConfig &&
+              scc->pdsch_ServingCellConfig->present == NR_SetupRelease_PDSCH_ServingCellConfig_PR_setup,
+              "PDSCH_Servingcellconfig IEs NOT present\n");
+
+  NR_PDSCH_ServingCellConfig_t *pdsch_scc = scc->pdsch_ServingCellConfig->choice.setup;
+
+  switch (num_dlharq) {
+    case 2:
+      *pdsch_scc->nrofHARQ_ProcessesForPDSCH = NR_PDSCH_ServingCellConfig__nrofHARQ_ProcessesForPDSCH_n2;
+      break;
+    case 4:
+      *pdsch_scc->nrofHARQ_ProcessesForPDSCH = NR_PDSCH_ServingCellConfig__nrofHARQ_ProcessesForPDSCH_n4;
+      break;
+    case 6:
+      *pdsch_scc->nrofHARQ_ProcessesForPDSCH = NR_PDSCH_ServingCellConfig__nrofHARQ_ProcessesForPDSCH_n6;
+      break;
+    case 8:
+      // 8 if IEs nrofHARQ_ProcessesForPDSCH and nrofHARQ_ProcessesForPDSCH_v1700 are not present
+      free_and_zero(pdsch_scc->nrofHARQ_ProcessesForPDSCH);
+      break;
+    case 10:
+      *pdsch_scc->nrofHARQ_ProcessesForPDSCH = NR_PDSCH_ServingCellConfig__nrofHARQ_ProcessesForPDSCH_n10;
+      break;
+    case 12:
+      *pdsch_scc->nrofHARQ_ProcessesForPDSCH = NR_PDSCH_ServingCellConfig__nrofHARQ_ProcessesForPDSCH_n12;
+      break;
+    case 16:
+      *pdsch_scc->nrofHARQ_ProcessesForPDSCH = NR_PDSCH_ServingCellConfig__nrofHARQ_ProcessesForPDSCH_n16;
+      break;
+    case 32:
+      pdsch_scc->ext3 = calloc(1, sizeof(*pdsch_scc->ext3));
+      pdsch_scc->ext3->nrofHARQ_ProcessesForPDSCH_v1700 = calloc(1, sizeof(long));
+      *pdsch_scc->ext3->nrofHARQ_ProcessesForPDSCH_v1700 =
+                  NR_PDSCH_ServingCellConfig__ext3__nrofHARQ_ProcessesForPDSCH_v1700_n32;
+      NR_BWP_DownlinkDedicated_t *dlbwp = scc->initialDownlinkBWP;
+      if (dlbwp && dlbwp->pdsch_Config &&
+          dlbwp->pdsch_Config->present == NR_SetupRelease_PDSCH_Config_PR_setup) {
+        NR_PDSCH_Config_t *dlcfg = scc->initialDownlinkBWP->pdsch_Config->choice.setup;
+        dlcfg->ext3 = calloc(1, sizeof(*dlcfg->ext3));
+        dlcfg->ext3->harq_ProcessNumberSizeDCI_1_1_r17 = calloc(1, sizeof(long));
+        *dlcfg->ext3->harq_ProcessNumberSizeDCI_1_1_r17 = 5;
+      }
+      int num_dl_bwp = 0;
+      if (scc->downlinkBWP_ToAddModList)
+        num_dl_bwp = scc->downlinkBWP_ToAddModList->list.count;
+      for (int i = 0;i < num_dl_bwp; i++) {
+        dlbwp = scc->downlinkBWP_ToAddModList->list.array[i]->bwp_Dedicated;
+        if (dlbwp && dlbwp->pdsch_Config &&
+            dlbwp->pdsch_Config->present == NR_SetupRelease_PDSCH_Config_PR_setup) {
+          NR_PDSCH_Config_t *dlcfg = dlbwp->pdsch_Config->choice.setup;
+          dlcfg->ext3 = calloc(1, sizeof(*dlcfg->ext3));
+          dlcfg->ext3->harq_ProcessNumberSizeDCI_1_1_r17 = calloc(1, sizeof(long));
+          *dlcfg->ext3->harq_ProcessNumberSizeDCI_1_1_r17 = 5;
+        }
+      }
+      break;
+    default: // Already IE should have been set to 16 harq processes
+      break;
+  }
+
+
+  AssertFatal(scc->uplinkConfig,"uplinkConfig IE NOT present\n");
+
+  if (num_ulharq == 32) {
+    if (!scc->uplinkConfig->pusch_ServingCellConfig)
+      scc->uplinkConfig->pusch_ServingCellConfig = calloc(1, sizeof(*scc->uplinkConfig->pusch_ServingCellConfig));
+    scc->uplinkConfig->pusch_ServingCellConfig->present = NR_SetupRelease_PUSCH_ServingCellConfig_PR_setup;
+    if (!scc->uplinkConfig->pusch_ServingCellConfig->choice.setup)
+      scc->uplinkConfig->pusch_ServingCellConfig->choice.setup = calloc(1, sizeof(NR_PUSCH_ServingCellConfig_t));
+    NR_PUSCH_ServingCellConfig_t *pusch_scc = scc->uplinkConfig->pusch_ServingCellConfig->choice.setup;
+    if (!pusch_scc->ext3)
+      pusch_scc->ext3 = calloc(1, sizeof(*pusch_scc->ext3));
+    if (!pusch_scc->ext3->nrofHARQ_ProcessesForPUSCH_r17)
+      pusch_scc->ext3->nrofHARQ_ProcessesForPUSCH_r17 = calloc(1, sizeof(long));
+    *pusch_scc->ext3->nrofHARQ_ProcessesForPUSCH_r17 = NR_PUSCH_ServingCellConfig__ext3__nrofHARQ_ProcessesForPUSCH_r17_n32;
+    NR_BWP_UplinkDedicated_t *ulbwp = scc->uplinkConfig->initialUplinkBWP;
+    if (ulbwp && ulbwp->pusch_Config &&
+        ulbwp->pusch_Config->present == NR_SetupRelease_PUSCH_Config_PR_setup) {
+      NR_PUSCH_Config_t *ulcfg = ulbwp->pusch_Config->choice.setup;
+      ulcfg->ext2 = calloc(1, sizeof(*ulcfg->ext2));
+      ulcfg->ext2->harq_ProcessNumberSizeDCI_0_1_r17 = calloc(1, sizeof(long));
+      *ulcfg->ext2->harq_ProcessNumberSizeDCI_0_1_r17 = 5;
+    }
+    int num_ul_bwp = 0;
+    if (scc->uplinkConfig->uplinkBWP_ToAddModList)
+      num_ul_bwp = scc->uplinkConfig->uplinkBWP_ToAddModList->list.count;
+    for (int i = 0;i < num_ul_bwp; i++) {
+      ulbwp = scc->uplinkConfig->uplinkBWP_ToAddModList->list.array[i]->bwp_Dedicated;
+      if (ulbwp && ulbwp->pusch_Config &&
+          ulbwp->pusch_Config->present == NR_SetupRelease_PUSCH_Config_PR_setup) {
+        NR_PUSCH_Config_t *ulcfg = ulbwp->pusch_Config->choice.setup;
+        ulcfg->ext2 = calloc(1, sizeof(*ulcfg->ext2));
+        ulcfg->ext2->harq_ProcessNumberSizeDCI_0_1_r17 = calloc(1, sizeof(long));
+        *ulcfg->ext2->harq_ProcessNumberSizeDCI_0_1_r17 = 5;
+      }
+    }
+  }
+}
 
 static NR_SpCellConfig_t *get_initial_SpCellConfig(int uid,
                                                    const NR_ServingCellConfigCommon_t *scc,
@@ -2848,6 +2950,8 @@ static NR_SpCellConfig_t *get_initial_SpCellConfig(int uid,
     config_rsrp_meas_report(csi_MeasConfig, scc, pucchrsrp, configuration->do_CSIRS, bwp_id + 10, uid, pdsch_AntennaPorts);
   }
 
+  fill_harq_IEs(SpCellConfig->spCellConfigDedicated, configuration->num_dlharq, configuration->num_ulharq);
+
   if (LOG_DEBUGFLAG(DEBUG_ASN1)) {
     xer_fprint(stdout, &asn_DEF_NR_SpCellConfig, SpCellConfig);
   }
@@ -2936,15 +3040,17 @@ void update_cellGroupConfig(NR_CellGroupConfig_t *cellGroupConfig,
       }
       *pusch_Config->maxRank = ul_max_layers;
     }
-    if (uplinkConfig->pusch_ServingCellConfig == NULL) {
+    if (!uplinkConfig->pusch_ServingCellConfig)
       uplinkConfig->pusch_ServingCellConfig = calloc(1, sizeof(*uplinkConfig->pusch_ServingCellConfig));
-      uplinkConfig->pusch_ServingCellConfig->present = NR_SetupRelease_PUSCH_ServingCellConfig_PR_setup;
+    uplinkConfig->pusch_ServingCellConfig->present = NR_SetupRelease_PUSCH_ServingCellConfig_PR_setup;
+    if (!uplinkConfig->pusch_ServingCellConfig->choice.setup)
       uplinkConfig->pusch_ServingCellConfig->choice.setup = calloc(1, sizeof(*uplinkConfig->pusch_ServingCellConfig->choice.setup));
+    if (!uplinkConfig->pusch_ServingCellConfig->choice.setup->ext1)
       uplinkConfig->pusch_ServingCellConfig->choice.setup->ext1 =
           calloc(1, sizeof(*uplinkConfig->pusch_ServingCellConfig->choice.setup->ext1));
+    if (!uplinkConfig->pusch_ServingCellConfig->choice.setup->ext1->maxMIMO_Layers)
       uplinkConfig->pusch_ServingCellConfig->choice.setup->ext1->maxMIMO_Layers =
           calloc(1, sizeof(*uplinkConfig->pusch_ServingCellConfig->choice.setup->ext1->maxMIMO_Layers));
-    }
     *uplinkConfig->pusch_ServingCellConfig->choice.setup->ext1->maxMIMO_Layers = ul_max_layers;
   }
 
@@ -3249,17 +3355,24 @@ NR_CellGroupConfig_t *get_default_secondaryCellGroup(const NR_ServingCellConfigC
   secondaryCellGroup->spCellConfig->spCellConfigDedicated->downlinkBWP_ToReleaseList = NULL;
   secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->uplinkBWP_ToReleaseList = NULL;
 
-  secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig =
-      calloc(1, sizeof(*secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig));
-  NR_PUSCH_ServingCellConfig_t *pusch_scc = calloc(1, sizeof(*pusch_scc));
+  if (!secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig)
+    secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig =
+        calloc(1, sizeof(*secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig));
   secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig->present =
       NR_SetupRelease_PUSCH_ServingCellConfig_PR_setup;
-  secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig->choice.setup = pusch_scc;
+  if (!secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig->choice.setup)
+    secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig->choice.setup = calloc(
+        1,
+        sizeof(*secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig->choice.setup));
+  NR_PUSCH_ServingCellConfig_t *pusch_scc =
+      secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->pusch_ServingCellConfig->choice.setup;
   pusch_scc->codeBlockGroupTransmission = NULL;
   pusch_scc->rateMatching = NULL;
   pusch_scc->xOverhead = NULL;
-  pusch_scc->ext1 = calloc(1, sizeof(*pusch_scc->ext1));
-  pusch_scc->ext1->maxMIMO_Layers = calloc(1, sizeof(*pusch_scc->ext1->maxMIMO_Layers));
+  if (!pusch_scc->ext1)
+    pusch_scc->ext1 = calloc(1, sizeof(*pusch_scc->ext1));
+  if (!pusch_scc->ext1->maxMIMO_Layers)
+    pusch_scc->ext1->maxMIMO_Layers = calloc(1, sizeof(*pusch_scc->ext1->maxMIMO_Layers));
   *pusch_scc->ext1->maxMIMO_Layers = 1;
   pusch_scc->ext1->processingType2Enabled = NULL;
 
@@ -3384,6 +3497,8 @@ NR_CellGroupConfig_t *get_default_secondaryCellGroup(const NR_ServingCellConfigC
   secondaryCellGroup->spCellConfig->spCellConfigDedicated->dummy1 = NULL;
   secondaryCellGroup->spCellConfig->spCellConfigDedicated->pathlossReferenceLinking = NULL;
   secondaryCellGroup->spCellConfig->spCellConfigDedicated->servingCellMO = NULL;
+
+  fill_harq_IEs(secondaryCellGroup->spCellConfig->spCellConfigDedicated, configuration->num_dlharq, configuration->num_ulharq);
 
   if (LOG_DEBUGFLAG(DEBUG_ASN1)) {
     xer_fprint(stdout, &asn_DEF_NR_SpCellConfig, (void *)secondaryCellGroup->spCellConfig);
