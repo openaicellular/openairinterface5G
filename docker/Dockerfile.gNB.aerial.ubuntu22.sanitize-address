@@ -25,7 +25,7 @@
 #
 #---------------------------------------------------------------------
 
-FROM ran-base:latest as ran-build
+FROM ran-base:latest AS ran-build
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade --yes && \
@@ -58,7 +58,7 @@ RUN /bin/sh oaienv && \
 
 
 #start from scratch for target executable
-FROM ubuntu:jammy as oai-gnb-aerial
+FROM ubuntu:jammy AS oai-gnb-aerial
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe
 

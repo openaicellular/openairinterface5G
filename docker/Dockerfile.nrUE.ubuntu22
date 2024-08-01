@@ -31,7 +31,7 @@ FROM ran-build:latest AS nr-ue-build
 
 
 #start from scratch for target executable
-FROM ubuntu:jammy as oai-nr-ue
+FROM ubuntu:jammy AS oai-nr-ue
 ARG BUILD_OPTION
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Paris

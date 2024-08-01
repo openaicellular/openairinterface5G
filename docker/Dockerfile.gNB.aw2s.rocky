@@ -39,7 +39,7 @@ RUN /bin/sh oaienv && \
     ./build_oai -w AW2SORI -t Ethernet
 
 #start from scratch for target executable
-FROM $BASE_IMAGE as oai-gnb-aw2s
+FROM $BASE_IMAGE AS oai-gnb-aw2s
 ENV TZ=Europe/Paris
 
 RUN dnf update -y && \
