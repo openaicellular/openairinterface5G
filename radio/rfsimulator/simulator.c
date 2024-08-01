@@ -709,6 +709,10 @@ static bool flushInput(rfsimulator_state_t *t, int timeout, int nsamps_for_initi
         samplesVoid[i]=(void *)&v;
 
       rfsimulator_write_internal(t, t->lastWroteTS > 1 ? t->lastWroteTS - 1 : 0, samplesVoid, 1, t->tx_num_channels, 1, false);
+
+      buffer_t *b = &t->buf[conn_sock];
+      if (b->channel_model)
+        b->channel_model->start_TS = t->lastWroteTS;
     } else {
       if ( events[nbEv].events & (EPOLLHUP | EPOLLERR | EPOLLRDHUP) ) {
         socketError(t,fd);
@@ -761,6 +765,8 @@ static bool flushInput(rfsimulator_state_t *t, int timeout, int nsamps_for_initi
                             nsamps_for_initial;
           LOG_D(HW, "UE got first timestamp: starting at %lu\n", t->nextRxTstamp);
           b->trashingPacket=true;
+          if (b->channel_model)
+            b->channel_model->start_TS = t->nextRxTstamp;
         } else if (b->lastReceivedTS < b->th.timestamp) {
           int nbAnt= b->th.nbAnt;
 
