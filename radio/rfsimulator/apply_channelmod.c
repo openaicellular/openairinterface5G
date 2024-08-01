@@ -166,7 +166,11 @@ void rxAddInput(const c16_t *input_sig,
     }
 
     if (channelDesc->Doppler_phase_inc != 0.0) {
+#ifdef CMPLX
       double complex in = CMPLX(rx_tmp.r, rx_tmp.i);
+#else
+      double complex in = rx_tmp.r + rx_tmp.i * I;
+#endif
       double complex out = in * cexp(channelDesc->Doppler_phase_cur[rxAnt] * I);
       rx_tmp.r = creal(out);
       rx_tmp.i = cimag(out);
