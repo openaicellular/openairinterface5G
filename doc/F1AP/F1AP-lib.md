@@ -55,5 +55,15 @@ The functions in the file [f1ap_lib_common.c](../../openair2/F1AP/tests/f1ap_lib
 * call `cp_dl_rrc_message_transfer` to deep copy the original message, then compare the with the original one
 * free all messages and PDUs
 
+A flowchart for a function testing F1AP messages, such as `test_f1ap_setup_request`, would look like this:
 
-
+```mermaid
+flowchart TD
+    create[Create F1AP message]-->|f1ap_setup_req_t msg|enc[encode_f1ap_setup_request]
+    enc-->|F1AP_F1AP_PDU_t *f1enc|encdec[f1ap_encode_decode]
+    encdec-->|F1AP_F1AP_PDU_t *f1dec|dec[decode_f1ap_setup_request]
+    create-->|f1ap_setup_req_t msg|eq
+    dec-->|f1ap_setup_req_t decoded|eq[eq_f1ap_setup_request]
+    create-->|f1ap_setup_req_t msg|cp[cp_f1ap_setup_request]
+    cp-->|f1ap_setup_req_t cp|eq[eq_f1ap_setup_request]
+```
