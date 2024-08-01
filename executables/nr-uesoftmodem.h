@@ -16,6 +16,7 @@
 #define  CONFIG_HLP_TIME_SYNC_I            "coefficient for Integrating part of time sync PI controller\n"
 #define  CONFIG_HLP_NTN_KOFFSET            "NTN cellSpecificKoffset-r17 (number of slots for a given subcarrier spacing of 15 kHz)\n"
 #define  CONFIG_HLP_NTN_TA_COMMON          "NTN ta-Common, but given in ms\n"
+#define  CONFIG_HLP_NTN_TA_COMMONDRIFT     "NTN ta-CommonDrift, but given in µs/s\n"
 
 /***************************************************************************************************************************************/
 /* command line options definitions, CMDLINE_XXXX_DESC macros are used to initialize paramdef_t arrays which are then used as argument
@@ -69,6 +70,7 @@
   {"time-sync-I",                  CONFIG_HLP_TIME_SYNC_I,     0,               .dblptr=&(nrUE_params.time_sync_I),          .defdblval=0.2,    TYPE_DOUBLE,   0}, \
   {"ntn-koffset",                  CONFIG_HLP_NTN_KOFFSET,     0,               .uptr=&(nrUE_params.ntn_koffset),            .defuintval=0,     TYPE_UINT,     0}, \
   {"ntn-ta-common",                CONFIG_HLP_NTN_TA_COMMON,   0,               .dblptr=&(nrUE_params.ntn_ta_common),        .defdblval=0.0,    TYPE_DOUBLE,   0}, \
+  {"ntn-ta-commondrift",           CONFIG_HLP_NTN_TA_COMMONDRIFT, 0,            .dblptr=&(nrUE_params.ntn_ta_commondrift),   .defdblval=0.0,    TYPE_DOUBLE,   0}, \
   {"agc",                          CONFIG_HLP_AGC,             PARAMFLAG_BOOL,  .iptr=&(nrUE_params.agc),                   .defintval=0,       TYPE_INT,   0}, \
 }
 // clang-format on
@@ -94,6 +96,7 @@ typedef struct {
   double         time_sync_I;
   unsigned int   ntn_koffset;
   double         ntn_ta_common;
+  double         ntn_ta_commondrift;
   int agc;
 } nrUE_params_t;
 extern uint64_t get_nrUE_optmask(void);
