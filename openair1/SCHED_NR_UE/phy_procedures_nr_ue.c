@@ -1274,6 +1274,21 @@ static void send_dl_done_to_tx_thread(notifiedFIFO_t *nf, int rx_slot)
   }
 }
 
+static void pdsch_last_symbol_proc(void *arg)
+{
+  nr_ue_symb_data_t *s = (nr_ue_symb_data_t *)arg;
+  nr_ue_pdsch_procedures(s->UE, &s->valProc, s->dlsch, s->pdsch_dl_ch_estimates, s->rxdataF_ext);
+  /* Tell TX thread to not wait anymore */
+  if (s->dlsch[0].rnti_type == TYPE_C_RNTI_) {
+    const int slot_rx = s->valProc.nr_slot_rx;
+    const int k1 = s->dlsch[0].dlsch_config.k1_feedback;
+    const int ack_nack_slot = (slot_rx + k1) % s->UE->frame_parms.slots_per_frame;
+    send_dl_done_to_tx_thread(s->UE->tx_resume_ind_fifo + ack_nack_slot, s->valProc.nr_slot_rx);
+  }
+  free_and_zero(s->rxdataF_ext);
+  free_and_zero(s->pdsch_dl_ch_estimates);
+}
+
 void pdsch_processing(PHY_VARS_NR_UE *ue,
                       const UE_nr_rxtx_proc_t *proc,
                       nr_phy_data_t *phy_data,
@@ -1318,16 +1333,16 @@ void pdsch_processing(PHY_VARS_NR_UE *ue,
   }
 
   if (symbol == last_pdsch_symbol) {
-    nr_ue_pdsch_procedures(ue, proc, phy_data->dlsch, pdsch_ch_estimates, rxdataF_ext);
-    /* Tell TX thread to not wait anymore */
-    if (phy_data->dlsch[0].rnti_type == TYPE_C_RNTI_) {
-      const int slot_rx = proc->nr_slot_rx;
-      const int k1 = phy_data->dlsch[0].dlsch_config.k1_feedback;
-      const int ack_nack_slot = (slot_rx + k1) % ue->frame_parms.slots_per_frame;
-      send_dl_done_to_tx_thread(ue->tx_resume_ind_fifo + ack_nack_slot, proc->nr_slot_rx);
-    }
-    free_and_zero(rxdataF_ext);
-    free_and_zero(pdsch_ch_estimates);
+    /* Launch remaining PDSCH procedures in a thread */
+    notifiedFIFO_elt_t *newElt = newNotifiedFIFO_elt(sizeof(nr_ue_symb_data_t), proc->nr_slot_rx, NULL, pdsch_last_symbol_proc);
+    nr_ue_symb_data_t *curMsg = (nr_ue_symb_data_t *)NotifiedFifoData(newElt);
+    curMsg->pdsch_dl_ch_estimates = (c16_t *)pdsch_ch_estimates;
+    curMsg->rxdataF_ext = (c16_t *)rxdataF_ext;
+    curMsg->symbol = symbol;
+    curMsg->UE = ue;
+    curMsg->valProc = *proc;
+    memcpy(curMsg->dlsch, phy_data->dlsch, sizeof(phy_data->dlsch));
+    pushTpool(&(get_nrUE_params()->Tpool), newElt);
   }
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SLOT_FEP_PDSCH, VCD_FUNCTION_OUT);
 }
