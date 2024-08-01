@@ -805,7 +805,7 @@ static int nr_ue_process_dci_dl_10(NR_UE_MAC_INST_t *mac,
   /* MCS */
   dlsch_pdu->mcs = dci->mcs;
 
-  NR_UE_HARQ_STATUS_t *current_harq = &mac->dl_harq_info[dci->harq_pid];
+  NR_UE_HARQ_STATUS_t *current_harq = &mac->dl_harq_info[dci->harq_pid.val];
   /* NDI (only if CRC scrambled by C-RNTI or CS-RNTI or new-RNTI or TC-RNTI)*/
   if (dl_conf_req->pdu_type == FAPI_NR_DL_CONFIG_TYPE_SI_DLSCH ||
       dl_conf_req->pdu_type == FAPI_NR_DL_CONFIG_TYPE_RA_DLSCH ||
@@ -873,7 +873,7 @@ static int nr_ue_process_dci_dl_10(NR_UE_MAC_INST_t *mac,
   /* RV (only if CRC scrambled by C-RNTI or CS-RNTI or new-RNTI or TC-RNTI)*/
   dlsch_pdu->rv = dci->rv;
   /* HARQ_PROCESS_NUMBER (only if CRC scrambled by C-RNTI or CS-RNTI or new-RNTI or TC-RNTI)*/
-  dlsch_pdu->harq_process_nbr = dci->harq_pid;
+  dlsch_pdu->harq_process_nbr = dci->harq_pid.val;
   /* TB_SCALING (only if CRC scrambled by P-RNTI or RA-RNTI) */
   // according to TS 38.214 Table 5.1.3.2-3
   if (dci->tb_scaling > 3) {
@@ -926,7 +926,7 @@ static int nr_ue_process_dci_dl_10(NR_UE_MAC_INST_t *mac,
     const int tpc[] = {-1, 0, 1, 3};
     set_harq_status(mac,
                     dci->pucch_resource_indicator,
-                    dci->harq_pid,
+                    dci->harq_pid.val,
                     tpc[dci->tpc],
                     feedback_ti,
                     dci->dai[0].val,
@@ -1125,7 +1125,7 @@ static int nr_ue_process_dci_dl_11(NR_UE_MAC_INST_t *mac,
   /* MCS (for transport block 1)*/
   dlsch_pdu->mcs = dci->mcs;
   /* NDI (for transport block 1)*/
-  NR_UE_HARQ_STATUS_t *current_harq = &mac->dl_harq_info[dci->harq_pid];
+  NR_UE_HARQ_STATUS_t *current_harq = &mac->dl_harq_info[dci->harq_pid.val];
   if (dci->ndi != current_harq->last_ndi) {
     // new data
     dlsch_pdu->new_data_indicator = true;
@@ -1145,7 +1145,7 @@ static int nr_ue_process_dci_dl_11(NR_UE_MAC_INST_t *mac,
   /* RV (for transport block 2)*/
   dlsch_pdu->tb2_rv = dci->rv2.val;
   /* HARQ_PROCESS_NUMBER */
-  dlsch_pdu->harq_process_nbr = dci->harq_pid;
+  dlsch_pdu->harq_process_nbr = dci->harq_pid.val;
   /* TPC_PUCCH */
   // according to TS 38.213 Table 7.2.1-1
   if (dci->tpc > 3) {
@@ -1266,7 +1266,7 @@ static int nr_ue_process_dci_dl_11(NR_UE_MAC_INST_t *mac,
   const int tpc[] = {-1, 0, 1, 3};
   set_harq_status(mac,
                   dci->pucch_resource_indicator,
-                  dci->harq_pid,
+                  dci->harq_pid.val,
                   tpc[dci->tpc],
                   feedback_ti,
                   dci->dai[0].val,
@@ -1480,7 +1480,8 @@ void set_harq_status(NR_UE_MAC_INST_t *mac,
   // we need to keep track of how many DAI we received in a slot (dai_cumul) despite the modulo operation
   int highest_dai = -1;
   int temp_dai = dai;
-  for (int i = 0; i < NR_MAX_HARQ_PROCESSES; i++) {
+  const int num_dl_harq = get_nrofHARQ_ProcessesForPDSCH(&mac->sc_info);
+  for (int i = 0; i < num_dl_harq; i++) {
     // looking for other active HARQ processes with feedback in the same frame/slot
     if (i == harq_id)
       continue;
@@ -2317,12 +2318,13 @@ bool get_downlink_ack(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, PUCCH_sche
     number_of_code_word = 2;
   }
 
+  const int num_dl_harq = get_nrofHARQ_ProcessesForPDSCH(&mac->sc_info);
   int res_ind = -1;
 
   /* look for dl acknowledgment which should be done on current uplink slot */
   for (int code_word = 0; code_word < number_of_code_word; code_word++) {
 
-    for (int dl_harq_pid = 0; dl_harq_pid < NR_MAX_HARQ_PROCESSES; dl_harq_pid++) {
+    for (int dl_harq_pid = 0; dl_harq_pid < num_dl_harq; dl_harq_pid++) {
 
       NR_UE_HARQ_STATUS_t *current_harq = &mac->dl_harq_info[dl_harq_pid];
 
@@ -3058,8 +3060,8 @@ static void extract_10_c_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dci
     EXTRACT_DCI_ITEM(dci_pdu_rel15->ndi, 1);
     // Redundancy version  2bit
     EXTRACT_DCI_ITEM(dci_pdu_rel15->rv, 2);
-    // HARQ process number  4bit
-    EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid, 4);
+    // HARQ process number  4/5 bit
+    EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid.val, dci_pdu_rel15->harq_pid.nbits);
     // Downlink assignment index  2bit
     EXTRACT_DCI_ITEM(dci_pdu_rel15->dai[0].val, 2);
     // TPC command for scheduled PUCCH  2bit
@@ -3088,7 +3090,7 @@ static void extract_00_c_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dci
   // Redundancy version  2bit
   EXTRACT_DCI_ITEM(dci_pdu_rel15->rv, 2);
   // HARQ process number  4bit
-  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid, 4);
+  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid.val, 4);
   // TPC command for scheduled PUSCH  E2 bits
   EXTRACT_DCI_ITEM(dci_pdu_rel15->tpc, 2);
   // UL/SUL indicator  E1 bit
@@ -3115,7 +3117,7 @@ static void extract_10_tc_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dc
   // Redundancy version - 2 bits
   EXTRACT_DCI_ITEM(dci_pdu_rel15->rv, 2);
   // HARQ process number - 4 bits
-  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid, 4);
+  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid.val, 4);
   // Downlink assignment index - 2 bits
   EXTRACT_DCI_ITEM(dci_pdu_rel15->dai[0].val, 2);
   // TPC command for scheduled PUCCH - 2 bits
@@ -3128,7 +3130,7 @@ static void extract_10_tc_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dc
 
 static void extract_00_tc_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dci_pdu, int pos)
 {
-  LOG_D(NR_MAC_DCI, "Received dci 1_0 TC rnti\n");
+  LOG_D(NR_MAC_DCI, "Received dci 0_0 TC rnti\n");
 
   // Frequency domain assignment
   EXTRACT_DCI_ITEM(dci_pdu_rel15->frequency_domain_assignment.val, dci_pdu_rel15->frequency_domain_assignment.nbits);
@@ -3143,7 +3145,7 @@ static void extract_00_tc_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dc
   // Redundancy version  2bit
   EXTRACT_DCI_ITEM(dci_pdu_rel15->rv, 2);
   // HARQ process number  4bit
-  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid, 4);
+  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid.val, 4);
   // TPC command for scheduled PUSCH  E2 bits
   EXTRACT_DCI_ITEM(dci_pdu_rel15->tpc, 2);
 }
@@ -3182,8 +3184,8 @@ static void extract_11_c_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dci
   EXTRACT_DCI_ITEM(dci_pdu_rel15->ndi2.val, dci_pdu_rel15->ndi2.nbits);
   // Redundancy version  2bit
   EXTRACT_DCI_ITEM(dci_pdu_rel15->rv2.val, dci_pdu_rel15->rv2.nbits);
-  // HARQ process number  4bit
-  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid, 4);
+  // HARQ process number  4/5 bit
+  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid.val, dci_pdu_rel15->harq_pid.nbits);
   // Downlink assignment index
   EXTRACT_DCI_ITEM(dci_pdu_rel15->dai[0].val, dci_pdu_rel15->dai[0].nbits);
   // TPC command for scheduled PUCCH  2bit
@@ -3231,8 +3233,8 @@ static void extract_01_c_rnti(dci_pdu_rel15_t *dci_pdu_rel15, const uint8_t *dci
   EXTRACT_DCI_ITEM(dci_pdu_rel15->ndi, 1);
   // Redundancy version  2bit
   EXTRACT_DCI_ITEM(dci_pdu_rel15->rv, 2);
-  // HARQ process number  4bit
-  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid, 4);
+  // HARQ process number  4/5 bit
+  EXTRACT_DCI_ITEM(dci_pdu_rel15->harq_pid.val, dci_pdu_rel15->harq_pid.nbits);
   // 1st Downlink assignment index
   EXTRACT_DCI_ITEM(dci_pdu_rel15->dai[0].val, dci_pdu_rel15->dai[0].nbits);
   // 2nd Downlink assignment index

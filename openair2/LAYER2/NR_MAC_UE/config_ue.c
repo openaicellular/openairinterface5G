@@ -984,6 +984,7 @@ static void setup_puschconfig(NR_UE_MAC_INST_t *mac, NR_PUSCH_Config_t *source, 
                   struct NR_UCI_OnPUSCH__betaOffsets);
     }
   }
+  UPDATE_IE(target->ext2, source->ext2, struct NR_PUSCH_Config__ext2);
 }
 
 static void configure_csi_resourcemapping(NR_CSI_RS_ResourceMapping_t *target, NR_CSI_RS_ResourceMapping_t *source)
@@ -1131,6 +1132,7 @@ static void setup_pdschconfig(NR_PDSCH_Config_t *source, NR_PDSCH_Config_t *targ
                            asn_DEF_NR_ZP_CSI_RS_ResourceSet);
   AssertFatal(source->aperiodic_ZP_CSI_RS_ResourceSetsToAddModList == NULL, "Not handled\n");
   AssertFatal(source->sp_ZP_CSI_RS_ResourceSetsToAddModList == NULL, "Not handled\n");
+  UPDATE_IE(target->ext3, source->ext3, struct NR_PDSCH_Config__ext3);
 }
 
 static void setup_sr_resource(NR_SchedulingRequestResourceConfig_t *target, NR_SchedulingRequestResourceConfig_t *source)
@@ -2150,18 +2152,12 @@ static void configure_servingcell_info(NR_UE_MAC_INST_t *mac, NR_ServingCellConf
         break;
       case NR_SetupRelease_PDSCH_ServingCellConfig_PR_release:
         // release all configurations
-        if (sc_info->pdsch_CGB_Transmission)
-          asn1cFreeStruc(asn_DEF_NR_PDSCH_CodeBlockGroupTransmission, sc_info->pdsch_CGB_Transmission);
-        if (sc_info->xOverhead_PDSCH) {
-          free(sc_info->xOverhead_PDSCH);
-          sc_info->xOverhead_PDSCH = NULL;
-        }
-        if (sc_info->maxMIMO_Layers_PDSCH) {
-          free(sc_info->maxMIMO_Layers_PDSCH);
-          sc_info->maxMIMO_Layers_PDSCH = NULL;
-        }
-        if (sc_info->downlinkHARQ_FeedbackDisabled_r17)
-          asn1cFreeStruc(asn_DEF_NR_DownlinkHARQ_FeedbackDisabled_r17, sc_info->downlinkHARQ_FeedbackDisabled_r17);
+        asn1cFreeStruc(asn_DEF_NR_PDSCH_CodeBlockGroupTransmission, sc_info->pdsch_CGB_Transmission);
+        free_and_zero(sc_info->xOverhead_PDSCH);
+        free_and_zero(sc_info->maxMIMO_Layers_PDSCH);
+        free_and_zero(sc_info->nrofHARQ_ProcessesForPDSCH);
+        free_and_zero(sc_info->nrofHARQ_ProcessesForPDSCH_v1700);
+        asn1cFreeStruc(asn_DEF_NR_DownlinkHARQ_FeedbackDisabled_r17, sc_info->downlinkHARQ_FeedbackDisabled_r17);
         break;
       case NR_SetupRelease_PDSCH_ServingCellConfig_PR_setup: {
         NR_PDSCH_ServingCellConfig_t *pdsch_servingcellconfig = scd->pdsch_ServingCellConfig->choice.setup;
@@ -2173,13 +2169,17 @@ static void configure_servingcell_info(NR_UE_MAC_INST_t *mac, NR_ServingCellConf
         UPDATE_IE(sc_info->xOverhead_PDSCH, pdsch_servingcellconfig->xOverhead, long);
         if (pdsch_servingcellconfig->ext1 && pdsch_servingcellconfig->ext1->maxMIMO_Layers)
           UPDATE_IE(sc_info->maxMIMO_Layers_PDSCH, pdsch_servingcellconfig->ext1->maxMIMO_Layers, long);
+        UPDATE_IE(sc_info->nrofHARQ_ProcessesForPDSCH, pdsch_servingcellconfig->nrofHARQ_ProcessesForPDSCH, long);
+        if (pdsch_servingcellconfig->ext3)
+          UPDATE_IE(sc_info->nrofHARQ_ProcessesForPDSCH_v1700, pdsch_servingcellconfig->ext3->nrofHARQ_ProcessesForPDSCH_v1700, long);
+        else
+          free_and_zero(sc_info->nrofHARQ_ProcessesForPDSCH_v1700);
         if (pdsch_servingcellconfig->ext3 && pdsch_servingcellconfig->ext3->downlinkHARQ_FeedbackDisabled_r17) {
           switch (pdsch_servingcellconfig->ext3->downlinkHARQ_FeedbackDisabled_r17->present) {
             case NR_SetupRelease_DownlinkHARQ_FeedbackDisabled_r17_PR_NOTHING:
               break;
             case NR_SetupRelease_DownlinkHARQ_FeedbackDisabled_r17_PR_release:
-              if (sc_info->downlinkHARQ_FeedbackDisabled_r17)
-                asn1cFreeStruc(asn_DEF_NR_DownlinkHARQ_FeedbackDisabled_r17, sc_info->downlinkHARQ_FeedbackDisabled_r17);
+              asn1cFreeStruc(asn_DEF_NR_DownlinkHARQ_FeedbackDisabled_r17, sc_info->downlinkHARQ_FeedbackDisabled_r17);
               break;
             case NR_SetupRelease_DownlinkHARQ_FeedbackDisabled_r17_PR_setup:
               if (sc_info->downlinkHARQ_FeedbackDisabled_r17 == NULL) {
@@ -2207,20 +2207,11 @@ static void configure_servingcell_info(NR_UE_MAC_INST_t *mac, NR_ServingCellConf
         break;
       case NR_SetupRelease_PUSCH_ServingCellConfig_PR_release:
         // release all configurations
-        if (sc_info->pusch_CGB_Transmission)
-          asn1cFreeStruc(asn_DEF_NR_PUSCH_CodeBlockGroupTransmission, sc_info->pusch_CGB_Transmission);
-        if (sc_info->rateMatching_PUSCH) {
-          free(sc_info->rateMatching_PUSCH);
-          sc_info->rateMatching_PUSCH = NULL;
-        }
-        if (sc_info->xOverhead_PUSCH) {
-          free(sc_info->xOverhead_PUSCH);
-          sc_info->xOverhead_PUSCH = NULL;
-        }
-        if (sc_info->maxMIMO_Layers_PUSCH) {
-          free(sc_info->maxMIMO_Layers_PUSCH);
-          sc_info->maxMIMO_Layers_PUSCH = NULL;
-        }
+        asn1cFreeStruc(asn_DEF_NR_PUSCH_CodeBlockGroupTransmission, sc_info->pusch_CGB_Transmission);
+        free_and_zero(sc_info->rateMatching_PUSCH);
+        free_and_zero(sc_info->xOverhead_PUSCH);
+        free_and_zero(sc_info->maxMIMO_Layers_PUSCH);
+        free_and_zero(sc_info->nrofHARQ_ProcessesForPUSCH_r17);
         break;
       case NR_SetupRelease_PUSCH_ServingCellConfig_PR_setup: {
         NR_PUSCH_ServingCellConfig_t *pusch_servingcellconfig = scd->uplinkConfig->pusch_ServingCellConfig->choice.setup;
@@ -2233,6 +2224,10 @@ static void configure_servingcell_info(NR_UE_MAC_INST_t *mac, NR_ServingCellConf
                                      pusch_servingcellconfig->codeBlockGroupTransmission,
                                      NR_PUSCH_CodeBlockGroupTransmission_t,
                                      asn_DEF_NR_PUSCH_CodeBlockGroupTransmission);
+        if (pusch_servingcellconfig->ext3)
+          UPDATE_IE(sc_info->nrofHARQ_ProcessesForPUSCH_r17, pusch_servingcellconfig->ext3->nrofHARQ_ProcessesForPUSCH_r17, long);
+        else
+          free_and_zero(sc_info->nrofHARQ_ProcessesForPUSCH_r17);
         break;
       }
       default:

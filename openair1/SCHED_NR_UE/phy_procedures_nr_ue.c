@@ -276,11 +276,10 @@ void phy_procedures_nrUE_TX(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, n
   LOG_D(PHY,"****** start TX-Chain for AbsSubframe %d.%d ******\n", frame_tx, slot_tx);
 
   start_meas_nr_ue_phy(ue, PHY_PROC_TX);
-  for (uint8_t harq_pid = 0; harq_pid < NR_MAX_ULSCH_HARQ_PROCESSES; harq_pid++) {
-    if (ue->ul_harq_processes[harq_pid].ULstatus == ACTIVE) {
-      nr_ue_ulsch_procedures(ue, harq_pid, frame_tx, slot_tx, gNB_id, phy_data, (c16_t **)&txdataF);
-    }
-  }
+
+  int harq_pid = phy_data->ulsch.pusch_pdu.pusch_data.harq_process_id;
+  if (ue->ul_harq_processes[harq_pid].ULstatus == ACTIVE)
+    nr_ue_ulsch_procedures(ue, harq_pid, frame_tx, slot_tx, gNB_id, phy_data, (c16_t **)&txdataF);
 
   ue_srs_procedures_nr(ue, proc, (c16_t **)&txdataF);
 

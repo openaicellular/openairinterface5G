@@ -1179,7 +1179,7 @@ static uint32_t nr_ue_dl_processing(nr_downlink_indication_t *dl_info)
         continue;
       }
       dci_pdu_rel15_t *def_dci_pdu_rel15 = &mac->def_dci_pdu_rel15[dl_info->slot][dci_format];
-      g_harq_pid = def_dci_pdu_rel15->harq_pid;
+      g_harq_pid = def_dci_pdu_rel15->harq_pid.val;
       LOG_T(NR_MAC, "Setting harq_pid = %d and dci_index = %d (based on format)\n", g_harq_pid, dci_format);
 
       ret_mask |= (1 << FAPI_NR_DCI_IND);

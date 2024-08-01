@@ -245,7 +245,9 @@ float nr_get_Pcmin(int bandwidth_index) {
 int get_sum_delta_pucch(NR_UE_MAC_INST_t *mac, int slot, frame_t frame)
 {
   int delta_tpc_sum = 0;
-  for (int i = 0; i < NR_MAX_HARQ_PROCESSES; i++) {
+  const int num_dl_harq = get_nrofHARQ_ProcessesForPDSCH(&mac->sc_info);
+
+  for (int i = 0; i < num_dl_harq; i++) {
     if (mac->dl_harq_info[i].active && mac->dl_harq_info[i].ul_slot == slot && mac->dl_harq_info[i].ul_frame == frame) {
       delta_tpc_sum += mac->dl_harq_info[i].delta_pucch;
       mac->dl_harq_info[i].delta_pucch = 0;
