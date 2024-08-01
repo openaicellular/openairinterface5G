@@ -597,9 +597,8 @@ void processSlotTX(void *arg)
   RU_write(rxtxD, sl_tx_action);
 }
 
-static int UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc, int *tx_wait_for_dlsch, nr_phy_data_t *phy_data)
+static void UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc, int *tx_wait_for_dlsch, nr_phy_data_t *phy_data, int *sampleShift)
 {
-  int sampleShift = 0;
   NR_DL_FRAME_PARMS *fp = &UE->frame_parms;
   if (UE->sl_mode == 2)
     fp = &UE->SL_UE_PHY_PARAMS.sl_frame_params;
@@ -632,7 +631,7 @@ static int UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc
       UE->if_inst->dl_indication(&dl_indication);
     }
 
-    sampleShift = pbch_pdcch_processing(UE, proc, phy_data);
+    pbch_pdcch_processing(UE, proc, phy_data, sampleShift);
     if (phy_data->dlsch[0].active && phy_data->dlsch[0].rnti_type == TYPE_C_RNTI_) {
       // indicate to tx thread to wait for DLSCH decoding
       const int ack_nack_slot = (proc->nr_slot_rx + phy_data->dlsch[0].dlsch_config.k1_feedback) % UE->frame_parms.slots_per_frame;
@@ -654,13 +653,11 @@ static int UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc
         AssertFatal((phy_data->sl_rx_action >= SL_NR_CONFIG_TYPE_RX_PSBCH &&
                      phy_data->sl_rx_action < SL_NR_CONFIG_TYPE_RX_MAXIMUM), "Incorrect SL RX Action Scheduled\n");
 
-        sampleShift = psbch_pscch_processing(UE, proc, phy_data);
+        psbch_pscch_processing(UE, proc, phy_data, sampleShift);
       }
     }
   } else
     ue_ta_procedures(UE, proc->nr_slot_tx, proc->frame_tx);
-
-  return sampleShift;
 }
 
 void UE_dl_processing(void *arg) {
@@ -992,12 +989,7 @@ void *UE_thread(void *arg)
     notifiedFIFO_elt_t *newRx = newNotifiedFIFO_elt(sizeof(nr_rxtx_thread_data_t), curMsg.proc.nr_slot_rx, NULL, UE_dl_processing);
     nr_rxtx_thread_data_t *curMsgRx = (nr_rxtx_thread_data_t *)NotifiedFifoData(newRx);
     *curMsgRx = (nr_rxtx_thread_data_t){.proc = curMsg.proc, .UE = UE};
-    int ret = UE_dl_preprocessing(UE, &curMsgRx->proc, tx_wait_for_dlsch, &curMsgRx->phy_data);
-    if (ret)
-      // if ret is 0, no rx_offset has been computed,
-      // or the computed value is 0 = no offset to do
-      // we store it to apply the drift compensation at beginning of next frame
-      shiftForNextFrame = ret;
+    UE_dl_preprocessing(UE, &curMsgRx->proc, tx_wait_for_dlsch, &curMsgRx->phy_data, &shiftForNextFrame);
     pushTpool(&(get_nrUE_params()->Tpool), newRx);
 
     // Start TX slot processing here. It runs in parallel with RX slot processing

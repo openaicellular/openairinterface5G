@@ -1112,9 +1112,11 @@ int main(int argc, char **argv)
         ue_dci_configuration(UE_mac, &dl_config, frame, slot);
         nr_ue_scheduled_response(&scheduled_response);
 
+        int sampleShift = 0;
         pbch_pdcch_processing(UE,
                               &UE_proc,
-                              &phy_data);
+                              &phy_data,
+                              &sampleShift);
         pdsch_processing(UE,
                          &UE_proc,
                          &phy_data);
