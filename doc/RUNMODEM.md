@@ -103,12 +103,15 @@ Command line parameters for UE in `--sa` mode:
 - `--ssb` : SSB start subcarrier (default value 516)
 
 **Optional parameters**:
+- `-E`: use three-quarter sampling for split 8 sample rate. Required for
+  certain radios (e.g., 40MHz with B210). If used on the gNB, it is a good idea
+  to use for the UE as well (and vice versa).
 - `--ue-scan-carrier` : scan for cells in current bandwidth. This option can be used if the SSB position of the gNB is unknown. If multiple cells are detected, the UE will try to connect to the first cell. By default, this option is disabled and the UE attempts to only decode SSB given by `--ssb`.
 
 To simplify the configuration for the user testing OAI UE with OAI gNB, the latter prints the following LOG that guides the user to correctly set some of the UE command line parameters.
 
 ```
-[PHY]   Command line parameters for the UE: -C 3319680000 -r 106 --numerology 1 --ssb 516
+[PHY]   Command line parameters for OAI UE: -C 3319680000 -r 106 --numerology 1 --ssb 516
 ```
 
 You can run this, using USRPs, on two separate machines:

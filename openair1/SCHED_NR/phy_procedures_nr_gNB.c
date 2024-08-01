@@ -81,19 +81,21 @@ void nr_common_signal_procedures(PHY_VARS_gNB *gNB,int frame,int slot, nfapi_nr_
     fp->print_ue_help_cmdline_log = false;
     if (fp->dl_CarrierFreq != fp->ul_CarrierFreq)
       LOG_A(PHY,
-            "Command line parameters for the UE: -C %lu --CO %ld -r %d --numerology %d --ssb %d\n",
+            "Command line parameters for OAI UE: -C %lu --CO %ld -r %d --numerology %d --ssb %d %s\n",
             fp->dl_CarrierFreq,
             fp->ul_CarrierFreq - fp->dl_CarrierFreq,
             fp->N_RB_DL,
             scs,
-            fp->ssb_start_subcarrier);
+            fp->ssb_start_subcarrier,
+            fp->threequarter_fs ? "-E" : "");
     else
       LOG_A(PHY,
-            "Command line parameters for the UE: -C %lu -r %d --numerology %d --ssb %d\n",
+            "Command line parameters for OAI UE: -C %lu -r %d --numerology %d --ssb %d %s\n",
             fp->dl_CarrierFreq,
             fp->N_RB_DL,
             scs,
-            fp->ssb_start_subcarrier);
+            fp->ssb_start_subcarrier,
+            fp->threequarter_fs ? "-E" : "");
   }
   LOG_D(PHY,
         "ssbOffsetPointA %d SSB SsbSubcarrierOffset %d  prb_offset %d sc_offset %d scs %d ssb_start_subcarrier %d\n",
