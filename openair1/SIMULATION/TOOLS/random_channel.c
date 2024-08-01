@@ -2281,7 +2281,7 @@ void init_channelmod(void) {
 } /* init_channelmod */
 
 
-int load_channellist(uint8_t nb_tx, uint8_t nb_rx, double sampling_rate, double channel_bandwidth) {
+int load_channellist(uint8_t nb_tx, uint8_t nb_rx, double sampling_rate, uint64_t center_freq, double channel_bandwidth) {
   paramdef_t achannel_params[] = CHANNELMOD_MODEL_PARAMS_DESC;
   paramlist_def_t channel_list;
   memset(&channel_list,0,sizeof(paramlist_def_t));
@@ -2314,7 +2314,7 @@ int load_channellist(uint8_t nb_tx, uint8_t nb_rx, double sampling_rate, double 
                                                          nb_rx,
                                                          modid,
                                                          sampling_rate,
-                                                         0,
+                                                         center_freq,
                                                          channel_bandwidth,
                                                          *(channel_list.paramarray[i][pindex_DT].dblptr),
                                                          0.0,
