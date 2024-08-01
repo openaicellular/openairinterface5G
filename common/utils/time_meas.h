@@ -150,6 +150,7 @@ static inline void start_meas(time_stats_t *ts) {
     if (ts->meas_flag==0) {
       ts->trials++;
       ts->in = rdtsc_oai();
+      ts->p_time = 0;
       ts->meas_flag=1;
     } else {
       ts->in = rdtsc_oai();
@@ -162,16 +163,33 @@ static inline void stop_meas(time_stats_t *ts) {
   if (opp_enabled) {
     long long out = rdtsc_oai();
     if (ts->in) {
-      ts->diff += (out - ts->in);
       /// process duration is the difference between two clock points
-      ts->p_time = (out - ts->in);
+      const oai_cputime_t p_time = (out - ts->in);
+      ts->p_time += p_time;
+      ts->diff += ts->p_time;
       ts->diff_square += ((double)out - ts->in) * ((double)out - ts->in);
 
-      if ((out - ts->in) > ts->max)
-        ts->max = out - ts->in;
+      ts->max = (p_time > ts->max) ? p_time : ts->max;
 
       ts->meas_flag = 0;
     }
+  }
+}
+
+static inline void stop_meas_add(time_stats_t *ts)
+{
+  if (opp_enabled) {
+    long long out = rdtsc_oai();
+    if (ts->in) {
+      ts->p_time += (out - ts->in);
+    }
+  }
+}
+
+static inline void start_meas_add(time_stats_t *ts)
+{
+  if (opp_enabled && ts->meas_flag) {
+    ts->in = rdtsc_oai();
   }
 }
 
