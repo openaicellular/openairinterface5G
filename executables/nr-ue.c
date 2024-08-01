@@ -888,6 +888,7 @@ void *UE_thread(void *arg)
       UE->max_pos_acc = get_nrUE_params()->ntn_ta_commondrift * 1e-6 * fp->samples_per_frame / get_nrUE_params()->time_sync_I; // ntn_ta_commondrift is in µs/s, max_pos_acc * time_sync_I is in samples/frame
       shiftForNextFrame = -(UE->init_sync_frame + trashed_frames + 2) * UE->max_pos_acc * get_nrUE_params()->time_sync_I; // compensate for the time drift that happened during initial sync
       LOG_D(PHY, "max_pos_acc = %d, shiftForNextFrame = %d\n", UE->max_pos_acc, shiftForNextFrame);
+      UE->timing_advance -= 2 * shiftForNextFrame;
       // read in first symbol
       AssertFatal(fp->ofdm_symbol_size + fp->nb_prefix_samples0
                       == UE->rfdevice.trx_read_func(&UE->rfdevice,
@@ -948,6 +949,7 @@ void *UE_thread(void *arg)
     if (slot_nr == nb_slot_frame - 1) {
       // we shift of half of measured drift, at each beginning of frame for both rx and tx
       iq_shift_to_apply = shiftForNextFrame;
+      UE->timing_advance -= 2 * shiftForNextFrame;
       shiftForNextFrame = -round(UE->max_pos_acc * get_nrUE_params()->time_sync_I);
     }
 
