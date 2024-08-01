@@ -705,6 +705,7 @@ bool nr_ue_pdsch_procedures(PHY_VARS_NR_UE *ue,
                             c16_t *pdsch_dl_ch_estimates,
                             c16_t *rxdataF_ext)
 {
+  start_meas(&ue->pdsch_post_proc);
   c16_t(*dl_ch_est)[NR_SYMBOLS_PER_SLOT][dlsch->Nl][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size] =
       (c16_t(*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
           pdsch_dl_ch_estimates;
@@ -810,7 +811,9 @@ bool nr_ue_pdsch_procedures(PHY_VARS_NR_UE *ue,
     estEltOffsetExt += elementSz;
   }
 
-  return pdsch_post_processing(ue, proc, dlsch, ptrs_phase, ptrs_re, dl_ch_mag, dl_ch_magb, dl_ch_magr, rxdataF_comp);
+  bool ret = pdsch_post_processing(ue, proc, dlsch, ptrs_phase, ptrs_re, dl_ch_mag, dl_ch_magb, dl_ch_magr, rxdataF_comp);
+  stop_meas(&ue->pdsch_post_proc);
+  return ret;
 }
 
 static uint32_t compute_csi_rm_unav_res(const fapi_nr_dl_config_dlsch_pdu_rel15_t *dlsch_config)
@@ -1306,9 +1309,11 @@ void pdsch_processing(PHY_VARS_NR_UE *ue,
   if (symbol < first_pdsch_symbol || symbol > last_pdsch_symbol)
     return;
 
+  if (symbol == first_pdsch_symbol)
+    start_meas(&ue->pdsch_pre_proc);
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PDSCH_PROC_C, VCD_FUNCTION_IN);
   if ((symbol <= last_pdsch_symbol) && (symbol >= first_pdsch_symbol)) {
-    start_meas(&ue->pdsch_pre_proc);
+    start_meas_add(&ue->pdsch_pre_proc);
     uint32_t nvar = 0;
     nr_pdsch_generate_channel_estimates(
         ue,
@@ -1329,7 +1334,10 @@ void pdsch_processing(PHY_VARS_NR_UE *ue,
         rxdataF,
         (*(c16_t(*)[NR_SYMBOLS_PER_SLOT][ue->frame_parms.nb_antennas_rx]
                    [phy_data->dlsch[0].dlsch_config.number_rbs * NR_NB_SC_PER_RB]) rxdataF_ext)[symbol]);
-    stop_meas(&ue->pdsch_pre_proc);
+    if (symbol == last_pdsch_symbol)
+      stop_meas(&ue->pdsch_pre_proc);
+    else
+      stop_meas_add(&ue->pdsch_pre_proc);
   }
 
   if (symbol == last_pdsch_symbol) {

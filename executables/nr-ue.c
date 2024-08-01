@@ -106,7 +106,8 @@ static size_t dump_L1_UE_meas_stats(PHY_VARS_NR_UE *ue, char *output, size_t max
   output += print_meas_log(&ue->ulsch_encoding_stats, "ULSCH encoding", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->phy_proc_rx, "L1 RX processing", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->ue_ul_indication_stats, "UL Indication", NULL, NULL, output, end - output);
-  output += print_meas_log(&ue->rx_pdsch_stats, "PDSCH receiver", NULL, NULL, output, end - output);
+  output += print_meas_log(&ue->pdsch_pre_proc, "PDSCH symbol receiver", NULL, NULL, output, end - output);
+  output += print_meas_log(&ue->pdsch_post_proc, "PDSCH last symbol receiver", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->dlsch_decoding_stats, "PDSCH decoding", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->dlsch_deinterleaving_stats, " -> Deinterleive", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->dlsch_rate_unmatching_stats, " -> Rate Unmatch", NULL, NULL, output, end - output);
