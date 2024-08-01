@@ -274,7 +274,7 @@
 /* FFS_NR_TODO it defines ue capability which is the number of slots        */
 /* - between reception of pdsch and transmission of its acknowlegment  (k1) */
 /* - between reception of un uplink grant and its related transmission (k2) */
-#define NR_UE_CAPABILITY_SLOT_RX_TO_TX (3)
+#define NR_UE_CAPABILITY_SLOT_RX_TO_TX (2)
 
 /* When the OAI UE receives RX slot N, it starts sending TX slot N+DURATION_RX_TO_TX.
  * Therefore DURATION_RX_TO_TX must not be larger than the minimum k1 and k2 values (NR_UE_CAPABILITY_SLOT_RX_TO_TX).
