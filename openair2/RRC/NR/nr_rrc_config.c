@@ -2720,6 +2720,13 @@ static NR_SpCellConfig_t *get_initial_SpCellConfig(int uid,
         calloc(1, sizeof(*SpCellConfig->spCellConfigDedicated->defaultDownlinkBWP_Id));
     *SpCellConfig->spCellConfigDedicated->defaultDownlinkBWP_Id =
         servingcellconfigdedicated->defaultDownlinkBWP_Id ? *servingcellconfigdedicated->defaultDownlinkBWP_Id : 1;
+  } else {
+    SpCellConfig->spCellConfigDedicated->firstActiveDownlinkBWP_Id =
+      calloc(1, sizeof(*SpCellConfig->spCellConfigDedicated->firstActiveDownlinkBWP_Id));
+    *SpCellConfig->spCellConfigDedicated->firstActiveDownlinkBWP_Id = 0;
+    SpCellConfig->spCellConfigDedicated->defaultDownlinkBWP_Id =
+        calloc(1, sizeof(*SpCellConfig->spCellConfigDedicated->defaultDownlinkBWP_Id));
+    *SpCellConfig->spCellConfigDedicated->defaultDownlinkBWP_Id = 0;
   }
 
   // Uplink BWPs
@@ -2740,6 +2747,9 @@ static NR_SpCellConfig_t *get_initial_SpCellConfig(int uid,
     *uplinkConfig->firstActiveUplinkBWP_Id = servingcellconfigdedicated->uplinkConfig->firstActiveUplinkBWP_Id
                                                  ? *servingcellconfigdedicated->uplinkConfig->firstActiveUplinkBWP_Id
                                                  : 1;
+  } else {
+    uplinkConfig->firstActiveUplinkBWP_Id = calloc(1, sizeof(*uplinkConfig->firstActiveUplinkBWP_Id));
+    *uplinkConfig->firstActiveUplinkBWP_Id = 0;
   }
 
   SpCellConfig->spCellConfigDedicated->csi_MeasConfig = calloc(1, sizeof(*SpCellConfig->spCellConfigDedicated->csi_MeasConfig));
