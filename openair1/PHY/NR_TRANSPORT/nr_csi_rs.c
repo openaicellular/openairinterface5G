@@ -25,7 +25,7 @@
 //#define NR_CSIRS_DEBUG
 
 void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
-                        int32_t **dataF,
+                        c16_t **dataF,
                         const int16_t amp,
                         nr_csi_info_t *nr_csi_info,
                         const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *csi_params,

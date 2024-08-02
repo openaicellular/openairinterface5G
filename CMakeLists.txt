@@ -167,7 +167,7 @@ endif()
 # clang: suppress complaints about unused command line argument (-rdynamic only
 # used during linking)
 if(CMAKE_C_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  set(commonOpts "${commonOpts} -Wno-unused-command-line-argument")
+  set(commonOpts "${commonOpts} -Wno-unused-command-line-argument -Wno-vla-cxx-extension")
 endif()
 
 set(CMAKE_C_FLAGS
