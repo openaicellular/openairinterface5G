@@ -150,6 +150,12 @@ void init_nr_prs_ue_vars(PHY_VARS_NR_UE *ue)
 
     for(int k = 0; k < NR_MAX_PRS_RESOURCES_PER_SET; k++)
     {
+      prs_vars[idx]->prs_resource[k].ch_est = malloc16_clear(sizeof(c16_t) * ue->frame_parms.ofdm_symbol_size);
+      AssertFatal((prs_vars[idx]->prs_resource[k].ch_est != NULL),
+                  "%s: PRS channel estimates malloc failed for gNB_id %d\n",
+                  __FUNCTION__,
+                  idx);
+
       prs_vars[idx]->prs_resource[k].prs_meas = malloc16_clear(fp->nb_antennas_rx * sizeof(prs_meas_t *));
       AssertFatal((prs_vars[idx]->prs_resource[k].prs_meas!=NULL), "%s: PRS measurements malloc failed for gNB_id %d\n", __FUNCTION__, idx);
 
@@ -170,8 +176,6 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
   NR_DL_FRAME_PARMS *const fp            = &ue->frame_parms;
   NR_UE_COMMON *const common_vars        = &ue->common_vars;
   NR_UE_PRACH **const prach_vars         = ue->prach_vars;
-  NR_UE_CSI_IM **const csiim_vars        = ue->csiim_vars;
-  NR_UE_CSI_RS **const csirs_vars        = ue->csirs_vars;
   NR_UE_SRS **const srs_vars             = ue->srs_vars;
 
   LOG_I(PHY, "Initializing UE vars for gNB TXant %u, UE RXant %u\n", fp->nb_antennas_tx, fp->nb_antennas_rx);
@@ -258,12 +262,8 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
   // DLSCH
   for (int gNB_id = 0; gNB_id < ue->n_connected_gNB; gNB_id++) {
     prach_vars[gNB_id] = malloc16_clear(sizeof(NR_UE_PRACH));
-    csiim_vars[gNB_id] = malloc16_clear(sizeof(NR_UE_CSI_IM));
-    csirs_vars[gNB_id] = malloc16_clear(sizeof(NR_UE_CSI_RS));
     srs_vars[gNB_id] = malloc16_clear(sizeof(NR_UE_SRS));
 
-    csiim_vars[gNB_id]->active = false;
-    csirs_vars[gNB_id]->active = false;
     srs_vars[gNB_id]->active = false;
 
     // ceil((NB_RB*8(max allocation per RB)*2(QPSK))/32)
@@ -326,8 +326,6 @@ void term_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
 
     free_and_zero(ue->nr_srs_info);
 
-    free_and_zero(ue->csiim_vars[gNB_id]);
-    free_and_zero(ue->csirs_vars[gNB_id]);
     free_and_zero(ue->srs_vars[gNB_id]);
 
     free_and_zero(ue->prach_vars[gNB_id]);
@@ -342,6 +340,7 @@ void term_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
         free_and_zero(ue->prs_vars[idx]->prs_resource[k].prs_meas[j]);
       }
       free_and_zero(ue->prs_vars[idx]->prs_resource[k].prs_meas);
+      free_and_zero(ue->prs_vars[idx]->prs_resource[k].ch_est);
     }
 
     free_and_zero(ue->prs_vars[idx]);

@@ -245,14 +245,14 @@ static void rx_func(processingData_L1_t *info)
       //apply the rx signal rotation here
       int soffset = (slot_rx & 3) * gNB->frame_parms.symbols_per_slot * gNB->frame_parms.ofdm_symbol_size;
       for (int aa = 0; aa < gNB->frame_parms.nb_antennas_rx; aa++) {
-        apply_nr_rotation_RX(&gNB->frame_parms,
-                             gNB->common_vars.rxdataF[aa],
-                             gNB->frame_parms.symbol_rotation[1],
-                             slot_rx,
-                             gNB->frame_parms.N_RB_UL,
-                             soffset,
-                             0,
-                             gNB->frame_parms.Ncp == EXTENDED ? 12 : 14);
+        const uint max_symb = (gNB->frame_parms.Ncp == EXTENDED) ? 12 : 14;
+        for (int sym = 0; sym < max_symb; sym++)
+          apply_nr_rotation_symbol_RX(&gNB->frame_parms,
+                                      gNB->common_vars.rxdataF[aa] + soffset + sym * gNB->frame_parms.ofdm_symbol_size,
+                                      gNB->frame_parms.symbol_rotation[1],
+                                      gNB->frame_parms.N_RB_UL,
+                                      slot_rx,
+                                      sym);
       }
     }
     phy_procedures_gNB_uespec_RX(gNB, frame_rx, slot_rx);

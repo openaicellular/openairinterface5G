@@ -880,10 +880,6 @@ int main(int argc, char **argv)
   UE_mac->state = UE_CONNECTED;
   UE_mac->ra.ra_state = nrRA_SUCCEEDED;
 
-  nr_phy_data_t phy_data = {0};
-  fapi_nr_dl_config_request_t dl_config = {.sfn = frame, .slot = slot};
-  nr_scheduled_response_t scheduled_response = {.dl_config = &dl_config, .phy_data = &phy_data, .mac = UE_mac};
-
   nr_ue_phy_config_request(&UE_mac->phy_config);
   //NR_COMMON_channels_t *cc = RC.nrmac[0]->common_channels;
   int n_errs = 0;
@@ -965,6 +961,10 @@ int main(int argc, char **argv)
 
     for (trial = 0; trial < n_trials; trial++) {
 
+      nr_phy_data_t phy_data = {0};
+      fapi_nr_dl_config_request_t dl_config = {.sfn = frame, .slot = slot};
+      nr_scheduled_response_t scheduled_response = {.dl_config = &dl_config, .phy_data = &phy_data, .mac = UE_mac};
+
       errors_bit = 0;
       //multipath channel
       //multipath_channel(gNB2UE,s_re,s_im,r_re,r_im,frame_length_complex_samples,0);
@@ -1019,11 +1019,10 @@ int main(int argc, char **argv)
         nfapi_nr_dl_tti_pdsch_pdu_rel15_t *pdsch_pdu_rel15 = &dl_tti_pdsch_pdu->pdsch_pdu.pdsch_pdu_rel15;
         pdu_bit_map = pdsch_pdu_rel15->pduBitmap;
         if(pdu_bit_map & 0x1) {
-          set_ptrs_symb_idx(&dlPtrsSymPos,
-                            pdsch_pdu_rel15->NrOfSymbols,
-                            pdsch_pdu_rel15->StartSymbolIndex,
-                            1<<pdsch_pdu_rel15->PTRSTimeDensity,
-                            pdsch_pdu_rel15->dlDmrsSymbPos);
+          dlPtrsSymPos = get_ptrs_symb_idx(pdsch_pdu_rel15->NrOfSymbols,
+                                           pdsch_pdu_rel15->StartSymbolIndex,
+                                           1 << pdsch_pdu_rel15->PTRSTimeDensity,
+                                           pdsch_pdu_rel15->dlDmrsSymbPos);
           ptrsSymbPerSlot = get_ptrs_symbols_in_slot(dlPtrsSymPos, pdsch_pdu_rel15->StartSymbolIndex, pdsch_pdu_rel15->NrOfSymbols);
           ptrsRePerSymb = ((rel15->rbSize + rel15->PTRSFreqDensity - 1) / rel15->PTRSFreqDensity);
           LOG_D(PHY,"[DLSIM] PTRS Symbols in a slot: %2u, RE per Symbol: %3u, RE in a slot %4d\n", ptrsSymbPerSlot, ptrsRePerSymb, ptrsSymbPerSlot * ptrsRePerSymb);
@@ -1112,12 +1111,23 @@ int main(int argc, char **argv)
         ue_dci_configuration(UE_mac, &dl_config, frame, slot);
         nr_ue_scheduled_response(&scheduled_response);
 
-        pbch_pdcch_processing(UE,
-                              &UE_proc,
-                              &phy_data);
-        pdsch_processing(UE,
-                         &UE_proc,
-                         &phy_data);
+        nr_ue_phy_slot_data_t slot_data = {0};
+        nr_ue_pdcch_slot_init(&phy_data, &UE_proc, UE, &slot_data);
+        for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+          const int symbSize = ALNARS_32_8(frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples0);
+          __attribute__((aligned(32))) c16_t rxdata[frame_parms->nb_antennas_rx][symbSize];
+          __attribute__((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size)];
+          slot_fep_unitary_helper(&UE_proc, frame_parms, symbol, UE->common_vars.rxdata, rxdata, rxdataF);
+          bool pdcchDone = nr_ue_pdcch_procedures(UE, &UE_proc, &phy_data, &slot_data, symbol, rxdataF);
+          if (pdcchDone) {
+            nr_ue_pdsch_slot_init(&phy_data, &UE_proc, UE, &slot_data);
+          }
+          pdsch_processing(UE, &UE_proc, &phy_data, symbol, rxdataF, slot_data.rxdataF_ext, slot_data.pdsch_ch_estimates);
+          memcpy(UE->phy_sim_rxdataF + (symbol * frame_parms->ofdm_symbol_size * sizeof(c16_t)),
+                 rxdataF[0],
+                 sizeof(c16_t) * frame_parms->ofdm_symbol_size);
+        }
+
         //----------------------------------------------------------
         //---------------------- count errors ----------------------
         //----------------------------------------------------------
@@ -1265,13 +1275,13 @@ int main(int argc, char **argv)
     }
 
     if (n_trials == 1) {
-
-      LOG_M("rxsig0.m","rxs0", UE->common_vars.rxdata[0], frame_length_complex_samples, 1, 1);
-      if (UE->frame_parms.nb_antennas_rx>1)
-	LOG_M("rxsig1.m","rxs1", UE->common_vars.rxdata[1], frame_length_complex_samples, 1, 1);
-      LOG_M("rxF0.m","rxF0", UE->phy_sim_rxdataF, frame_parms->samples_per_slot_wCP, 1, 1);
-      LOG_M("rxF_ext.m","rxFe",UE->phy_sim_pdsch_rxdataF_ext,g_rbSize*12*14,1,1);
-      LOG_M("chestF0.m","chF0",UE->phy_sim_pdsch_dl_ch_estimates_ext,g_rbSize*12*14,1,1);
+      LOG_M("rxsig0.m", "rxs0", UE->common_vars.rxdata[0], frame_length_complex_samples, 1, 1);
+      if (UE->frame_parms.nb_antennas_rx > 1)
+        LOG_M("rxsig1.m", "rxs1", UE->common_vars.rxdata[1], frame_length_complex_samples, 1, 1);
+      LOG_M("rxF0.m", "rxF0", UE->phy_sim_rxdataF, frame_parms->samples_per_slot_wCP, 1, 1);
+      LOG_M("rxF_ext.m", "rxFe", UE->phy_sim_pdsch_rxdataF_ext, g_rbSize * 12 * 14, 1, 1);
+      LOG_M("chestF0.m", "chF0", UE->phy_sim_pdsch_dl_ch_estimates, g_rbSize * 12 * 14, 1, 1);
+      LOG_M("chestF0_ext.m", "chF0_e", UE->phy_sim_pdsch_dl_ch_estimates_ext, g_rbSize * 12 * 14, 1, 1);
       write_output("rxF_comp.m","rxFc",UE->phy_sim_pdsch_rxdataF_comp,N_RB_DL*12*14,1,1);
       LOG_M("rxF_llr.m","rxFllr",UE->phy_sim_pdsch_llr,available_bits,1,0);
       break;

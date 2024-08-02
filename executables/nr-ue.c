@@ -36,6 +36,8 @@
 #include "LAYER2/nr_pdcp/nr_pdcp_oai_api.h"
 #include "LAYER2/nr_rlc/nr_rlc_oai_api.h"
 #include "RRC/NR/MESSAGES/asn1_msg.h"
+#include "openair1/PHY/TOOLS/phy_scope_interface.h"
+#include "openair1/PHY/MODULATION/modulation_UE.h"
 
 /*
  *  NR SLOT PROCESSING SEQUENCE
@@ -104,7 +106,8 @@ static size_t dump_L1_UE_meas_stats(PHY_VARS_NR_UE *ue, char *output, size_t max
   output += print_meas_log(&ue->ulsch_encoding_stats, "ULSCH encoding", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->phy_proc_rx, "L1 RX processing", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->ue_ul_indication_stats, "UL Indication", NULL, NULL, output, end - output);
-  output += print_meas_log(&ue->rx_pdsch_stats, "PDSCH receiver", NULL, NULL, output, end - output);
+  output += print_meas_log(&ue->pdsch_pre_proc, "PDSCH symbol receiver", NULL, NULL, output, end - output);
+  output += print_meas_log(&ue->pdsch_post_proc, "PDSCH last symbol receiver", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->dlsch_decoding_stats, "PDSCH decoding", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->dlsch_deinterleaving_stats, " -> Deinterleive", NULL, NULL, output, end - output);
   output += print_meas_log(&ue->dlsch_rate_unmatching_stats, " -> Rate Unmatch", NULL, NULL, output, end - output);
@@ -516,29 +519,6 @@ void processSlotTX(void *arg)
     }
     LOG_D(PHY, "completed wait for tx, slot %d\n", proc->nr_slot_tx);
 
-    /*
-      This herafter code is costing some perfomance for a check that should be useless
-      But, we face today several bugs arround the matching between events in UE->tx_resume_ind_fifo[slot]
-      and the corresponding tx_wait_for_dlsch[slot]
-      The algorithm is we accumlate the actions that should end before processing a tx slot in tx_wait_for_dlsch[slot]
-      later, other threads push events in UE->tx_resume_ind_fifo[slot]
-      so, the tx encoding starts only when related actions are done (mainly DLSCH ACK/NACK to encode PUCCH)
-      if there is a bug that misses to send a event in UE->tx_resume_ind_fifo[slot], the process hangs, we detect the issue
-      if there is a bug that makes a extra event in UE->tx_resume_ind_fifo[slot], and if we drop the hereafter check
-      the system runs with random race conditions, very hard to debug
-
-      Likely we should later remove completly UE->tx_resume_ind_fifo with notifications,
-      instead,
-      we may run in place the processSlotTX() when the conditions are met (when a decreasing tx_wait_for_dlsch[slot] will become 0)
-      It will remove the condition signals (for a thread safe semaphore or counter) and make the system simpler
-    */
-    notifiedFIFO_elt_t *res = pollNotifiedFIFO(UE->tx_resume_ind_fifo + proc->nr_slot_tx);
-    if (res)
-      LOG_E(NR_PHY,
-            "Internal error: extra event on Tx waiting queue for slot %d, event comes from rx slot %d\n",
-            proc->nr_slot_tx,
-            *(int *)NotifiedFifoData(res));
-
     if (UE->sl_mode == 2 && proc->tx_slot_type == NR_SIDELINK_SLOT) {
       // trigger L2 to run ue_sidelink_scheduler thru IF module
       if (UE->if_inst != NULL && UE->if_inst->sl_indication != NULL) {
@@ -595,82 +575,6 @@ void processSlotTX(void *arg)
   *msgData = newslot;
   pushNotifiedFIFO(UE->tx_resume_ind_fifo + newslot, newElt);
   RU_write(rxtxD, sl_tx_action);
-}
-
-static int UE_dl_preprocessing(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc, int *tx_wait_for_dlsch, nr_phy_data_t *phy_data)
-{
-  int sampleShift = 0;
-  NR_DL_FRAME_PARMS *fp = &UE->frame_parms;
-  if (UE->sl_mode == 2)
-    fp = &UE->SL_UE_PHY_PARAMS.sl_frame_params;
-
-  if (IS_SOFTMODEM_NOS1 || get_softmodem_params()->sa) {
-
-    // Start synchronization with a target gNB
-    if (UE->synch_request.received_synch_request == 1) {
-      UE->is_synchronized = 0;
-      UE->UE_scan_carrier = UE->synch_request.synch_req.ssb_bw_scan;
-      UE->target_Nid_cell = UE->synch_request.synch_req.target_Nid_cell;
-      clean_UE_harq(UE);
-      UE->synch_request.received_synch_request = 0;
-    }
-
-    /* send tick to RLC and PDCP every ms */
-    if (proc->nr_slot_rx % fp->slots_per_subframe == 0) {
-      void nr_rlc_tick(int frame, int subframe);
-      void nr_pdcp_tick(int frame, int subframe);
-      nr_rlc_tick(proc->frame_rx, proc->nr_slot_rx / fp->slots_per_subframe);
-      nr_pdcp_tick(proc->frame_rx, proc->nr_slot_rx / fp->slots_per_subframe);
-    }
-  }
-
-  if (proc->rx_slot_type == NR_DOWNLINK_SLOT || proc->rx_slot_type == NR_MIXED_SLOT) {
-
-    if(UE->if_inst != NULL && UE->if_inst->dl_indication != NULL) {
-      nr_downlink_indication_t dl_indication;
-      nr_fill_dl_indication(&dl_indication, NULL, NULL, proc, UE, phy_data);
-      UE->if_inst->dl_indication(&dl_indication);
-    }
-
-    sampleShift = pbch_pdcch_processing(UE, proc, phy_data);
-    if (phy_data->dlsch[0].active && phy_data->dlsch[0].rnti_type == TYPE_C_RNTI_) {
-      // indicate to tx thread to wait for DLSCH decoding
-      const int ack_nack_slot = (proc->nr_slot_rx + phy_data->dlsch[0].dlsch_config.k1_feedback) % UE->frame_parms.slots_per_frame;
-      tx_wait_for_dlsch[ack_nack_slot]++;
-    }
-  }
-
-  if (UE->sl_mode == 2) {
-    if (proc->rx_slot_type == NR_SIDELINK_SLOT) {
-      phy_data->sl_rx_action = 0;
-      if (UE->if_inst != NULL && UE->if_inst->sl_indication != NULL) {
-        nr_sidelink_indication_t sl_indication;
-        nr_fill_sl_indication(&sl_indication, NULL, NULL, proc, UE, phy_data);
-        UE->if_inst->sl_indication(&sl_indication);
-      }
-
-      if (phy_data->sl_rx_action) {
-
-        AssertFatal((phy_data->sl_rx_action >= SL_NR_CONFIG_TYPE_RX_PSBCH &&
-                     phy_data->sl_rx_action < SL_NR_CONFIG_TYPE_RX_MAXIMUM), "Incorrect SL RX Action Scheduled\n");
-
-        sampleShift = psbch_pscch_processing(UE, proc, phy_data);
-      }
-    }
-  } else
-    ue_ta_procedures(UE, proc->nr_slot_tx, proc->frame_tx);
-
-  return sampleShift;
-}
-
-void UE_dl_processing(void *arg) {
-  nr_rxtx_thread_data_t *rxtxD = (nr_rxtx_thread_data_t *) arg;
-  UE_nr_rxtx_proc_t *proc = &rxtxD->proc;
-  PHY_VARS_NR_UE    *UE   = rxtxD->UE;
-  nr_phy_data_t *phy_data = &rxtxD->phy_data;
-
-  if (!UE->sl_mode)
-    pdsch_processing(UE, proc, phy_data);
 }
 
 void dummyWrite(PHY_VARS_NR_UE *UE,openair0_timestamp timestamp, int writeBlockSize) {
@@ -755,20 +659,294 @@ static void syncInFrame(PHY_VARS_NR_UE *UE, openair0_timestamp *timestamp, opena
   }
 }
 
-static inline int get_firstSymSamp(uint16_t slot, NR_DL_FRAME_PARMS *fp) {
-  if (fp->numerology_index == 0)
-    return fp->nb_prefix_samples0 + fp->ofdm_symbol_size;
-  int num_samples = (slot%(fp->slots_per_subframe/2)) ? fp->nb_prefix_samples : fp->nb_prefix_samples0;
-  num_samples += fp->ofdm_symbol_size;
-  return num_samples;
+static void ue_print_stats(const PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc)
+{
+  if ((proc->frame_rx % 64 == 0) && (proc->nr_slot_rx == 0)) {
+    LOG_I(NR_PHY, "============================================\n");
+    // fixed text + 8 HARQs rounds à 10 ("999999999/") + NULL
+    // if we use 999999999 HARQs, that should be sufficient for at least 138 hours
+    const size_t harq_output_len = 31 + 10 * 8 + 1;
+    char output[harq_output_len];
+    char *p = output;
+    const char *end = output + harq_output_len;
+    p += snprintf(p, end - p, "[UE %d] Harq round stats for Downlink: %d", ue->Mod_id, ue->dl_stats[0]);
+    for (int round = 1; round < 16 && (round < 3 || ue->dl_stats[round] != 0); ++round)
+      p += snprintf(p, end - p, "/%d", ue->dl_stats[round]);
+    LOG_I(NR_PHY, "%s\n", output);
+
+    LOG_I(NR_PHY, "============================================\n");
+  }
 }
 
-static inline int get_readBlockSize(uint16_t slot, NR_DL_FRAME_PARMS *fp) {
-  int rem_samples = fp->get_samples_per_slot(slot, fp) - get_firstSymSamp(slot, fp);
-  int next_slot_first_symbol = 0;
-  if (slot < (fp->slots_per_frame-1))
-    next_slot_first_symbol = get_firstSymSamp(slot+1, fp);
-  return rem_samples + next_slot_first_symbol;
+void process_synch_request(PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc)
+{
+  if (IS_SOFTMODEM_NOS1 || get_softmodem_params()->sa) {
+    // Start synchronization with a target gNB
+    if (UE->synch_request.received_synch_request == 1) {
+      UE->is_synchronized = 0;
+      UE->UE_scan_carrier = UE->synch_request.synch_req.ssb_bw_scan;
+      UE->target_Nid_cell = UE->synch_request.synch_req.target_Nid_cell;
+      clean_UE_harq(UE);
+      UE->synch_request.received_synch_request = 0;
+    }
+  }
+}
+
+void send_tick_to_higher_layers(const PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc)
+{
+  if (IS_SOFTMODEM_NOS1 || get_softmodem_params()->sa) {
+    /* send tick to RLC and PDCP every ms */
+    if (proc->nr_slot_rx % UE->frame_parms.slots_per_subframe == 0) {
+      void nr_rlc_tick(int frame, int subframe);
+      void nr_pdcp_tick(int frame, int subframe);
+      nr_rlc_tick(proc->frame_rx, proc->nr_slot_rx / UE->frame_parms.slots_per_subframe);
+      nr_pdcp_tick(proc->frame_rx, proc->nr_slot_rx / UE->frame_parms.slots_per_subframe);
+    }
+  }
+}
+
+static void pdcch_sched_request(const PHY_VARS_NR_UE *UE, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
+{
+  if (proc->rx_slot_type == NR_DOWNLINK_SLOT || proc->rx_slot_type == NR_MIXED_SLOT) {
+    if (UE->if_inst != NULL && UE->if_inst->dl_indication != NULL) {
+      nr_downlink_indication_t dl_indication;
+      nr_fill_dl_indication(&dl_indication, NULL, NULL, proc, UE, phy_data);
+      UE->if_inst->dl_indication(&dl_indication);
+    }
+  }
+}
+
+static void launch_tx_process(PHY_VARS_NR_UE *UE,
+                              UE_nr_rxtx_proc_t *proc,
+                              int sample_shift,
+                              openair0_timestamp timestamp,
+                              notifiedFIFO_t *txFifo,
+                              int *tx_wait_for_dlsch,
+                              enum stream_status_e *stream_status)
+{
+  const unsigned int slot = proc->nr_slot_rx;
+
+  NR_DL_FRAME_PARMS *fp = &UE->frame_parms;
+  int timing_advance = UE->timing_advance;
+  unsigned int writeBlockSize = fp->get_samples_per_slot((slot + DURATION_RX_TO_TX) % fp->slots_per_frame, fp) - sample_shift;
+
+  // use previous timing_advance value to compute writeTimestamp
+  const openair0_timestamp writeTimestamp =
+      timestamp + fp->get_samples_slot_timestamp(slot, fp, DURATION_RX_TO_TX) - UE->N_TA_offset - timing_advance;
+
+  // but use current UE->timing_advance value to compute writeBlockSize
+  if (UE->timing_advance != timing_advance) {
+    writeBlockSize -= UE->timing_advance - timing_advance;
+    timing_advance = UE->timing_advance;
+  }
+
+  // Start TX slot processing here. It runs in parallel with RX slot processing
+  notifiedFIFO_elt_t *newElt = newNotifiedFIFO_elt(sizeof(nr_rxtx_thread_data_t), proc->nr_slot_tx, txFifo, processSlotTX);
+  nr_rxtx_thread_data_t *curMsgTx = (nr_rxtx_thread_data_t *)NotifiedFifoData(newElt);
+  curMsgTx->proc = *proc;
+  curMsgTx->writeBlockSize = writeBlockSize;
+  curMsgTx->proc.timestamp_tx = writeTimestamp;
+  curMsgTx->UE = UE;
+  curMsgTx->tx_wait_for_dlsch = tx_wait_for_dlsch[curMsgTx->proc.nr_slot_tx];
+  tx_wait_for_dlsch[curMsgTx->proc.nr_slot_tx] = 0;
+  curMsgTx->stream_status = *stream_status;
+  *stream_status = STREAM_STATUS_SYNCED;
+  pushTpool(&(get_nrUE_params()->Tpool), newElt);
+}
+
+static openair0_timestamp read_slot(const NR_DL_FRAME_PARMS *fp,
+                                    openair0_device *rfDevice,
+                                    const int sampleShift,
+                                    const int slotSize,
+                                    c16_t rxdata[fp->nb_antennas_rx][ALNARS_32_8(slotSize)])
+{
+  void *rxp[fp->nb_antennas_rx];
+  for (int i = 0; i < fp->nb_antennas_rx; i++) {
+    rxp[i] = (void *)&rxdata[i][0];
+  }
+  openair0_timestamp retTimeStamp = 0;
+  const int readBlockSize = slotSize - sampleShift;
+  AssertFatal(readBlockSize == rfDevice->trx_read_func(rfDevice, &retTimeStamp, rxp, readBlockSize, fp->nb_antennas_rx), "");
+  return retTimeStamp;
+}
+
+openair0_timestamp read_symbol(const int absSymbol,
+                               const NR_DL_FRAME_PARMS *fp,
+                               openair0_device *rfDevice,
+                               const int sampleShift,
+                               c16_t rxdata[fp->nb_antennas_rx][ALNARS_32_8(fp->ofdm_symbol_size + fp->nb_prefix_samples0)])
+{
+  /* Read only the required samples so memcpy can be avoided later in nr_slot_fep() */
+  const int prefix_samples = (absSymbol % (0x7 << fp->numerology_index)) ? fp->nb_prefix_samples : fp->nb_prefix_samples0;
+  /* trash the 7/8 CP samples */
+  const unsigned int trash_samples = prefix_samples - (fp->nb_prefix_samples / fp->ofdm_offset_divisor);
+  void *rxp[fp->nb_antennas_rx];
+  c16_t dummy[fp->nb_antennas_rx][fp->nb_prefix_samples0];
+  for (int i = 0; i < fp->nb_antennas_rx; i++) {
+    rxp[i] = (void *)&dummy[i][0]; /* store the unused 7/8 CP samples */
+  }
+
+  /* return timestamp of first sample */
+  openair0_timestamp retTimeStamp = 0;
+  AssertFatal(trash_samples == rfDevice->trx_read_func(rfDevice, &retTimeStamp, rxp, trash_samples, fp->nb_antennas_rx), "");
+
+  /* get OFDM symbol including 1/8th of the CP to avoid ISI */
+  const int readBlockSize = prefix_samples - trash_samples + fp->ofdm_symbol_size - sampleShift;
+  for (int i = 0; i < fp->nb_antennas_rx; i++) {
+    rxp[i] = (void *)&rxdata[i][0];
+  }
+  openair0_timestamp trashTimeStamp;
+  AssertFatal(readBlockSize == rfDevice->trx_read_func(rfDevice, &trashTimeStamp, rxp, readBlockSize, fp->nb_antennas_rx), "");
+  return retTimeStamp;
+}
+
+/*
+  This function reads samples from radio one OFDM symbol at a time,
+  perfom OFDM demod and calls several PHY functions to produces intermediate results.
+  In the last symbol of the corresponding PHY channels, the decoding is finished.
+
+  For the tx, the samples of the whole slot are sent to the radio at once. The tx is
+  started right after processing the last PDCCH symbol. In case no PDCCH is scheduled,
+  the tx is started after the first symbol of the slot.
+ */
+static void slot_process(PHY_VARS_NR_UE *UE,
+                         UE_nr_rxtx_proc_t *proc,
+                         int *sampleShift,
+                         notifiedFIFO_t *txFifo,
+                         int *tx_wait_for_dlsch,
+                         enum stream_status_e *stream_status)
+{
+  const unsigned int slot = proc->nr_slot_rx;
+  const NR_DL_FRAME_PARMS *fp = &UE->frame_parms;
+  int iq_shift_to_apply = 0;
+  /* Current slot is UL slot */
+  if (proc->rx_slot_type == NR_UPLINK_SLOT) {
+    /* Should be 32 bytes aligned */
+    const int slotSize = fp->get_samples_per_slot(slot, fp);
+    __attribute__((aligned(32))) c16_t rxdata[fp->nb_antennas_rx][ALNARS_32_8(slotSize)];
+    if ((slot == fp->slots_per_frame - 1)) {
+      iq_shift_to_apply = *sampleShift;
+    }
+    /* Read entire slot */
+    const openair0_timestamp readTS = read_slot(fp, &UE->rfdevice, iq_shift_to_apply, slotSize, rxdata);
+    /* process tx and send to radio */
+    launch_tx_process(UE, proc, iq_shift_to_apply, readTS, txFifo, tx_wait_for_dlsch, stream_status);
+  } else { /* current slot is DL or Mixed slot */
+    nr_phy_data_t phy_data = {0};
+    nr_ue_phy_slot_data_t slot_data = {0};
+    openair0_timestamp firstSymbTs = 0;
+    int computedSampleShift = 0;
+    /* process one OFDM symbol at a time */
+    for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+      const int absSymbol = slot * NR_SYMBOLS_PER_SLOT + symbol;
+      /* apply the shift in the last symbol of the frame */
+      if ((absSymbol == NR_SYMBOLS_PER_SLOT * fp->slots_per_frame - 1)) {
+        iq_shift_to_apply = *sampleShift;
+      }
+
+      __attribute__((aligned(32))) c16_t rxdataF[fp->nb_antennas_rx][ALNARS_32_8(fp->ofdm_symbol_size)];
+      {
+        /* Read time domain samples from radio */
+        __attribute__((aligned(32))) c16_t rxdata[fp->nb_antennas_rx][ALNARS_32_8(fp->ofdm_symbol_size + fp->nb_prefix_samples0)];
+        const openair0_timestamp readTS = read_symbol(absSymbol, fp, &UE->rfdevice, iq_shift_to_apply, rxdata);
+        /* save the timestamp of first sample in the slot */
+        if (symbol == 0)
+          firstSymbTs = readTS;
+        /* OFDM Demodulation */
+        nr_symbol_fep(fp, slot, symbol, link_type_dl, rxdata, rxdataF);
+      }
+
+      UEscopeCopy(UE,
+                  commonRxdataF,
+                  rxdataF[0],
+                  sizeof(int32_t),
+                  fp->nb_antennas_rx,
+                  fp->ofdm_symbol_size,
+                  symbol * fp->ofdm_symbol_size);
+
+      if (symbol == 0) { /* First symbol in slot */
+        process_synch_request(UE, proc);
+        send_tick_to_higher_layers(UE, proc);
+        pdcch_sched_request(UE, proc, &phy_data);
+        nr_ue_pdcch_slot_init(&phy_data, proc, UE, &slot_data);
+        nr_ue_pbch_slot_init(&phy_data, proc, UE, &slot_data);
+
+        /* no pdcch scheduled. start Tx here. */
+        if (phy_data.phy_pdcch_config.nb_search_space == 0)
+          launch_tx_process(UE, proc, iq_shift_to_apply, firstSymbTs, txFifo, tx_wait_for_dlsch, stream_status);
+
+        if (UE->sl_mode == 2) {
+          if (proc->rx_slot_type == NR_SIDELINK_SLOT) {
+            phy_data.sl_rx_action = 0;
+            if (UE->if_inst != NULL && UE->if_inst->sl_indication != NULL) {
+              nr_sidelink_indication_t sl_indication;
+              nr_fill_sl_indication(&sl_indication, NULL, NULL, proc, UE, &phy_data);
+              UE->if_inst->sl_indication(&sl_indication);
+            }
+          }
+        }
+      }
+
+      if (!UE->sl_mode) {
+        /* PBCH Rx */
+        computedSampleShift = pbch_processing(
+            UE,
+            proc,
+            symbol,
+            rxdataF,
+            &slot_data.ssbIndex,
+            *((c16_t(*)[UE->frame_parms.nb_antennas_rx][ALNARS_32_8(UE->frame_parms.ofdm_symbol_size)])slot_data.pbch_ch_est_time),
+            *((int16_t(*)[NR_POLAR_PBCH_E])slot_data.pbch_e_rx),
+            &slot_data.pbchSymbCnt);
+        *sampleShift = computedSampleShift ? computedSampleShift : *sampleShift;
+
+        /* PDCCH Rx */
+        bool pdcchFinished = nr_ue_pdcch_procedures(UE, proc, &phy_data, &slot_data, symbol, rxdataF);
+        if (pdcchFinished) {
+          nr_ue_pdsch_slot_init(&phy_data, proc, UE, &slot_data);
+          nr_ue_csi_slot_init(&phy_data, proc, UE, &slot_data);
+          if (phy_data.dlsch[0].active && phy_data.dlsch[0].rnti_type == TYPE_C_RNTI_) {
+            // indicate to tx thread to wait for DLSCH decoding
+            const int ack_nack_slot =
+                (proc->nr_slot_rx + phy_data.dlsch[0].dlsch_config.k1_feedback) % UE->frame_parms.slots_per_frame;
+            tx_wait_for_dlsch[ack_nack_slot]++;
+          }
+          /* process tx */
+          launch_tx_process(UE, proc, iq_shift_to_apply, firstSymbTs, txFifo, tx_wait_for_dlsch, stream_status);
+        }
+
+        /* PDSCH Rx */
+        pdsch_processing(UE, proc, &phy_data, symbol, rxdataF, slot_data.rxdataF_ext, slot_data.pdsch_ch_estimates);
+
+        /* PRS Rx */
+        prs_processing(UE, proc, symbol, rxdataF);
+
+        /* CSI Rx */
+        csi_processing(UE, proc, &phy_data, symbol, &slot_data, rxdataF);
+      }
+
+      if (UE->sl_mode == 2) {
+        if (phy_data.sl_rx_action) {
+          AssertFatal((phy_data.sl_rx_action >= SL_NR_CONFIG_TYPE_RX_PSBCH && phy_data.sl_rx_action < SL_NR_CONFIG_TYPE_RX_MAXIMUM),
+                      "Incorrect SL RX Action Scheduled\n");
+
+          computedSampleShift = psbch_pscch_processing(UE, proc, &phy_data, &slot_data, symbol, rxdataF);
+          *sampleShift = computedSampleShift ? computedSampleShift : *sampleShift;
+        }
+      }
+
+      if (symbol == NR_SYMBOLS_PER_SLOT - 1) { /* Last symbol */
+        ue_print_stats(UE, proc);
+        if (UE->sl_mode != 2)
+          ue_ta_procedures(UE, proc->nr_slot_tx, proc->frame_tx);
+        free_and_zero(slot_data.pbch_ch_est_time);
+        free_and_zero(slot_data.pbch_e_rx);
+        free_and_zero(slot_data.psbch_ch_estimates);
+        free_and_zero(slot_data.psbch_e_rx);
+        free_and_zero(slot_data.psbch_unClipped);
+      }
+    }
+  }
 }
 
 void *UE_thread(void *arg)
@@ -776,7 +954,6 @@ void *UE_thread(void *arg)
   //this thread should be over the processing thread to keep in real time
   PHY_VARS_NR_UE *UE = (PHY_VARS_NR_UE *) arg;
   //  int tx_enabled = 0;
-  void *rxp[NB_ANTENNAS_RX];
   enum stream_status_e stream_status = STREAM_STATUS_UNSYNC;
   fapi_nr_config_request_t *cfg = &UE->nrUE_config;
   int tmp = openair0_device_load(&(UE->rfdevice), &openair0_cfg[0]);
@@ -799,7 +976,6 @@ void *UE_thread(void *arg)
   notifiedFIFO_t freeBlocks;
   initNotifiedFIFO_nothreadSafe(&freeBlocks);
 
-  int timing_advance = UE->timing_advance;
   NR_UE_MAC_INST_t *mac = get_mac_inst(UE->Mod_id);
 
   bool syncRunning = false;
@@ -889,14 +1065,6 @@ void *UE_thread(void *arg)
       syncInFrame(UE, &sync_timestamp, intialSyncOffset);
       openair0_write_reorder_clear_context(&UE->rfdevice);
       shiftForNextFrame = 0; // will be used to track clock drift
-      // read in first symbol
-      AssertFatal(fp->ofdm_symbol_size + fp->nb_prefix_samples0
-                      == UE->rfdevice.trx_read_func(&UE->rfdevice,
-                                                    &sync_timestamp,
-                                                    (void **)UE->common_vars.rxdata,
-                                                    fp->ofdm_symbol_size + fp->nb_prefix_samples0,
-                                                    fp->nb_antennas_rx),
-                  "");
       // we have the decoded frame index in the return of the synch process
       // and we shifted above to the first slot of next frame
       decoded_frame_rx++;
@@ -941,78 +1109,10 @@ void *UE_thread(void *arg)
       curMsg.proc.tx_slot_type = NR_DOWNLINK_SLOT;
     }
 
-    int firstSymSamp = get_firstSymSamp(slot_nr, fp);
-    for (int i = 0; i < fp->nb_antennas_rx; i++)
-      rxp[i] = (void *)&UE->common_vars.rxdata[i][firstSymSamp + fp->get_samples_slot_timestamp(slot_nr, fp, 0)];
-
-    int iq_shift_to_apply = 0;
-    if (slot_nr == nb_slot_frame - 1) {
-      // we shift of half of measured drift, at each beginning of frame for both rx and tx
-      iq_shift_to_apply = shiftForNextFrame;
-      shiftForNextFrame = 0; // We will get a new measured offset if we decode PBCH
-    }
-
-    const int readBlockSize = get_readBlockSize(slot_nr, fp) - iq_shift_to_apply;
-    openair0_timestamp rx_timestamp;
-    int tmp = UE->rfdevice.trx_read_func(&UE->rfdevice, &rx_timestamp, rxp, readBlockSize, fp->nb_antennas_rx);
-    AssertFatal(readBlockSize == tmp, "");
-
-    if(slot_nr == (nb_slot_frame - 1)) {
-      // read in first symbol of next frame and adjust for timing drift
-      int first_symbols = fp->ofdm_symbol_size + fp->nb_prefix_samples0; // first symbol of every frames
-
-      if (first_symbols > 0) {
-        openair0_timestamp ignore_timestamp;
-        int tmp = UE->rfdevice.trx_read_func(&UE->rfdevice,
-                                             &ignore_timestamp,
-                                             (void **)UE->common_vars.rxdata,
-                                             first_symbols,
-                                             fp->nb_antennas_rx);
-        AssertFatal(first_symbols == tmp, "");
-
-      } else
-        LOG_E(PHY,"can't compensate: diff =%d\n", first_symbols);
-    }
-
-    // use previous timing_advance value to compute writeTimestamp
-    const openair0_timestamp writeTimestamp = rx_timestamp + fp->get_samples_slot_timestamp(slot_nr, fp, DURATION_RX_TO_TX)
-                                              - firstSymSamp - UE->N_TA_offset - timing_advance;
-
-    // but use current UE->timing_advance value to compute writeBlockSize
-    int writeBlockSize = fp->get_samples_per_slot((slot_nr + DURATION_RX_TO_TX) % nb_slot_frame, fp) - iq_shift_to_apply;
-    if (UE->timing_advance != timing_advance) {
-      writeBlockSize -= UE->timing_advance - timing_advance;
-      timing_advance = UE->timing_advance;
-    }
-
     if (curMsg.proc.nr_slot_tx == 0)
       nr_ue_rrc_timer_trigger(UE->Mod_id, curMsg.proc.frame_tx, curMsg.proc.gNB_id);
 
-    // RX slot processing. We launch and forget.
-    notifiedFIFO_elt_t *newRx = newNotifiedFIFO_elt(sizeof(nr_rxtx_thread_data_t), curMsg.proc.nr_slot_rx, NULL, UE_dl_processing);
-    nr_rxtx_thread_data_t *curMsgRx = (nr_rxtx_thread_data_t *)NotifiedFifoData(newRx);
-    *curMsgRx = (nr_rxtx_thread_data_t){.proc = curMsg.proc, .UE = UE};
-    int ret = UE_dl_preprocessing(UE, &curMsgRx->proc, tx_wait_for_dlsch, &curMsgRx->phy_data);
-    if (ret)
-      // if ret is 0, no rx_offset has been computed,
-      // or the computed value is 0 = no offset to do
-      // we store it to apply the drift compensation at beginning of next frame
-      shiftForNextFrame = ret;
-    pushTpool(&(get_nrUE_params()->Tpool), newRx);
-
-    // Start TX slot processing here. It runs in parallel with RX slot processing
-    // in current code, DURATION_RX_TO_TX constant is the limit to get UL data to encode from a RX slot
-    notifiedFIFO_elt_t *newTx = newNotifiedFIFO_elt(sizeof(nr_rxtx_thread_data_t), curMsg.proc.nr_slot_tx, NULL, processSlotTX);
-    nr_rxtx_thread_data_t *curMsgTx = (nr_rxtx_thread_data_t *)NotifiedFifoData(newTx);
-    curMsgTx->proc = curMsg.proc;
-    curMsgTx->writeBlockSize = writeBlockSize;
-    curMsgTx->proc.timestamp_tx = writeTimestamp;
-    curMsgTx->UE = UE;
-    curMsgTx->tx_wait_for_dlsch = tx_wait_for_dlsch[curMsgTx->proc.nr_slot_tx];
-    curMsgTx->stream_status = stream_status;
-    stream_status = STREAM_STATUS_SYNCED;
-    tx_wait_for_dlsch[curMsgTx->proc.nr_slot_tx] = 0;
-    pushTpool(&(get_nrUE_params()->Tpool), newTx);
+    slot_process(UE, &curMsg.proc, &shiftForNextFrame, UE->tx_resume_ind_fifo, tx_wait_for_dlsch, &stream_status);
   }
 
   return NULL;

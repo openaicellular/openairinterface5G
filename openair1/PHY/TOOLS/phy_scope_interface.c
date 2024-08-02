@@ -58,7 +58,7 @@ int end_forms(void) {
   return -1;
 }
 
-void copyData(void *scopeData, enum scopeDataType type, void *dataIn, int elementSz, int colSz, int lineSz, int offset)
+void copyData(void *scopeData, enum scopeDataType type, const void *dataIn, int elementSz, int colSz, int lineSz, int offset)
 {
   scopeData_t *tmp = (scopeData_t *)scopeData;
 

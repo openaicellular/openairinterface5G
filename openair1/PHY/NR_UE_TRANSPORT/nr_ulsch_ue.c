@@ -155,13 +155,8 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
     K_ptrs = pusch_pdu->pusch_ptrs.ptrs_freq_density;
     L_ptrs = 1 << pusch_pdu->pusch_ptrs.ptrs_time_density;
 
-    ulsch_ue->ptrs_symbols = 0;
+    ulsch_ue->ptrs_symbols = get_ptrs_symb_idx(number_of_symbols, start_symbol, L_ptrs, ul_dmrs_symb_pos);
 
-    set_ptrs_symb_idx(&ulsch_ue->ptrs_symbols,
-                      number_of_symbols,
-                      start_symbol,
-                      L_ptrs,
-                      ul_dmrs_symb_pos);
     int n_ptrs = (nb_rb + K_ptrs - 1) / K_ptrs;
     int ptrsSymbPerSlot = get_ptrs_symbols_in_slot(ulsch_ue->ptrs_symbols,
                                                    start_symbol,

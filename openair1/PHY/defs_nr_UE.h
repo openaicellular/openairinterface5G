@@ -244,6 +244,7 @@ typedef struct {
   prs_config_t prs_cfg;
   int32_t reserved;
   prs_meas_t **prs_meas;
+  c16_t *ch_est;
 } NR_PRS_RESOURCE_t;
 
 typedef struct {
@@ -308,6 +309,19 @@ typedef struct {
   bool active;
   fapi_nr_dl_config_csirs_pdu_rel15_t csirs_config_pdu;
 } NR_UE_CSI_RS;
+
+typedef struct nr_csi_symbol_res_s {
+  int rsrpSum1;
+  int rsrp;
+  int rsrpDbm;
+  int sum_re1;
+  int sum_im1;
+  int sum_re2;
+  int sum_im2;
+  int power_re;
+  int power_im;
+  int count;
+} nr_csi_symbol_res_t;
 
 typedef struct {
   bool active;
@@ -524,8 +538,15 @@ typedef struct PHY_VARS_NR_UE_s {
   time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t pdcch_procedures_stat;
   time_stats_t pdsch_procedures_stat;
+  time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+  time_stats_t pdsch_comp_out;
+  time_stats_t pdsch_llr_gen;
+  time_stats_t pdsch_llr_demapping;
+  time_stats_t pdsch_mem_init;
   time_stats_t pdsch_procedures_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t dlsch_procedures_stat;
+  time_stats_t dlsch_ldpc_whole;
 
   time_stats_t rx_pdsch_stats;
   time_stats_t ofdm_demod_stats;
@@ -639,11 +660,45 @@ typedef struct nr_phy_data_tx_s {
 typedef struct nr_phy_data_s {
   NR_UE_PDCCH_CONFIG phy_pdcch_config;
   NR_UE_DLSCH_t dlsch[2];
+  NR_UE_CSI_RS csirs_vars;
+  NR_UE_CSI_IM csiim_vars;
 
   // Sidelink Rx action decided by MAC
   sl_nr_rx_config_type_enum_t sl_rx_action;
 
 } nr_phy_data_t;
+
+typedef struct {
+  /* PDCCH */
+  int numMonitoringOcc;
+  int numSymbPdcch;
+  int pdcchLlrSize;
+  int startSymbPdcch;
+  int stopSymbPdcch;
+  c16_t *pdcchLlr;
+
+  /* PBCH */
+  int ssbIndex;
+  int pbchSymbCnt;
+  c16_t *pbch_ch_est_time;
+  int16_t *pbch_e_rx;
+
+  /* PDSCH */
+  c16_t *pdsch_ch_estimates;
+  c16_t *rxdataF_ext;
+
+  /* CSI */
+  c16_t *csi_rs_ls_estimates;
+  nr_csi_phy_parms_t csi_phy_parms;
+  nr_csi_symbol_res_t csi_rs_res;
+  nr_csi_symbol_res_t csi_im_res;
+
+  /* PSBCH */
+  int e_rx_offset;
+  c16_t *psbch_ch_estimates;
+  int16_t *psbch_e_rx;
+  int16_t *psbch_unClipped;
+} nr_ue_phy_slot_data_t;
 
 enum stream_status_e { STREAM_STATUS_UNSYNC, STREAM_STATUS_SYNCING, STREAM_STATUS_SYNCED};
 /* this structure is used to pass both UE phy vars and
@@ -658,6 +713,29 @@ typedef struct nr_rxtx_thread_data_s {
   int rx_offset;
   enum stream_status_e stream_status;
 } nr_rxtx_thread_data_t;
+
+typedef struct nr_ue_symb_data_s {
+  PHY_VARS_NR_UE *UE;
+  UE_nr_rxtx_proc_t *proc;
+  UE_nr_rxtx_proc_t valProc;
+  int symbol;
+  int G;
+  c16_t *rxdataF_ext;
+  NR_UE_DLSCH_t dlsch[2];
+  NR_UE_DLSCH_t *p_dlsch;
+  c16_t *ptrs_phase_per_slot;
+  int32_t *ptrs_re_per_slot;
+  c16_t *rxdataF_comp;
+  c16_t *pdsch_dl_ch_estimates;
+  c16_t *pdsch_dl_ch_est_ext;
+  c16_t *dl_ch_mag;
+  c16_t *dl_ch_magb;
+  c16_t *dl_ch_magr;
+  int llrSize;
+  int16_t *layer_llr;
+  time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+} nr_ue_symb_data_t;
 
 typedef struct LDPCDecode_ue_s {
   PHY_VARS_NR_UE *phy_vars_ue;

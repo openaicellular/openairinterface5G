@@ -255,9 +255,9 @@ int32_t dlsch_qpsk_llr_SIC(LTE_DL_FRAME_PARMS *frame_parms,
                                        1,
                                        len);
 
-    mult_cpx_vector((int16_t *)rho_1, //Q15
-                    (int16_t *)rho_amp_x0, //Q13
-                    (int16_t*)rho_rho_amp_x0,
+    mult_cpx_vector((c16_t *)rho_1, // Q15
+                    (c16_t *)rho_amp_x0, // Q13
+                    (c16_t *)rho_rho_amp_x0,
                     len,
                     13);
 
@@ -453,17 +453,17 @@ void dlsch_16qam_llr_SIC (LTE_DL_FRAME_PARMS *frame_parms,
                                        1,
                                        len);
 
-     mult_cpx_vector((int16_t *)rho_1, //Q15
-                    (int16_t *)rho_amp_x0, //Q13
-                    (int16_t*)rho_rho_amp_x0,
+    mult_cpx_vector((c16_t *)rho_1, // Q15
+                    (c16_t *)rho_amp_x0, // Q13
+                    (c16_t *)rho_rho_amp_x0,
                     len,
                     13);
 
-     sub_cpx_vector16((int16_t *)rxF,
-                      (int16_t *)rho_rho_amp_x0,
-                      //(int16_t *)clean_x1,
-                      (int16_t *)rxF,
-                      len*2);
+    sub_cpx_vector16((int16_t *)rxF,
+                     (int16_t *)rho_rho_amp_x0,
+                     //(int16_t *)clean_x1,
+                     (int16_t *)rxF,
+                     len * 2);
 
     len_mod4 = len&3;
     len>>=2;  // length in quad words (4 REs)
@@ -685,9 +685,9 @@ void dlsch_64qam_llr_SIC(LTE_DL_FRAME_PARMS *frame_parms,
                                         1,
                                         len);
 
-    mult_cpx_vector((int16_t *)rho_1, //Q15
-                    (int16_t *)rho_amp_x0, //Q13
-                    (int16_t*)rho_rho_amp_x0,
+    mult_cpx_vector((c16_t *)rho_1, // Q15
+                    (c16_t *)rho_amp_x0, // Q13
+                    (c16_t *)rho_rho_amp_x0,
                     len,
                     13);
 

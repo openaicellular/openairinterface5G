@@ -25,6 +25,8 @@
 #include "common/utils/load_module_shlib.h"
 #include "PHY/MODULATION/nr_modulation.h"
 #include "NR_SL-SSB-TimeAllocation-r16.h"
+#include "PHY/MODULATION/modulation_UE.h"
+#include "openair1/SIMULATION/NR_PHY/nr_unitary_defs.h"
 
 void e1_bearer_context_setup(const e1ap_bearer_setup_req_t *req)
 {
@@ -37,12 +39,6 @@ void e1_bearer_context_modif(const e1ap_bearer_setup_req_t *req)
 void e1_bearer_release_cmd(const e1ap_bearer_release_cmd_t *cmd)
 {
   abort();
-}
-void exit_function(const char *file, const char *function, const int line, const char *s, const int assert)
-{
-  const char *msg = s == NULL ? "no comment" : s;
-  printf("Exiting at: %s:%d %s(), %s\n", file, line, function, msg);
-  exit(-1);
 }
 int8_t nr_rrc_RA_succeeded(const module_id_t mod_id, const uint8_t gNB_index)
 {
@@ -62,7 +58,6 @@ instance_t CUuniqInstance = 0;
 openair0_config_t openair0_cfg[1];
 
 RAN_CONTEXT_t RC;
-int oai_exit = 0;
 char *uecap_file;
 
 void nr_rrc_ue_generate_RRCSetupRequest(module_id_t module_id, const uint8_t gNB_index)
@@ -235,43 +230,39 @@ static int freq_domain_loopback(PHY_VARS_NR_UE *UE_tx, PHY_VARS_NR_UE *UE_rx, in
 
   nr_tx_psbch(UE_tx, frame, slot, &phy_data->psbch_vars, txdataF);
 
-  int estimateSz = sl_ue2->sl_frame_params.samples_per_slot_wCP;
-  __attribute__((aligned(32))) struct complex16 rxdataF[1][estimateSz];
-  for (int i = 0; i < sl_ue1->sl_frame_params.samples_per_slot_wCP; i++) {
-    struct complex16 *txdataF_ptr = (struct complex16 *)&txdataF[0][i];
-    struct complex16 *rxdataF_ptr = (struct complex16 *)&rxdataF[0][i];
-    rxdataF_ptr->r = txdataF_ptr->r;
-    rxdataF_ptr->i = txdataF_ptr->i;
-    // printf("r,i TXDATAF[%d]-    %d:%d, RXDATAF[%d]-    %d:%d\n",
-    //                                   i, txdataF_ptr->r, txdataF_ptr->i, i, txdataF_ptr->r, txdataF_ptr->i);
-  }
-
-  uint8_t err_status = 0;
-
   UE_nr_rxtx_proc_t proc;
   proc.frame_rx = frame;
   proc.nr_slot_rx = slot;
 
-  struct complex16 dl_ch_estimates[1][estimateSz];
   uint8_t decoded_output[4] = {0};
 
+  int psbch_e_rx_offset = 0;
+  int16_t psbch_e_rx[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2];
+  int16_t psbch_unClipped[SL_NR_POLAR_PSBCH_E_NORMAL_CP + 2];
   LOG_I(PHY, "DEBUG: HIJACKING DL CHANNEL ESTIMATES.\n");
-  for (int s = 0; s < 14; s++) {
+  for (int s = 0; s < 14;) {
+    __attribute__((aligned(32))) struct complex16 rxdataF[fp->nb_antennas_rx][fp->ofdm_symbol_size];
+    __attribute__((aligned(32))) struct complex16 dl_ch_estimates[fp->nb_antennas_rx][fp->ofdm_symbol_size];
+    /* Copy freq domain buffer from Tx to Rx */
+    memcpy(rxdataF[0], &txdataF[0][s * fp->ofdm_symbol_size], sizeof(c16_t) * fp->ofdm_symbol_size);
+    /* Fill perfect channel estimates */
     for (int j = 0; j < sl_ue2->sl_frame_params.ofdm_symbol_size; j++) {
-      struct complex16 *dlch = (struct complex16 *)(&dl_ch_estimates[0][s * sl_ue2->sl_frame_params.ofdm_symbol_size]);
+      struct complex16 *dlch = dl_ch_estimates[0];
       dlch[j].r = 128;
       dlch[j].i = 0;
     }
+    /* Extract and produce LLRs */
+    nr_generate_psbch_llr(fp, rxdataF, dl_ch_estimates, s, &psbch_e_rx_offset, psbch_e_rx, psbch_unClipped);
+    s = (s == 0) ? 5 : s + 1;
   }
 
-  err_status = nr_rx_psbch(UE_rx,
-                           &proc,
-                           estimateSz,
-                           dl_ch_estimates,
-                           &sl_ue2->sl_frame_params,
-                           decoded_output,
-                           rxdataF,
-                           sl_ue2->sl_config.sl_sync_source.rx_slss_id);
+  const int err_status = nr_psbch_decode(UE_rx,
+                                         psbch_e_rx,
+                                         &proc,
+                                         psbch_e_rx_offset,
+                                         sl_ue2->sl_config.sl_sync_source.rx_slss_id,
+                                         NULL,
+                                         decoded_output);
 
   int error_payload = 0;
   error_payload = test_rx_mib(decoded_output, frame, slot);
@@ -600,8 +591,8 @@ int main(int argc, char **argv)
               0.0); // IQ phase imbalance (rad)
       }
 
-      for (int i = 0; i < frame_length_complex_samples; i++) {
-        for (int aa = 0; aa < frame_parms->nb_antennas_rx; aa++) {
+      for (int aa = 0; aa < frame_parms->nb_antennas_rx; aa++) {
+        for (int i = 0; i < frame_length_complex_samples; i++) {
           UE_RX->common_vars.rxdata[aa][i].r = (short)(r_re[aa][i] + sqrt(sigma2 / 2) * gaussdouble(0.0, 1.0));
           UE_RX->common_vars.rxdata[aa][i].i = (short)(r_im[aa][i] + sqrt(sigma2 / 2) * gaussdouble(0.0, 1.0));
         }
@@ -622,8 +613,20 @@ int main(int argc, char **argv)
                       UE_RX->SL_UE_PHY_PARAMS.sync_params.N_sl_id);
           sl_uerx->psbch.rx_ok = 1;
         }
-      } else
-        psbch_pscch_processing(UE_RX, &proc, &phy_data_rx);
+      } else {
+        nr_ue_phy_slot_data_t data = {0};
+        sl_slot_init(&proc, UE_RX, &data);
+        for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+          const int symbSize = ALNARS_32_8(frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples0);
+          __attribute__((aligned(32))) c16_t rxdata[frame_parms->nb_antennas_rx][symbSize];
+          __attribute__((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][ALNARS_32_8(frame_parms->ofdm_symbol_size)];
+          slot_fep_unitary_helper(&proc, frame_parms, symbol, UE_RX->common_vars.rxdata, rxdata, rxdataF);
+          psbch_pscch_processing(UE_RX, &proc, &phy_data_rx, &data, symbol, rxdataF);
+        }
+        free_and_zero(data.psbch_ch_estimates);
+        free_and_zero(data.psbch_e_rx);
+        free_and_zero(data.psbch_unClipped);
+      }
 
     } // noise trials
 

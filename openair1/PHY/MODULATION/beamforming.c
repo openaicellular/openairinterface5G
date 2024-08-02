@@ -53,34 +53,35 @@
 #include "common/utils/LOG/vcd_signal_dumper.h"
 
 int beam_precoding(int32_t **txdataF,
-	           int32_t **txdataF_BF,
-		   int subframe,
+                   int32_t **txdataF_BF,
+                   int subframe,
                    LTE_DL_FRAME_PARMS *frame_parms,
-                   int32_t **beam_weights[NUMBER_OF_eNB_MAX+1][15],
+                   int32_t **beam_weights[NUMBER_OF_eNB_MAX + 1][15],
                    int symbol,
-		   int aa,
-		   int p,
+                   int aa,
+                   int p,
                    int l1_id)
 {
-  int rb_offset_neg0 = frame_parms->ofdm_symbol_size - (6*frame_parms->N_RB_DL);
-  int rb_offset_neg  = (subframe*frame_parms->ofdm_symbol_size*frame_parms->symbols_per_tti) + rb_offset_neg0;
+  int rb_offset_neg0 = frame_parms->ofdm_symbol_size - (6 * frame_parms->N_RB_DL);
   int rb_offset_pos  = (subframe*frame_parms->ofdm_symbol_size*frame_parms->symbols_per_tti);
+  int rb_offset_neg = rb_offset_pos + rb_offset_neg0;
 
-
-  multadd_cpx_vector((int16_t*)&txdataF[p][rb_offset_neg+(symbol*frame_parms->ofdm_symbol_size)],
-		     (int16_t*)&beam_weights[l1_id][p][aa][rb_offset_neg0], 
-	             (int16_t*)&txdataF_BF[aa][rb_offset_neg0+(symbol*frame_parms->ofdm_symbol_size)], 
-		     0, 
-                     6*frame_parms->N_RB_DL, 
-		     15);
-  multadd_cpx_vector((int16_t*)&txdataF[p][rb_offset_pos+(symbol*frame_parms->ofdm_symbol_size)],
-                     (int16_t*)&beam_weights[l1_id][p][aa][0], 
-                     (int16_t*)&txdataF_BF[aa][(symbol*frame_parms->ofdm_symbol_size)], 
-                     0, 
-                     7*frame_parms->N_RB_DL, // to allow for extra RE at the end, 12 useless multipy-adds (first one at DC and 11 at end)
+  const c16_t *p1 = (const c16_t *)txdataF[p];
+  const c16_t *p2 = (const c16_t *)beam_weights[l1_id][p][aa];
+  c16_t *p3 = (c16_t *)txdataF_BF[aa];
+  multadd_cpx_vector(p1 + (symbol * frame_parms->ofdm_symbol_size) + rb_offset_neg,
+                     p2 + rb_offset_neg0,
+                     p3 + (symbol * frame_parms->ofdm_symbol_size) + rb_offset_neg0,
+                     6 * frame_parms->N_RB_DL,
                      15);
+  multadd_cpx_vector(
+      p1 + (symbol * frame_parms->ofdm_symbol_size) + rb_offset_pos,
+      p2,
+      p3 + (symbol * frame_parms->ofdm_symbol_size),
+      7 * frame_parms->N_RB_DL, // to allow for extra RE at the end, 12 useless multipy-adds (first one at DC and 11 at end)
+      15);
 
-      return 0;
+  return 0;
 }
 
 
@@ -110,37 +111,37 @@ int beam_precoding_one_eNB(int32_t **txdataF,
     memset(txdataF_BF[aa],0,sizeof(int32_t)*(ofdm_symbol_size*symbols_per_tti));
     for(p=0;p<nb_antenna_ports;p++){
       if (p<nb_antenna_ports_eNB || p==5){
-	for (symbol=0; symbol<symbols_per_tti; symbol++){
-	  
-	  multadd_cpx_vector((int16_t*)&txdataF[p][symbol*ofdm_symbol_size+re_offset],
-			     (int16_t*)beam_weights[0][p][aa], 
-			     (int16_t*)&txdataF_BF[aa][symbol*ofdm_symbol_size], 
-			     0, 
-			     ofdm_symbol_size, 
-			     15);
-	  
-	  
-	  /*
-	    for (re=0; re<ofdm_symbol_size; re++){
-	    // direct
-	    ((int16_t*)&txdataF_BF[aa][re])[0] += (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[0]*((int16_t*)&beam_weights[p][aa][re])[0])>>15);
-	    ((int16_t*)&txdataF_BF[aa][re])[0] -= (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[1]*((int16_t*)&beam_weights[p][aa][re])[1])>>15);
-	    ((int16_t*)&txdataF_BF[aa][re])[1] += (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[0]*((int16_t*)&beam_weights[p][aa][re])[1])>>15);
-	    ((int16_t*)&txdataF_BF[aa][re])[1] += (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[1]*((int16_t*)&beam_weights[p][aa][re])[0])>>15);
-	    }
-	  */
-	}
+        for (symbol = 0; symbol < symbols_per_tti; symbol++) {
+          multadd_cpx_vector((const c16_t *)&txdataF[p][symbol * ofdm_symbol_size + re_offset],
+                             (const c16_t *)beam_weights[0][p][aa],
+                             (c16_t *)&txdataF_BF[aa][symbol * ofdm_symbol_size],
+                             ofdm_symbol_size,
+                             15);
+
+          /*
+            for (re=0; re<ofdm_symbol_size; re++){
+            // direct
+            ((int16_t*)&txdataF_BF[aa][re])[0] +=
+            (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[0]*((int16_t*)&beam_weights[p][aa][re])[0])>>15);
+            ((int16_t*)&txdataF_BF[aa][re])[0] -=
+            (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[1]*((int16_t*)&beam_weights[p][aa][re])[1])>>15);
+            ((int16_t*)&txdataF_BF[aa][re])[1] +=
+            (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[0]*((int16_t*)&beam_weights[p][aa][re])[1])>>15);
+            ((int16_t*)&txdataF_BF[aa][re])[1] +=
+            (int16_t)((((int16_t*)&txdataF[p][re+symbol*ofdm_symbol_size+re_offset])[1]*((int16_t*)&beam_weights[p][aa][re])[0])>>15);
+            }
+          */
+        }
       }
     }
   }
   return 0;
 }
 
-
 int nr_beam_precoding(c16_t **txdataF,
-	              c16_t **txdataF_BF,
+                      c16_t **txdataF_BF,
                       NR_DL_FRAME_PARMS *frame_parms,
-	              int32_t ***beam_weights,
+                      int32_t ***beam_weights,
                       int slot,
                       int symbol,
                       int aa,
@@ -156,12 +157,11 @@ int nr_beam_precoding(c16_t **txdataF,
 
   for (p=0; p<nb_antenna_ports; p++) {
     //if ((frame_parms->L_ssb >> (63-p)) & 0x01)  {
-      multadd_cpx_vector((int16_t*)&txdataF[p][(symbol*frame_parms->ofdm_symbol_size)+offset],
-			 (int16_t*)beam_weights[p][aa], 
-			 (int16_t*)&txdataF_BF[aa][symbol*frame_parms->ofdm_symbol_size], 
-			 0, 
-			 frame_parms->ofdm_symbol_size, 
-			 15);
+    multadd_cpx_vector(&txdataF[p][(symbol * frame_parms->ofdm_symbol_size) + offset],
+                       (const c16_t *)beam_weights[p][aa],
+                       &txdataF_BF[aa][symbol * frame_parms->ofdm_symbol_size],
+                       frame_parms->ofdm_symbol_size,
+                       15);
     //}
   }
   return 0;
