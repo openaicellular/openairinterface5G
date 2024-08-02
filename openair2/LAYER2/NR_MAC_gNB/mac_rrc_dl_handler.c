@@ -437,7 +437,7 @@ void ue_context_setup_request(const f1ap_ue_context_setup_t *req)
   /* gNB-DU UE ID is optional. As of now, the F1AP module fills -1 (on uint, so
    * 0xffffffff), but the DU uses the RNTI, so check if it's a legal RNTI in
    * which case we consider; if not, assume no DU UE ID given */
-  bool ue_id_provided = resp.gNB_DU_ue_id < 0xffff;
+  bool ue_id_provided = resp.gNB_DU_ue_id > 0 && resp.gNB_DU_ue_id < 0xffff;
 
   NR_UE_NR_Capability_t *ue_cap = NULL;
   if (req->cu_to_du_rrc_information != NULL) {
