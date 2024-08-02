@@ -39,6 +39,19 @@
 #define USE_128BIT
 #endif
 
+int16_t saturating_sub(int16_t a, int16_t b)
+{
+  int32_t result = (int32_t)a - (int32_t)b;
+
+  if (result < INT16_MIN) {
+    return INT16_MIN;
+  } else if (result > INT16_MAX) {
+    return INT16_MAX;
+  } else {
+    return (int16_t)result;
+  }
+}
+
 //----------------------------------------------------------------------------------------------
 // QPSK
 //----------------------------------------------------------------------------------------------
@@ -91,12 +104,12 @@ void nr_ulsch_16qam_llr(int32_t *rxdataF_comp,
 
   simde__m256i xmm0, xmm1, xmm2;
 
-  for (int i = 0; i < ((nb_re + 7) >> 3); i++) {
-    xmm0 = simde_mm256_abs_epi16(rxF_256[i]);       // registers of even index in xmm0-> |y_R|, registers of odd index in xmm0-> |y_I|
-    xmm0 = simde_mm256_subs_epi16(ch_mag[i], xmm0); // registers of even index in xmm0-> |y_R|-|h|^2, registers of odd index in xmm0-> |y_I|-|h|^2
+  for (int i = 0; i < (nb_re >> 3); i++) {
+    xmm0 = simde_mm256_abs_epi16(*rxF_256);       // registers of even index in xmm0-> |y_R|, registers of odd index in xmm0-> |y_I|
+    xmm0 = simde_mm256_subs_epi16(*ch_mag, xmm0); // registers of even index in xmm0-> |y_R|-|h|^2, registers of odd index in xmm0-> |y_I|-|h|^2
  
-    xmm1 = simde_mm256_unpacklo_epi32(rxF_256[i], xmm0);
-    xmm2 = simde_mm256_unpackhi_epi32(rxF_256[i], xmm0);
+    xmm1 = simde_mm256_unpacklo_epi32(*rxF_256, xmm0);
+    xmm2 = simde_mm256_unpackhi_epi32(*rxF_256, xmm0);
 
     // xmm1 |1st 2ed 3rd 4th  9th 10th 13rd 14th|
     // xmm2 |5th 6th 7th 8th 11st 12ed 15th 16th|
@@ -109,6 +122,39 @@ void nr_ulsch_16qam_llr(int32_t *rxdataF_comp,
     *llr_64++ = simde_mm256_extract_epi64(xmm1, 3);
     *llr_64++ = simde_mm256_extract_epi64(xmm2, 2);
     *llr_64++ = simde_mm256_extract_epi64(xmm2, 3);
+    rxF_256++;
+    ch_mag++;
+  }
+
+  simde__m128i *rxF_128 = (simde__m128i*)rxF_256;
+  simde__m128i *ch_mag_128 = (simde__m128i*)ch_mag;
+  simde__m128i *ulsch_llr_128 = (simde__m128i*)llr_64;
+
+  uint32_t nb_re_left = nb_re - ((nb_re >> 3) << 3);
+  // Each iteration does 4 RE (gives 16 16bit-llrs)
+  for (int i=0; i < (nb_re_left >> 2); i++) {
+    simde__m128i xmm0 = simde_mm_abs_epi16(*rxF_128); // registers of even index in xmm0-> |y_R|, registers of odd index in xmm0-> |y_I|
+    xmm0 = simde_mm_subs_epi16(*ch_mag_128,xmm0); // registers of even index in xmm0-> |y_R|-|h|^2, registers of odd index in xmm0-> |y_I|-|h|^2
+
+    ulsch_llr_128[0] = simde_mm_unpacklo_epi32(*rxF_128,xmm0); // llr128[0] contains the llrs of the 1st,2nd,5th and 6th REs
+    ulsch_llr_128[1] = simde_mm_unpackhi_epi32(*rxF_128,xmm0); // llr128[1] contains the llrs of the 3rd, 4th, 7th and 8th REs
+    ulsch_llr_128 += 2;
+    rxF_128++;
+    ch_mag_128++;
+  }
+
+  nb_re_left = nb_re_left - ((nb_re_left >> 2) << 2);
+  int16_t *rxDataF_i16 = (int16_t *)rxF_128;
+  int16_t *ul_ch_mag_i16 = (int16_t *)ch_mag_128;
+  for (uint i = 0U; i < nb_re_left; i++) {
+    int16_t real = rxDataF_i16[2 * i];
+    int16_t imag = rxDataF_i16[2 * i + 1];
+    int16_t mag_real = ul_ch_mag_i16[2 * i];
+    int16_t mag_imag = ul_ch_mag_i16[2 * i];
+    ulsch_llr[4 * i] = real;
+    ulsch_llr[4 * i + 1] = imag;
+    ulsch_llr[4 * i + 2] = saturating_sub(mag_real, abs(real));
+    ulsch_llr[4 * i + 3] = saturating_sub(mag_imag, abs(imag));
   }
 #endif
   simde_mm_empty();
