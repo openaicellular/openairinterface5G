@@ -1315,6 +1315,7 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
   rnti_t old_rnti = req->ue_Identity.c_RNTI;
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context_by_rnti(rrc, assoc_id, old_rnti);
   if (ue_context_p == NULL) {
+    /* TODO what if the UE comes back with the old C-RNTI after handover? */
     LOG_E(NR_RRC, "NR_RRCReestablishmentRequest without UE context, fallback to RRC setup\n");
     goto fallback_rrc_setup;
   }
