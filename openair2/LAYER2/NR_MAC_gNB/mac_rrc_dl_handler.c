@@ -495,7 +495,7 @@ void ue_context_setup_request(const f1ap_ue_context_setup_t *req)
 
   if (!ue_id_provided) {
     /* new UE: tell the UE to reestablish RLC */
-    struct NR_CellGroupConfig__rlc_BearerToAddModList *addmod = UE->CellGroup->rlc_BearerToAddModList;
+    struct NR_CellGroupConfig__rlc_BearerToAddModList *addmod = newCellGroup->rlc_BearerToAddModList;
     for (int i = 0; i < addmod->list.count; ++i) {
       asn1cCallocOne(addmod->list.array[i]->reestablishRLC, NR_RLC_BearerConfig__reestablishRLC_true);
     }
