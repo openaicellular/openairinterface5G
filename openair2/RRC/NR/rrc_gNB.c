@@ -73,9 +73,6 @@
 
 #include "T.h"
 
-#include "RRC/NAS/nas_config.h"
-#include "RRC/NAS/rb_config.h"
-
 #include "openair3/SECU/secu_defs.h"
 
 #include "rrc_gNB_NGAP.h"

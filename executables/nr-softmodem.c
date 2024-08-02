@@ -140,8 +140,6 @@ uint8_t nb_antenna_rx = 1;
 
 int otg_enabled;
 
-#include <SIMULATION/ETH_TRANSPORT/proto.h>
-
 extern void reset_opp_meas(void);
 extern void print_opp_meas(void);
 
@@ -542,10 +540,8 @@ static  void wait_nfapi_init(char *thread_name) {
 }
 
 void init_pdcp(void) {
-  uint32_t pdcp_initmask = (IS_SOFTMODEM_NOS1) ?
-    PDCP_USE_NETLINK_BIT | LINK_ENB_PDCP_TO_IP_DRIVER_BIT | ENB_NAS_USE_TUN_BIT | SOFTMODEM_NOKRNMOD_BIT:
-    LINK_ENB_PDCP_TO_GTPV1U_BIT;
-  
+  uint32_t pdcp_initmask = IS_SOFTMODEM_NOS1 ? ENB_NAS_USE_TUN_BIT : LINK_ENB_PDCP_TO_GTPV1U_BIT;
+
   if (!NODE_IS_DU(get_node_type())) {
     nr_pdcp_layer_init(get_node_type() == ngran_gNB_CUCP);
     nr_pdcp_module_init(pdcp_initmask, 0);
@@ -654,12 +650,7 @@ int main( int argc, char **argv ) {
   itti_init(TASK_MAX, tasks_info);
   // initialize mscgen log after ITTI
   init_opt();
-  if(PDCP_USE_NETLINK && !IS_SOFTMODEM_NOS1) {
-    netlink_init();
-    if (get_softmodem_params()->nsa) {
-      init_pdcp();
-    }
-  }
+
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "UNKNOWN-EXPERIMENTAL"
 #endif

@@ -685,5 +685,4 @@ typedef struct LDPCDecode_ue_s {
   UE_nr_rxtx_proc_t proc;
 } ldpcDecode_ue_t;
 
-#include "SIMULATION/ETH_TRANSPORT/defs.h"
 #endif

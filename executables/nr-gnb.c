@@ -75,7 +75,6 @@
 #include "UTIL/OPT/opt.h"
 #include "gnb_paramdef.h"
 
-#include "SIMULATION/ETH_TRANSPORT/proto.h"
 #include <executables/softmodem-common.h>
 
 #include "T.h"

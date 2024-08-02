@@ -65,8 +65,6 @@
   #include "RRC/NR/MESSAGES/asn1_msg.h"
 #endif
 
-#include "RRC/NAS/nas_config.h"
-#include "RRC/NAS/rb_config.h"
 #include "SIMULATION/TOOLS/sim.h" // for taus
 
 #include "nr_nas_msg_sim.h"

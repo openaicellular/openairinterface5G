@@ -46,14 +46,12 @@
 #include "RegistrationAccept.h"
 #include "FGSDeregistrationRequestUEOriginating.h"
 #include "intertask_interface.h"
-#include "openair2/RRC/NAS/nas_config.h"
+#include "common/utils/tun_if.h"
 #include <openair3/NAS/COMMON/NR_NAS_defs.h>
-#include <openair1/SIMULATION/ETH_TRANSPORT/proto.h>
 #include "openair2/SDAP/nr_sdap/nr_sdap.h"
 #include "openair3/SECU/nas_stream_eia2.h"
 #include "openair3/UTILS/conversions.h"
 
-extern char *baseNetAddress;
 extern uint16_t NB_UE_INST;
 static nr_ue_nas_t nr_ue_nas = {0};
 static nr_nas_msg_snssai_t nas_allowed_nssai[8];
@@ -842,11 +840,12 @@ static void generateRegistrationComplete(nr_ue_nas_t *nas, as_nas_info_t *initia
 void decodeDownlinkNASTransport(as_nas_info_t *initialNasMsg, uint8_t * pdu_buffer){
   uint8_t msg_type = *(pdu_buffer + 16);
   if(msg_type == FGS_PDU_SESSION_ESTABLISHMENT_ACC){
-    sprintf(baseNetAddress, "%d.%d", *(pdu_buffer + 39),*(pdu_buffer + 40));
-    int third_octet = *(pdu_buffer + 41);
-    int fourth_octet = *(pdu_buffer + 42);
+    uint8_t *ip_p = pdu_buffer + 39;
+    char ip[20];
+    sprintf(ip, "%d.%d.%d.%d", *(ip_p), *(ip_p + 1), *(ip_p + 2), *(ip_p + 3));
     LOG_A(NAS, "Received PDU Session Establishment Accept\n");
-    nas_config(1,third_octet,fourth_octet,"ue");
+    tun_config(1, ip, NULL, "oaitun_ue");
+    setup_ue_ipv4_route(1, ip, "oaitun_ue");
   } else {
     LOG_E(NAS, "Received unexpected message in DLinformationTransfer %d\n", msg_type);
   }
@@ -1176,7 +1175,7 @@ static void request_default_pdusession(int instance, int nssai_idx)
 {
   MessageDef *message_p = itti_alloc_new_message(TASK_NAS_NRUE, 0, NAS_PDU_SESSION_REQ);
   NAS_PDU_SESSION_REQ(message_p).pdusession_id = 10; /* first or default pdu session */
-  NAS_PDU_SESSION_REQ(message_p).pdusession_type = 0x91;
+  NAS_PDU_SESSION_REQ(message_p).pdusession_type = 0x91; // 0x91 = IPv4, 0x92 = IPv6, 0x93 = IPv4v6
   NAS_PDU_SESSION_REQ(message_p).sst = nas_allowed_nssai[nssai_idx].sst;
   NAS_PDU_SESSION_REQ(message_p).sd = nas_allowed_nssai[nssai_idx].sd;
   itti_send_msg_to_task(TASK_NAS_NRUE, instance, message_p);
@@ -1428,17 +1427,12 @@ void *nas_nrue(void *args_p)
             while (offset < payload_container_length) {
               if (*(payload_container + offset) == 0x29) { // PDU address IEI
                 if ((*(payload_container + offset + 1) == 0x05) && (*(payload_container + offset + 2) == 0x01)) { // IPV4
-                  nas_getparams();
-                  sprintf(baseNetAddress, "%d.%d", *(payload_container + offset + 3), *(payload_container + offset + 4));
-                  int third_octet = *(payload_container + offset + 5);
-                  int fourth_octet = *(payload_container + offset + 6);
-                  LOG_I(NAS,
-                        "Received PDU Session Establishment Accept, UE IP: %d.%d.%d.%d\n",
-                        *(payload_container + offset + 3),
-                        *(payload_container + offset + 4),
-                        *(payload_container + offset + 5),
-                        *(payload_container + offset + 6));
-                  nas_config(1, third_octet, fourth_octet, "oaitun_ue");
+                  uint8_t *ip_p = payload_container + offset + 3;
+                  char ip[20];
+                  snprintf(ip, sizeof(ip), "%d.%d.%d.%d", *(ip_p), *(ip_p + 1), *(ip_p + 2), *(ip_p + 3));
+                  LOG_I(NAS, "Received PDU Session Establishment Accept, UE IP: %s\n", ip);
+                  tun_config(1, ip, NULL, "oaitun_ue");
+                  setup_ue_ipv4_route(1, ip, "oaitun_ue");
                   break;
                 }
               }

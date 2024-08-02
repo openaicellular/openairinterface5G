@@ -26,7 +26,6 @@
 #include "PHY/defs_eNB.h"
 #include "PHY/defs_UE.h"
 #include "s1ap_eNB.h"
-#include "SIMULATION/ETH_TRANSPORT/proto.h"
 #include "executables/softmodem-common.h"
 
 

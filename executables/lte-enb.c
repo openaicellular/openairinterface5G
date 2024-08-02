@@ -85,7 +85,6 @@
 #include "executables/lte-softmodem.h"
 
 #include "s1ap_eNB.h"
-#include "SIMULATION/ETH_TRANSPORT/proto.h"
 
 #include "T.h"
 
