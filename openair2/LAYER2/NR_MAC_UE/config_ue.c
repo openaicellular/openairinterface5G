@@ -1879,7 +1879,21 @@ static void configure_maccellgroup(NR_UE_MAC_INST_t *mac, const NR_MAC_CellGroup
     }
   }
   if (mcg->phr_Config) {
-    // TODO configuration when PHR is implemented
+    nr_phr_info_t *phr_info = &si->phr_info;
+    phr_info->is_configured = mcg->phr_Config->choice.setup != NULL;
+    if (phr_info->is_configured) {
+      int slots_per_subframe = nr_slots_per_frame[scs] / 10;
+      struct NR_PHR_Config *config = mcg->phr_Config->choice.setup;
+      AssertFatal(config->multiplePHR == 0, "mulitplePHR not supported");
+      phr_info->PathlossChange_db = config->phr_Tx_PowerFactorChange;
+      const int periodic_timer_sf_enum_to_sf[] = {10, 20, 50, 100, 200, 500, 1000, UINT_MAX};
+      int periodic_timer_sf = periodic_timer_sf_enum_to_sf[config->phr_PeriodicTimer];
+      nr_timer_setup(&phr_info->periodicPHR_Timer, periodic_timer_sf * slots_per_subframe, 1);
+      const int prohibit_timer_sf_enum_to_sf[] = {0, 10, 20, 50, 100, 200, 500, 1000};
+      int prohibit_timer_sf = prohibit_timer_sf_enum_to_sf[config->phr_ProhibitTimer];
+      nr_timer_setup(&phr_info->prohibitPHR_Timer, prohibit_timer_sf * slots_per_subframe, 1);
+      phr_info->phr_reporting = (1 << phr_cause_phr_config);
+    }
   }
 }
 

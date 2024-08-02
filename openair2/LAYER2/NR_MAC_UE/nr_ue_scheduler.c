@@ -64,6 +64,12 @@
 
 static void nr_ue_prach_scheduler(NR_UE_MAC_INST_t *mac, frame_t frameP, sub_frame_t slotP);
 static void schedule_ta_command(fapi_nr_dl_config_request_t *dl_config, NR_UL_TIME_ALIGNMENT_t *ul_time_alignment);
+static void nr_ue_fill_phr(NR_UE_MAC_INST_t *mac,
+                           NR_SINGLE_ENTRY_PHR_MAC_CE *phr,
+                           float P_CMAX,
+                           float tx_power,
+                           frame_t frameP,
+                           sub_frame_t subframe);
 
 void clear_ul_config_request(NR_UE_MAC_INST_t *mac, int scs)
 {
@@ -176,6 +182,21 @@ void update_mac_timers(NR_UE_MAC_INST_t *mac)
     AssertFatal(!nr_timer_tick(&mac->scheduling_info.lc_sched_info[i].Bj_timer),
                 "Bj timer for LCID %d expired! That should never happen\n",
                 i);
+
+  nr_phr_info_t *phr_info = &mac->scheduling_info.phr_info;
+  if (phr_info->is_configured) {
+    bool prohibit_expired = nr_timer_tick(&phr_info->prohibitPHR_Timer);
+    if (prohibit_expired) {
+      int16_t pathloss = compute_nr_SSB_PL(mac, mac->ssb_measurements.ssb_rsrp_dBm);
+      if (abs(pathloss - phr_info->PathlossLastValue) > phr_info->PathlossChange_db) {
+        phr_info->phr_reporting |= (1 << phr_cause_prohibit_timer);
+      }
+    }
+    bool periodic_expired = nr_timer_tick(&phr_info->periodicPHR_Timer);
+    if (periodic_expired) {
+      phr_info->phr_reporting |= (1 << phr_cause_periodic_timer);
+    }
+  }
 }
 
 void remove_ul_config_last_item(fapi_nr_ul_config_request_pdu_t *pdu)
@@ -942,6 +963,16 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
     return -1;
   }
 
+  // 38.321 5.4.6
+  //  if it is the first UL resource allocated for a new transmission since the last MAC reset:
+  //  2> start phr-PeriodicTimer;
+  if (mac->scheduling_info.phr_info.is_configured) {
+    if (mac->scheduling_info.phr_info.was_mac_reset && pusch_config_pdu->pusch_data.new_data_indicator) {
+      mac->scheduling_info.phr_info.was_mac_reset = false;
+      nr_timer_start(&mac->scheduling_info.phr_info.periodicPHR_Timer);
+    }
+  }
+
   return 0;
 }
 
@@ -1185,7 +1216,6 @@ static bool nr_ue_periodic_srs_scheduling(NR_UE_MAC_INST_t *mac, frame_t frame, 
 // Performs :
 // 1. TODO: Call RRC for link status return to PHY
 // 2. TODO: Perform SR/BSR procedures for scheduling feedback
-// 3. TODO: Perform PHR procedures
 void nr_ue_dl_scheduler(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info)
 {
   frame_t rx_frame = dl_info->frame;
@@ -1422,10 +1452,24 @@ void nr_ue_ul_scheduler(NR_UE_MAC_INST_t *mac, nr_uplink_indication_t *ul_info)
         if (ulcfg_pdu->pusch_config_pdu.pusch_data.new_data_indicator
             && (mac->state == UE_CONNECTED || (ra->ra_state == nrRA_WAIT_RAR && ra->cfra))) {
           // Getting IP traffic to be transmitted
-          nr_ue_get_sdu(mac, cc_id, frame_tx, slot_tx, gNB_index, ulsch_input_buffer, TBS_bytes);
-	  ulcfg_pdu->pusch_config_pdu.tx_request_body.fapiTxPdu = ulsch_input_buffer;
-	  ulcfg_pdu->pusch_config_pdu.tx_request_body.pdu_length = TBS_bytes;
-	  number_of_pdus++;
+          int tx_power = ulcfg_pdu->pusch_config_pdu.tx_power;
+          int P_CMAX = nr_get_Pcmax(mac->p_Max,
+                                    mac->nr_band,
+                                    mac->frame_type,
+                                    mac->frequency_range,
+                                    mac->current_UL_BWP->channel_bandwidth,
+                                    ulcfg_pdu->pusch_config_pdu.qam_mod_order,
+                                    false,
+                                    mac->current_UL_BWP->scs,
+                                    mac->current_UL_BWP->BWPSize,
+                                    ulcfg_pdu->pusch_config_pdu.transform_precoding,
+                                    ulcfg_pdu->pusch_config_pdu.rb_size,
+                                    ulcfg_pdu->pusch_config_pdu.rb_start);
+
+          nr_ue_get_sdu(mac, cc_id, frame_tx, slot_tx, gNB_index, ulsch_input_buffer, TBS_bytes, tx_power, P_CMAX);
+          ulcfg_pdu->pusch_config_pdu.tx_request_body.fapiTxPdu = ulsch_input_buffer;
+          ulcfg_pdu->pusch_config_pdu.tx_request_body.pdu_length = TBS_bytes;
+          number_of_pdus++;
         }
       }
 
@@ -2735,6 +2779,7 @@ typedef struct {
   NR_BSR_SHORT *bsr_s;
   NR_BSR_LONG *bsr_l;
   NR_BSR_SHORT *bsr_t;
+  NR_SINGLE_ENTRY_PHR_MAC_CE* phr;
   //NR_POWER_HEADROOM_CMD *phr_pr;
   int tot_mac_ce_len;
   uint8_t total_mac_pdu_header_len;
@@ -2758,12 +2803,13 @@ static int nr_ue_get_sdu_mac_ce_pre(NR_UE_MAC_INST_t *mac,
                                     uint8_t gNB_index,
                                     uint8_t *ulsch_buffer,
                                     uint32_t buflen,
+                                    int16_t tx_power,
+                                    int16_t P_CMAX,
                                     NR_UE_MAC_CE_INFO *mac_ce_p)
 {
   int num_lcg_id_with_data = 0;
   // Preparing the MAC CEs sub-PDUs and get the total size
   mac_ce_p->bsr_header_len = 0;
-  mac_ce_p->phr_header_len = 0;   //sizeof(SCH_SUBHEADER_FIXED);
   int lcg_id = 0;
   while (lcg_id != NR_INVALID_LCGID) {
     if (mac->scheduling_info.lcg_sched_info[lcg_id].BSR_bytes) {
@@ -2794,8 +2840,23 @@ static int nr_ue_get_sdu_mac_ce_pre(NR_UE_MAC_INST_t *mac,
       }
     }
   }
-
   mac_ce_p->bsr_len = mac_ce_p->bsr_ce_len + mac_ce_p->bsr_header_len;
+
+
+  nr_phr_info_t *phr_info = &mac->scheduling_info.phr_info;
+  mac_ce_p->phr_header_len = 0;
+  mac_ce_p->phr_ce_len = 0;
+  if (phr_info->is_configured && phr_info->phr_reporting > 0) {
+    if (buflen >= (mac_ce_p->bsr_len +  sizeof(NR_MAC_SUBHEADER_FIXED) + sizeof(NR_SINGLE_ENTRY_PHR_MAC_CE))) {
+      if (mac->scheduling_info.phr_info.phr_reporting) {
+        mac_ce_p->phr_header_len = sizeof(NR_MAC_SUBHEADER_FIXED);
+        mac_ce_p->phr_ce_len = sizeof(NR_SINGLE_ENTRY_PHR_MAC_CE);
+        nr_ue_fill_phr(mac, mac_ce_p->phr, P_CMAX, tx_power, frameP, subframe);
+      }
+    }
+  }
+  mac_ce_p->phr_len = mac_ce_p->phr_header_len + mac_ce_p->phr_ce_len;
+
   return (mac_ce_p->bsr_len + mac_ce_p->phr_len);
 }
 
@@ -3234,7 +3295,9 @@ uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
                       slot_t slot,
                       uint8_t gNB_index,
                       uint8_t *ulsch_buffer,
-                      uint32_t buflen)
+                      uint32_t buflen,
+                      int16_t tx_power,
+                      int16_t P_CMAX)
 {
   NR_UE_MAC_CE_INFO mac_ce_info;
   NR_UE_MAC_CE_INFO *mac_ce_p=&mac_ce_info;
@@ -3253,8 +3316,9 @@ uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
   mac_ce_p->bsr_s = &bsr_short;
   mac_ce_p->bsr_l = &bsr_long;
   mac_ce_p->bsr_t = &bsr_truncated;
-  //NR_POWER_HEADROOM_CMD phr;
-  //mac_ce_p->phr_p = &phr;
+
+  NR_SINGLE_ENTRY_PHR_MAC_CE phr;
+  mac_ce_p->phr = &phr;
 
   //int highest_priority = 16;
   const uint8_t sh_size = sizeof(NR_MAC_SUBHEADER_LONG);
@@ -3273,7 +3337,7 @@ uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
   // because as per standard(TS38.321), all equal priority channels should be served equally
 
   // nr_ue_get_sdu_mac_ce_pre updates all mac_ce related header field related to length
-  mac_ce_p->tot_mac_ce_len = nr_ue_get_sdu_mac_ce_pre(mac, CC_id, frame, slot, gNB_index, ulsch_buffer, buflen, mac_ce_p);
+  mac_ce_p->tot_mac_ce_len = nr_ue_get_sdu_mac_ce_pre(mac, CC_id, frame, slot, gNB_index, ulsch_buffer, buflen, tx_power, P_CMAX, mac_ce_p);
   mac_ce_p->total_mac_pdu_header_len = mac_ce_p->tot_mac_ce_len;
 
   LOG_D(NR_MAC, "[UE %d] [%d.%d] process UL transport block at with size TBS = %d bytes \n", mac->ue_id, frame, slot, buflen);
@@ -3373,9 +3437,8 @@ uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
   nr_ue_get_sdu_mac_ce_post(mac, frame, slot, ulsch_buffer, buflen, mac_ce_p);
 
   if (mac_ce_p->tot_mac_ce_len > 0) {
-
     LOG_D(NR_MAC, "In %s copying %d bytes of MAC CEs to the UL PDU \n", __FUNCTION__, mac_ce_p->tot_mac_ce_len);
-    int size = nr_write_ce_ulsch_pdu(pdu, mac, 0, NULL, mac_ce_p->bsr_t, mac_ce_p->bsr_s, mac_ce_p->bsr_l);
+    int size = nr_write_ce_ulsch_pdu(pdu, mac, mac_ce_p->phr_ce_len ? mac_ce_p->phr : NULL, 0, mac_ce_p->bsr_t, mac_ce_p->bsr_s, mac_ce_p->bsr_l);
     if (size != mac_ce_p->tot_mac_ce_len)
       LOG_E(NR_MAC, "MAC CE size computed by nr_write_ce_ulsch_pdu is %d while the one assumed before is %d\n", size, mac_ce_p->tot_mac_ce_len);
     pdu += (unsigned char) mac_ce_p->tot_mac_ce_len;
@@ -3435,4 +3498,43 @@ static void schedule_ta_command(fapi_nr_dl_config_request_t *dl_config, NR_UL_TI
   dl_config->dl_config_list[dl_config->number_pdus].pdu_type = FAPI_NR_CONFIG_TA_COMMAND;
   dl_config->number_pdus += 1;
   ul_time_alignment->ta_apply = no_ta;
+}
+
+static void nr_ue_fill_phr(NR_UE_MAC_INST_t *mac,
+                           NR_SINGLE_ENTRY_PHR_MAC_CE *phr,
+                           float P_CMAX,
+                           float tx_power,
+                           frame_t frameP,
+                           sub_frame_t subframe)
+{
+  nr_phr_info_t *phr_info = &mac->scheduling_info.phr_info;
+  // Value mapping according to 38.133 10.1.18.1
+  const int PC_MAX_00 = -29;
+  phr->PCMAX = max(0, (int)P_CMAX - PC_MAX_00) & 0x3f;
+  // Value mapping according to 38.133 10.1.17.1.1
+  const int POWER_HEADROOM_55 = 22;
+  int headroom = P_CMAX - tx_power;
+  if (headroom < POWER_HEADROOM_55) {
+    const int POWER_HEADROOM_0 = -32;
+    phr->PH = max(0, headroom - POWER_HEADROOM_0);
+  } else {
+    phr->PH = min(0x3f, 55 + (headroom - POWER_HEADROOM_55) / 2);
+  }
+
+  LOG_D(NR_MAC,
+        "PHR Reporting sfn.subframe %d.%d reason = %d, P_CMAX = %d (%5.2f dBm), headrom = %d (%d dB) tx_power = %5.2f dBm\n",
+        frameP,
+        subframe,
+        phr_info->phr_reporting,
+        phr->PCMAX,
+        P_CMAX,
+        phr->PH,
+        headroom,
+        tx_power);
+
+  phr_info->PathlossLastValue = compute_nr_SSB_PL(mac, mac->ssb_measurements.ssb_rsrp_dBm);
+  // Restart both timers according to 38.321
+  nr_timer_start(&phr_info->periodicPHR_Timer);
+  nr_timer_start(&phr_info->prohibitPHR_Timer);
+  phr_info->phr_reporting = 0;
 }

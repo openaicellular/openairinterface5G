@@ -173,7 +173,7 @@ void nr_ue_process_mac_pdu(NR_UE_MAC_INST_t *mac,nr_downlink_indication_t *dl_in
 
 int nr_write_ce_ulsch_pdu(uint8_t *mac_ce,
                           NR_UE_MAC_INST_t *mac,
-                          uint8_t power_headroom, // todo: NR_POWER_HEADROOM_CMD *power_headroom,
+                          NR_SINGLE_ENTRY_PHR_MAC_CE *power_headroom,
                           uint16_t *crnti,
                           NR_BSR_SHORT *truncated_bsr,
                           NR_BSR_SHORT *short_bsr,
@@ -193,7 +193,9 @@ uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
                       sub_frame_t subframe,
                       uint8_t gNB_index,
                       uint8_t *ulsch_buffer,
-                      uint32_t buflen);
+                      uint32_t buflen,
+                      int16_t tx_power,
+                      int16_t P_CMAX);
 
 void set_harq_status(NR_UE_MAC_INST_t *mac,
                      uint8_t pucch_id,
