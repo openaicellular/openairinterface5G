@@ -170,8 +170,13 @@ static int handle_ue_context_srbs_setup(NR_UE_info_t *UE,
 
     (*resp_srbs)[i] = *srb;
 
-    int ret = ASN_SEQUENCE_ADD(&cellGroupConfig->rlc_BearerToAddModList->list, rlc_BearerConfig);
-    DevAssert(ret == 0);
+    if (rlc_BearerConfig->logicalChannelIdentity == 1 && cellGroupConfig->rlc_BearerToAddModList->list.count == 1
+        && cellGroupConfig->rlc_BearerToAddModList->list.array[0]->logicalChannelIdentity == 1) {
+      LOG_W(MAC, "Skip adding of SRB1: already present\n");
+    } else {
+      int ret = ASN_SEQUENCE_ADD(&cellGroupConfig->rlc_BearerToAddModList->list, rlc_BearerConfig);
+      DevAssert(ret == 0);
+    }
   }
   return srbs_len;
 }
