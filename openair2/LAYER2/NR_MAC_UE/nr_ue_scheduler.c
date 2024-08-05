@@ -1110,7 +1110,7 @@ void nr_ue_aperiodic_srs_scheduling(NR_UE_MAC_INST_t *mac, long resource_trigger
   NR_UE_UL_BWP_t *current_UL_BWP = mac->current_UL_BWP;
   NR_SRS_Config_t *srs_config = current_UL_BWP->srs_Config;
 
-  if (!srs_config) {
+  if (!srs_config || !srs_config->srs_ResourceSetToAddModList) {
     LOG_E(NR_MAC, "DCI is triggering aperiodic SRS but there is no SRS configuration\n");
     return;
   }
@@ -1171,17 +1171,15 @@ void nr_ue_aperiodic_srs_scheduling(NR_UE_MAC_INST_t *mac, long resource_trigger
 // Periodic SRS scheduling
 static bool nr_ue_periodic_srs_scheduling(NR_UE_MAC_INST_t *mac, frame_t frame, slot_t slot)
 {
-  bool srs_scheduled = false;
   NR_UE_UL_BWP_t *current_UL_BWP = mac->current_UL_BWP;
-
   NR_SRS_Config_t *srs_config = current_UL_BWP ? current_UL_BWP->srs_Config : NULL;
 
-  if (!srs_config) {
+  if (!srs_config || !srs_config->srs_ResourceSetToAddModList) {
     return false;
   }
 
+  bool srs_scheduled = false;
   for(int rs = 0; rs < srs_config->srs_ResourceSetToAddModList->list.count; rs++) {
-
     // Find periodic resource set
     NR_SRS_ResourceSet_t *srs_resource_set = srs_config->srs_ResourceSetToAddModList->list.array[rs];
     if(srs_resource_set->resourceType.present != NR_SRS_ResourceSet__resourceType_PR_periodic) {
