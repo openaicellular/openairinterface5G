@@ -213,11 +213,11 @@ int DU_handle_UE_CONTEXT_SETUP_REQUEST(instance_t instance, sctp_assoc_t assoc_i
           drb_p->rlc_mode = F1AP_RLC_MODE_AM;
           break;
         case F1AP_RLCMode_rlc_um_bidirectional:
-          drb_p->rlc_mode = F1AP_RLCMode_rlc_um_bidirectional;
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
           break;
         default:
           LOG_W(F1AP, "unsupported RLC Mode %ld received: setting UM bidir\n", drbs_tobesetup_item_p->rLCMode);
-          drb_p->rlc_mode = F1AP_RLCMode_rlc_um_bidirectional;
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
           break;
       }
 
@@ -940,11 +940,11 @@ int DU_handle_UE_CONTEXT_MODIFICATION_REQUEST(instance_t instance, sctp_assoc_t 
           drb_p->rlc_mode = F1AP_RLC_MODE_AM;
           break;
         case F1AP_RLCMode_rlc_um_bidirectional:
-          drb_p->rlc_mode = F1AP_RLCMode_rlc_um_bidirectional;
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
           break;
         default:
           LOG_W(F1AP, "unsupported RLC Mode %ld received: setting UM bidir\n", drbs_tobesetupmod_item_p->rLCMode);
-          drb_p->rlc_mode = F1AP_RLCMode_rlc_um_bidirectional;
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
           break;
       }
 
