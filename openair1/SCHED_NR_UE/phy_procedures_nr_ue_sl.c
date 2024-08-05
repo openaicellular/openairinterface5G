@@ -162,13 +162,12 @@ static int nr_ue_psbch_procedures(PHY_VARS_NR_UE *ue,
   return ret;
 }
 
-int psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data)
+void psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_t *phy_data, int *sampleShift)
 {
   int frame_rx = proc->frame_rx;
   int nr_slot_rx = proc->nr_slot_rx;
   sl_nr_ue_phy_params_t *sl_phy_params = &ue->SL_UE_PHY_PARAMS;
   NR_DL_FRAME_PARMS *fp = &sl_phy_params->sl_frame_params;
-  int sampleShift = 0;
 
   // VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_UE_RX_SL, VCD_FUNCTION_IN);
   start_meas(&sl_phy_params->phy_proc_sl_rx);
@@ -230,7 +229,7 @@ int psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr
 
     if (ue->no_timing_correction == 0 && psbchSuccess == 0) {
       LOG_D(NR_PHY, "start adjust sync slot = %d no timing %d\n", nr_slot_rx, ue->no_timing_correction);
-      sampleShift =
+      *sampleShift =
           nr_adjust_synch_ue(fp, ue, proc->gNB_id, fp->ofdm_symbol_size, dl_ch_estimates_time, frame_rx, nr_slot_rx, 16384);
     }
 
@@ -255,8 +254,6 @@ int psbch_pscch_processing(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr
   }
 
   UEscopeCopy(ue, commonRxdataF, rxdataF, sizeof(int32_t), fp->nb_antennas_rx, rxdataF_sz, 0);
-
-  return sampleShift;
 }
 
 void phy_procedures_nrUE_SL_TX(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_tx_t *phy_data)

@@ -167,6 +167,7 @@ typedef struct {
   int rx_num_channels;
   int tx_num_channels;
   double sample_rate;
+  double rx_freq;
   double tx_bw;
   int channelmod;
   double chan_pathloss;
@@ -342,7 +343,7 @@ static void rfsimulator_readconfig(rfsimulator_state_t *rfsimulator) {
       break;
     } else if (strcmp(rfsimu_params[p].strlistptr[i],"chanmod") == 0) {
       init_channelmod();
-      load_channellist(rfsimulator->tx_num_channels, rfsimulator->rx_num_channels, rfsimulator->sample_rate, rfsimulator->tx_bw);
+      load_channellist(rfsimulator->tx_num_channels, rfsimulator->rx_num_channels, rfsimulator->sample_rate, rfsimulator->rx_freq, rfsimulator->tx_bw);
       rfsimulator->channelmod=true;
     } else {
       fprintf(stderr, "unknown rfsimulator option: %s\n", rfsimu_params[p].strlistptr[i]);
@@ -400,7 +401,7 @@ static int rfsimu_setchanmod_cmd(char *buff, int debug, telnet_printfunc_t prnt,
                                                           t->rx_num_channels,
                                                           channelmod,
                                                           t->sample_rate,
-                                                          0,
+                                                          t->rx_freq,
                                                           t->tx_bw,
                                                           30e-9, // TDL delay-spread parameter
                                                           0.0,
@@ -708,6 +709,10 @@ static bool flushInput(rfsimulator_state_t *t, int timeout, int nsamps_for_initi
         samplesVoid[i]=(void *)&v;
 
       rfsimulator_write_internal(t, t->lastWroteTS > 1 ? t->lastWroteTS - 1 : 0, samplesVoid, 1, t->tx_num_channels, 1, false);
+
+      buffer_t *b = &t->buf[conn_sock];
+      if (b->channel_model)
+        b->channel_model->start_TS = t->lastWroteTS;
     } else {
       if ( events[nbEv].events & (EPOLLHUP | EPOLLERR | EPOLLRDHUP) ) {
         socketError(t,fd);
@@ -760,6 +765,8 @@ static bool flushInput(rfsimulator_state_t *t, int timeout, int nsamps_for_initi
                             nsamps_for_initial;
           LOG_D(HW, "UE got first timestamp: starting at %lu\n", t->nextRxTstamp);
           b->trashingPacket=true;
+          if (b->channel_model)
+            b->channel_model->start_TS = t->nextRxTstamp;
         } else if (b->lastReceivedTS < b->th.timestamp) {
           int nbAnt= b->th.nbAnt;
 
@@ -963,6 +970,8 @@ static int rfsimulator_stop(openair0_device *device) {
   return 0;
 }
 static int rfsimulator_set_freq(openair0_device *device, openair0_config_t *openair0_cfg) {
+  rfsimulator_state_t* s = device->priv;
+  s->rx_freq = openair0_cfg->rx_freq[0];
   return 0;
 }
 static int rfsimulator_set_gains(openair0_device *device, openair0_config_t *openair0_cfg) {
@@ -980,6 +989,7 @@ int device_init(openair0_device *device, openair0_config_t *openair0_cfg) {
   rfsimulator->tx_num_channels=openair0_cfg->tx_num_channels;
   rfsimulator->rx_num_channels=openair0_cfg->rx_num_channels;
   rfsimulator->sample_rate=openair0_cfg->sample_rate;
+  rfsimulator->rx_freq=openair0_cfg->rx_freq[0];
   rfsimulator->tx_bw=openair0_cfg->tx_bw;  
   rfsimulator_readconfig(rfsimulator);
   if (rfsimulator->prop_delay_ms > 0.0)

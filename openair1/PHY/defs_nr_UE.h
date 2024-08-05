@@ -456,7 +456,8 @@ typedef struct PHY_VARS_NR_UE_s {
   /// temporary offset during cell search prior to MIB decoding
   int              ssb_offset;
   uint16_t symbol_offset; /// offset in terms of symbols for detected ssb in sync
-  int64_t max_pos_avg; /// Timing offset IIR filter
+  int64_t max_pos_iir; /// Timing offset IIR filter
+  int max_pos_acc; /// Timing offset accumuluated error for PI filter
 
   /// Timing Advance updates variables
   /// Timing advance update computed from the TA command signalled from gNB

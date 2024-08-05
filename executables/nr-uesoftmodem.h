@@ -9,8 +9,11 @@
 #define  CONFIG_HLP_DLSCH_PARA             "number of threads for dlsch processing 0 for no parallelization\n"
 #define  CONFIG_HLP_OFFSET_DIV             "Divisor for computing OFDM symbol offset in Rx chain (num samples in CP/<the value>). Default value is 8. To set the sample offset to 0, set this value ~ 10e6\n"
 #define  CONFIG_HLP_MAX_LDPC_ITERATIONS    "Maximum LDPC decoder iterations\n"
+#define  CONFIG_HLP_TIME_SYNC_P            "coefficient for Proportional part of time sync PI controller\n"
+#define  CONFIG_HLP_TIME_SYNC_I            "coefficient for Integrating part of time sync PI controller\n"
 #define  CONFIG_HLP_NTN_KOFFSET            "NTN cellSpecificKoffset-r17 (number of slots for a given subcarrier spacing of 15 kHz)\n"
 #define  CONFIG_HLP_NTN_TA_COMMON          "NTN ta-Common, but given in ms\n"
+#define  CONFIG_HLP_NTN_TA_COMMONDRIFT     "NTN ta-CommonDrift, but given in µs/s\n"
 
 /***************************************************************************************************************************************/
 /* command line options definitions, CMDLINE_XXXX_DESC macros are used to initialize paramdef_t arrays which are then used as argument
@@ -60,8 +63,11 @@
   {"ue-timing-correction-disable", CONFIG_HLP_DISABLETIMECORR, PARAMFLAG_BOOL,  .iptr=&(nrUE_params.no_timing_correction),   .defintval=0,      TYPE_INT,      0}, \
   {"SLC",                          CONFIG_HLP_SLF,             0,               .u64ptr=&(sidelink_frequency[0][0]),         .defuintval=2600000000,TYPE_UINT64,0}, \
   {"num-ues",                      NULL,                       0,               .iptr=&(NB_UE_INST),                         .defuintval=1,     TYPE_INT,      0}, \
+  {"time-sync-P",                  CONFIG_HLP_TIME_SYNC_P,     0,               .dblptr=&(nrUE_params.time_sync_P),          .defdblval=0.5,    TYPE_DOUBLE,   0}, \
+  {"time-sync-I",                  CONFIG_HLP_TIME_SYNC_I,     0,               .dblptr=&(nrUE_params.time_sync_I),          .defdblval=0.2,    TYPE_DOUBLE,   0}, \
   {"ntn-koffset",                  CONFIG_HLP_NTN_KOFFSET,     0,               .uptr=&(nrUE_params.ntn_koffset),            .defuintval=0,     TYPE_UINT,     0}, \
   {"ntn-ta-common",                CONFIG_HLP_NTN_TA_COMMON,   0,               .dblptr=&(nrUE_params.ntn_ta_common),        .defdblval=0.0,    TYPE_DOUBLE,   0}, \
+  {"ntn-ta-commondrift",           CONFIG_HLP_NTN_TA_COMMONDRIFT, 0,            .dblptr=&(nrUE_params.ntn_ta_commondrift),   .defdblval=0.0,    TYPE_DOUBLE,   0}, \
   {"agc",                          CONFIG_HLP_AGC,             PARAMFLAG_BOOL,  .iptr=&(nrUE_params.agc),                   .defintval=0,       TYPE_INT,   0}, \
 }
 // clang-format on
@@ -83,8 +89,11 @@ typedef struct {
   int            N_RB_DL;
   int            ssb_start_subcarrier;
   int ldpc_offload_flag;
+  double         time_sync_P;
+  double         time_sync_I;
   unsigned int   ntn_koffset;
   double         ntn_ta_common;
+  double         ntn_ta_commondrift;
   int agc;
 } nrUE_params_t;
 extern uint64_t get_nrUE_optmask(void);

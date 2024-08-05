@@ -622,9 +622,10 @@ int main(int argc, char **argv)
                       UE_RX->SL_UE_PHY_PARAMS.sync_params.N_sl_id);
           sl_uerx->psbch.rx_ok = 1;
         }
-      } else
-        psbch_pscch_processing(UE_RX, &proc, &phy_data_rx);
-
+      } else {
+        int sampleShift = 0;
+        psbch_pscch_processing(UE_RX, &proc, &phy_data_rx, &sampleShift);
+      }
     } // noise trials
 
     printf("Runs:%d SNR %f: SLSS Search:%d crc ERRORs = %d, OK = %d\n",
