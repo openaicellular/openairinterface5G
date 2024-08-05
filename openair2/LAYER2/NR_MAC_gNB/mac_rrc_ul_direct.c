@@ -45,7 +45,6 @@ static void f1_setup_request_direct(const f1ap_setup_req_t *req)
   f1ap_setup_req_t cp = cp_f1ap_setup_request(req);
   F1AP_SETUP_REQ(msg) = cp;
   itti_send_msg_to_task(TASK_RRC_GNB, 0, msg);
-  free_f1ap_setup_request(&cp);
 }
 
 static void gnb_du_configuration_update_direct(const f1ap_gnb_du_configuration_update_t *upd)
@@ -58,8 +57,6 @@ static void gnb_du_configuration_update_direct(const f1ap_gnb_du_configuration_u
   F1AP_GNB_DU_CONFIGURATION_UPDATE(msg) = cp;
   /* send to RRC task */
   itti_send_msg_to_task(TASK_RRC_GNB, 0, msg);
-  /* free copy */
-  free_f1ap_du_configuration_update(&cp);
 }
 
 static void ue_context_setup_response_direct(const f1ap_ue_context_setup_t *req, const f1ap_ue_context_setup_t *resp)
