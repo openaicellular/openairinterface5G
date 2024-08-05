@@ -32,6 +32,7 @@
 
 #include "f1ap_common.h"
 #include "f1ap_encoder.h"
+#include "lib/f1ap_lib_common.h"
 #include "f1ap_itti_messaging.h"
 #include "f1ap_du_ue_context_management.h"
 #include "openair2/LAYER2/NR_MAC_gNB/mac_rrc_dl_handler.h"
@@ -45,13 +46,13 @@ static void f1ap_read_drb_qos_param(const F1AP_QoSFlowLevelQoSParameters_t *asn1
   const F1AP_QoS_Characteristics_t *dRB_QoS_Char = &asn1_qos->qoS_Characteristics;
 
   if (dRB_QoS_Char->present == F1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
-    drb_qos_char->qos_type = non_dynamic;
+    drb_qos_char->qos_type = NON_DYNAMIC;
     drb_qos_char->non_dynamic.fiveqi = dRB_QoS_Char->choice.non_Dynamic_5QI->fiveQI;
     drb_qos_char->non_dynamic.qos_priority_level = (dRB_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel != NULL)
                                                        ? *dRB_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel
                                                        : -1;
   } else {
-    drb_qos_char->qos_type = dynamic;
+    drb_qos_char->qos_type = DYNAMIC;
     drb_qos_char->dynamic.fiveqi =
         (dRB_QoS_Char->choice.dynamic_5QI->fiveQI != NULL) ? *dRB_QoS_Char->choice.dynamic_5QI->fiveQI : -1;
     drb_qos_char->dynamic.qos_priority_level = dRB_QoS_Char->choice.dynamic_5QI->qoSPriorityLevel;
@@ -84,13 +85,13 @@ static void f1ap_read_flows_mapped(const F1AP_Flows_Mapped_To_DRB_List_t *asn1_f
       const F1AP_QoS_Characteristics_t *Flow_QoS_Char = &Flow_QoS->qoS_Characteristics;
 
       if (Flow_QoS_Char->present == F1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
-        flow_qos_char->qos_type = non_dynamic;
+        flow_qos_char->qos_type = NON_DYNAMIC;
         flow_qos_char->non_dynamic.fiveqi = Flow_QoS_Char->choice.non_Dynamic_5QI->fiveQI;
         flow_qos_char->non_dynamic.qos_priority_level = (Flow_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel != NULL)
                                                             ? *Flow_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel
                                                             : -1;
       } else {
-        flow_qos_char->qos_type = dynamic;
+        flow_qos_char->qos_type = DYNAMIC;
         flow_qos_char->dynamic.fiveqi =
             (Flow_QoS_Char->choice.dynamic_5QI->fiveQI != NULL) ? *Flow_QoS_Char->choice.dynamic_5QI->fiveQI : -1;
         flow_qos_char->dynamic.qos_priority_level = Flow_QoS_Char->choice.dynamic_5QI->qoSPriorityLevel;
@@ -209,11 +210,14 @@ int DU_handle_UE_CONTEXT_SETUP_REQUEST(instance_t instance, sctp_assoc_t assoc_i
 
       switch (drbs_tobesetup_item_p->rLCMode) {
         case F1AP_RLCMode_rlc_am:
-          drb_p->rlc_mode = RLC_MODE_AM;
+          drb_p->rlc_mode = F1AP_RLC_MODE_AM;
           break;
-
+        case F1AP_RLCMode_rlc_um_bidirectional:
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
+          break;
         default:
-          drb_p->rlc_mode = RLC_MODE_TM;
+          LOG_W(F1AP, "unsupported RLC Mode %ld received: setting UM bidir\n", drbs_tobesetup_item_p->rLCMode);
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
           break;
       }
 
@@ -932,13 +936,16 @@ int DU_handle_UE_CONTEXT_MODIFICATION_REQUEST(instance_t instance, sctp_assoc_t 
       drb_p->up_ul_tnl[0].port = getCxt(instance)->net_config.CUport;
 
       switch (drbs_tobesetupmod_item_p->rLCMode) {
-      case F1AP_RLCMode_rlc_am:
-        drb_p->rlc_mode = RLC_MODE_AM;
-        break;
-
-      default:
-        drb_p->rlc_mode = RLC_MODE_TM;
-        break;
+        case F1AP_RLCMode_rlc_am:
+          drb_p->rlc_mode = F1AP_RLC_MODE_AM;
+          break;
+        case F1AP_RLCMode_rlc_um_bidirectional:
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
+          break;
+        default:
+          LOG_W(F1AP, "unsupported RLC Mode %ld received: setting UM bidir\n", drbs_tobesetupmod_item_p->rLCMode);
+          drb_p->rlc_mode = F1AP_RLC_MODE_UM_BIDIR;
+          break;
       }
 
       if (drbs_tobesetupmod_item_p->qoSInformation.present == F1AP_QoSInformation_PR_eUTRANQoS) {

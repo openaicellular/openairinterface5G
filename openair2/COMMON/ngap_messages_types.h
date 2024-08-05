@@ -31,8 +31,9 @@
 #define NGAP_MESSAGES_TYPES_H_
 #include "common/platform_constants.h"
 #include "common/platform_types.h"
-#include "common/ngran_types.h"
+#include "common/5g_platform_types.h"
 #include "LTE_asn_constant.h"
+#include "s1ap_messages_types.h"
 //-------------------------------------------------------------------------------------------//
 // Defines to access message fields.
 
@@ -196,16 +197,11 @@ typedef enum ngap_rrc_establishment_cause_e {
   NGAP_RRC_CAUSE_LAST
 } ngap_rrc_establishment_cause_t;
 
-typedef struct nssai_s {
-  uint8_t sst;
-  uint32_t sd;
-} nssai_t;
-
 typedef struct pdusession_level_qos_parameter_s {
   uint8_t qfi;
   uint64_t fiveQI;
   uint64_t qos_priority;
-  fiveQI_type_t fiveQI_type;
+  fiveQI_t fiveQI_type;
   ngap_allocation_retention_priority_t allocation_retention_priority;
 } pdusession_level_qos_parameter_t;
 

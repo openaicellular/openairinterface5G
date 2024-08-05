@@ -19,13 +19,27 @@
  *      contact@openairinterface.org
  */
 
-/*! \file f1ap_du_interface_management.h
- * \brief f1ap interface management for DU
- * \author EURECOM/NTUST
- * \date 2018
- * \version 0.1
- * \company Eurecom
- * \email: navid.nikaein@eurecom.fr, bing-kai.hong@eurecom.fr
- * \note
- * \warning
- */
+#ifndef F1AP_LIB_INCLUDES_H_
+#define F1AP_LIB_INCLUDES_H_
+
+#include "F1AP_F1AP-PDU.h"
+#include "F1AP_InitialULRRCMessageTransfer.h"
+#include "F1AP_InitiatingMessage.h"
+#include "F1AP_NRCellIdentity.h"
+#include "F1AP_ProtocolIE-Field.h"
+#include "F1AP_ServedPLMNs-Item.h"
+#include "F1AP_ProtocolExtensionContainer.h"
+#include "F1AP_ProtocolExtensionField.h"
+#include "F1AP_ProtocolIE-Field.h"
+#include "F1AP_SliceSupportItem.h"
+#include "F1AP_NR-Mode-Info.h"
+#include "F1AP_GNB-DU-System-Information.h"
+#include "F1AP_FDD-Info.h"
+#include "F1AP_TDD-Info.h"
+#include "F1AP_FreqBandNrItem.h"
+#include "F1AP_SuccessfulOutcome.h"
+#include "F1AP_SibtypetobeupdatedListItem.h"
+#include "F1AP_UnsuccessfulOutcome.h"
+#include "F1AP_ProtocolIE-Field.h"
+
+#endif /* F1AP_LIB_INCLUDES_H_ */

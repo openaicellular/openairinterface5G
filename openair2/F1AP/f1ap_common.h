@@ -411,8 +411,6 @@ typedef struct f1ap_cudu_inst_s {
   instance_t gtpInst;
 } f1ap_cudu_inst_t;
 
-static const int nrb_lut[29] = {11, 18, 24, 25, 31, 32, 38, 51, 52, 65, 66, 78, 79, 93, 106, 107, 121, 132, 133, 135, 160, 162, 189, 216, 217, 245, 264, 270, 273};
-
 uint8_t F1AP_get_next_transaction_identifier(instance_t mod_idP, instance_t cu_mod_idP);
 
 f1ap_cudu_inst_t *getCxt(instance_t instanceP);
@@ -420,11 +418,6 @@ f1ap_cudu_inst_t *getCxt(instance_t instanceP);
 void createF1inst(instance_t instanceP, f1ap_setup_req_t *req, f1ap_net_config_t *nc);
 void destroyF1inst(instance_t instance);
 
-//lts: C struct type is not homogeneous, so we need macros instead of functions
-#define addnRCGI(nRCGi, servedCelL) \
-  MCC_MNC_TO_PLMNID((servedCelL)->plmn.mcc,(servedCelL)->plmn.mnc,(servedCelL)->plmn.mnc_digit_length, \
-                    &((nRCGi).pLMN_Identity));        \
-  NR_CELL_ID_TO_BIT_STRING((servedCelL)->nr_cellid, &((nRCGi).nRCellIdentity));
 extern RAN_CONTEXT_t RC;
 
 #endif /* F1AP_COMMON_H_ */

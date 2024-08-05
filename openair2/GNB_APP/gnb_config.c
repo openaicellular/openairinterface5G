@@ -2350,7 +2350,6 @@ int gNB_app_handle_f1ap_gnb_cu_configuration_update(f1ap_gnb_cu_configuration_up
         ret++;
         mac->f1_config.setup_resp = malloc(sizeof(*mac->f1_config.setup_resp));
         AssertFatal(mac->f1_config.setup_resp != NULL, "out of memory\n");
-        mac->f1_config.setup_resp->gNB_CU_name = gnb_cu_cfg_update->gNB_CU_name;
         mac->f1_config.setup_resp->num_cells_to_activate = gnb_cu_cfg_update->num_cells_to_activate;
         mac->f1_config.setup_resp->cells_to_activate[0] = gnb_cu_cfg_update->cells_to_activate[0];
       } else {
@@ -2368,6 +2367,7 @@ int gNB_app_handle_f1ap_gnb_cu_configuration_update(f1ap_gnb_cu_configuration_up
     F1AP_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE(msg_ack_p).noofTNLAssociations_to_setup =0;
     F1AP_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE(msg_ack_p).noofTNLAssociations_failed = 0;
     F1AP_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE(msg_ack_p).noofDedicatedSIDeliveryNeededUEs = 0;
+    F1AP_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE(msg_ack_p).transaction_id = F1AP_get_next_transaction_identifier(0, 0);
     itti_send_msg_to_task (TASK_DU_F1, INSTANCE_DEFAULT, msg_ack_p);
 
   }

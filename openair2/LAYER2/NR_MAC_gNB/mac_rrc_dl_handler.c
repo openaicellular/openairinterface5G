@@ -243,7 +243,7 @@ static int handle_ue_context_srbs_setup(NR_UE_info_t *UE,
 
 static NR_RLC_BearerConfig_t *get_bearerconfig_from_drb(const f1ap_drb_to_be_setup_t *drb)
 {
-  const NR_RLC_Config_PR rlc_conf = drb->rlc_mode == RLC_MODE_UM ? NR_RLC_Config_PR_um_Bi_Directional : NR_RLC_Config_PR_am;
+  const NR_RLC_Config_PR rlc_conf = drb->rlc_mode == F1AP_RLC_MODE_AM ? NR_RLC_Config_PR_am : NR_RLC_Config_PR_um_Bi_Directional;
   long priority = 13; // hardcoded for the moment
   return get_DRB_RLC_BearerConfig(get_lcid_from_drbid(drb->drb_id), drb->drb_id, rlc_conf, priority);
 }
@@ -261,11 +261,11 @@ static NR_QoS_config_t get_qos_config(const f1ap_qos_characteristics_t *qos_char
 {
   NR_QoS_config_t qos_c = {0};
   switch (qos_char->qos_type) {
-    case dynamic:
+    case DYNAMIC:
       qos_c.priority = qos_char->dynamic.qos_priority_level;
       qos_c.fiveQI = qos_char->dynamic.fiveqi > 0 ? qos_char->dynamic.fiveqi : 0;
       break;
-    case non_dynamic:
+    case NON_DYNAMIC:
       qos_c.fiveQI = qos_char->non_dynamic.fiveqi;
       qos_c.priority = get_non_dynamic_priority(qos_char->non_dynamic.fiveqi);
       break;

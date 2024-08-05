@@ -24,8 +24,7 @@
 
 #include <netinet/in.h>
 #include <netinet/sctp.h>
-#include "s1ap_messages_types.h"
-#include "ngap_messages_types.h"
+#include "common/5g_platform_types.h"
 
 //-------------------------------------------------------------------------------------------//
 // Defines to access message fields.
@@ -82,12 +81,12 @@
 #define F1AP_MAX_NO_UE_ID 1024
 
 #define F1AP_MAX_NO_OF_INDIVIDUAL_CONNECTIONS_TO_RESET 65536
-
-typedef net_ip_address_t f1ap_net_ip_address_t;
+/* 9.3.1.42 of 3GPP TS 38.473 - gNB-CU System Information */
+#define F1AP_MAX_NO_SIB_TYPES 32
 
 typedef struct f1ap_net_config_t {
-  f1ap_net_ip_address_t CU_f1_ip_address;
-  f1ap_net_ip_address_t DU_f1c_ip_address;
+  char *CU_f1_ip_address;
+  char *DU_f1c_ip_address;
   char *DU_f1u_ip_address;
   uint16_t CUport;
   uint16_t DUport;
@@ -179,18 +178,24 @@ typedef struct f1ap_du_register_req_t {
   f1ap_net_config_t net_config;
 } f1ap_du_register_req_t;
 
+typedef struct f1ap_sib_msg_t {
+  /// RRC container with system information owned by gNB-CU
+  uint8_t *SI_container;
+  int SI_container_length;
+  /// SIB block type, e.g. 2 for sibType2
+  int SI_type;
+} f1ap_sib_msg_t;
+
 typedef struct served_cells_to_activate_s {
   f1ap_plmn_t plmn;
   // NR Global Cell Id
   uint64_t nr_cellid;
-  /// NRPCI
+  /// NRPCI [int 0..1007]
   uint16_t nrpci;
   /// num SI messages per DU cell
   uint8_t num_SI;
-  /// SI message containers (up to 21 messages per cell)
-  uint8_t *SI_container[21];
-  int      SI_container_length[21];
-  int SI_type[21];
+  /// gNB-CU System Information message (up to 32 messages per cell)
+  f1ap_sib_msg_t SI_msg[F1AP_MAX_NO_SIB_TYPES];
 } served_cells_to_activate_t;
 
 typedef struct f1ap_setup_resp_s {
@@ -208,18 +213,8 @@ typedef struct f1ap_setup_resp_s {
 } f1ap_setup_resp_t;
 
 typedef struct f1ap_gnb_cu_configuration_update_s {
-  /* Connexion id used between SCTP/F1AP */
-  uint16_t cnx_id;
-
-  /* SCTP association id */
-  sctp_assoc_t assoc_id;
-
-  /* Number of SCTP streams used for a mme association */
-  uint16_t sctp_in_streams;
-  uint16_t sctp_out_streams;
-
-  /// string holding gNB_CU_name
-  char     *gNB_CU_name;
+  /// Transaction ID
+  uint64_t transaction_id;
   /// number of DU cells to activate
   uint16_t num_cells_to_activate; //0< num_cells_to_activate/mod <= 512;
   served_cells_to_activate_t cells_to_activate[F1AP_MAX_NB_CELLS];
@@ -228,10 +223,13 @@ typedef struct f1ap_gnb_cu_configuration_update_s {
 typedef struct f1ap_setup_failure_s {
   uint16_t cause;
   uint16_t time_to_wait;
-  uint16_t criticality_diagnostics; 
+  uint16_t criticality_diagnostics;
+  /// Transaction ID (M)
+  uint64_t transaction_id;
 } f1ap_setup_failure_t;
 
 typedef struct f1ap_gnb_cu_configuration_update_acknowledge_s {
+  uint64_t transaction_id;
   uint16_t num_cells_failed_to_be_activated;
   f1ap_plmn_t plmn[F1AP_MAX_NB_CELLS];
   uint64_t nr_cellid[F1AP_MAX_NB_CELLS];
@@ -285,9 +283,8 @@ typedef struct f1ap_gnb_du_configuration_update_s {
     f1ap_plmn_t plmn;
     uint64_t nr_cellid; // NR Global Cell Id
   } cell_to_delete[F1AP_MAX_NB_CELLS];
-
-  /// string holding gNB_CU_name
-  uint64_t *gNB_DU_ID;
+  /// gNB-DU unique ID, at least within a gNB-CU (0 .. 2^36 - 1)
+  uint64_t gNB_DU_ID;
 } f1ap_gnb_du_configuration_update_t;
 
 typedef struct f1ap_gnb_du_configuration_update_acknowledge_s {
@@ -334,6 +331,7 @@ typedef struct f1ap_initial_ul_rrc_message_s {
   int      rrc_container_length;
   uint8_t *du2cu_rrc_container;
   int      du2cu_rrc_container_length;
+  uint8_t transaction_id;
 } f1ap_initial_ul_rrc_message_t;
 
 typedef struct f1ap_ul_rrc_message_s {
@@ -346,7 +344,7 @@ typedef struct f1ap_ul_rrc_message_s {
 
 typedef struct f1ap_up_tnl_s {
   in_addr_t tl_address; // currently only IPv4 supported
-  teid_t  teid;
+  uint32_t teid;
   uint16_t port;
 } f1ap_up_tnl_t;
 
@@ -376,7 +374,7 @@ typedef struct f1ap_qos_characteristics_s {
       } packet_error_rate;
     } dynamic;
   };
-  fiveQI_type_t qos_type;
+  fiveQI_t qos_type;
 } f1ap_qos_characteristics_t;
 
 typedef struct f1ap_ngran_allocation_retention_priority_s {
@@ -401,6 +399,7 @@ typedef struct f1ap_drb_information_s {
   uint8_t flows_to_be_setup_length;
 } f1ap_drb_information_t;
 
+typedef enum f1ap_rlc_mode_t { F1AP_RLC_MODE_AM, F1AP_RLC_MODE_UM_BIDIR, F1AP_RLC_UM_UNI_UL, F1AP_RLC_UM_UNI_DL } f1ap_rlc_mode_t;
 typedef struct f1ap_drb_to_be_setup_s {
   long           drb_id;
   f1ap_up_tnl_t  up_ul_tnl[2];
@@ -408,7 +407,7 @@ typedef struct f1ap_drb_to_be_setup_s {
   f1ap_up_tnl_t  up_dl_tnl[2];
   uint8_t        up_dl_tnl_length;
   f1ap_drb_information_t drb_info;
-  rlc_mode_t     rlc_mode;
+  f1ap_rlc_mode_t rlc_mode;
   nssai_t nssai;
 } f1ap_drb_to_be_setup_t;
 
