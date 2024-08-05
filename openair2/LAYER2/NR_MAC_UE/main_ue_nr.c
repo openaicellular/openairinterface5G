@@ -59,7 +59,6 @@ void nr_ue_init_mac(NR_UE_MAC_INST_t *mac)
   nr_ue_reset_sync_state(mac);
   mac->get_sib1 = false;
   mac->get_otherSI = false;
-  mac->phy_config_request_sent = false;
   memset(&mac->phy_config, 0, sizeof(mac->phy_config));
   mac->si_window_start = -1;
   mac->servCellIndex = 0;

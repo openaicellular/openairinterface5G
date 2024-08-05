@@ -227,18 +227,12 @@ typedef void (nr_sl_ue_scheduled_response_f)(nr_scheduled_response_t *sl_schedul
 /*
  * Generic type of an application-defined callback to return various
  * types of data to the application.
- * EXPECTED RETURN VALUES:
- *  -1: Failed to consume bytes. Abort the mission.
- * Non-negative return values indicate success, and ignored.
  */
-typedef int8_t (nr_ue_phy_config_request_f)(nr_phy_config_t *phy_config);
+typedef void (nr_ue_phy_config_request_f)(nr_phy_config_t *phy_config);
 
 /*
  * Generic type of an application-defined callback to return various
  * types of data to the application.
- * EXPECTED RETURN VALUES:
- *  -1: Failed to consume bytes. Abort the mission.
- * Non-negative return values indicate success, and ignored.
  */
 typedef void(nr_ue_sl_phy_config_request_f)(nr_sl_phy_config_t *sl_phy_config);
 

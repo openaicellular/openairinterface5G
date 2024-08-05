@@ -35,6 +35,7 @@
 #include "PHY/NR_REFSIG/nr_mod_table.h"
 #include "openair2/COMMON/prs_nr_paramdef.h"
 #include "SCHED_NR_UE/harq_nr.h"
+#include "nr-uesoftmodem.h"
 
 void RCconfig_nrUE_prs(void *cfg)
 {
@@ -277,14 +278,13 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
   }
 
   ue->init_averaging = 1;
-
-  // enable MIB/SIB decoding by default
-  ue->decode_MIB = 1;
-  ue->decode_SIB = 1;
-
   init_nr_prach_tables(839);
   init_symbol_rotation(fp);
   init_timeshift_rotation(fp);
+
+  // initialize to false only for SA since in do-ra and phy-test it is already set to true before getting here
+  if (get_softmodem_params()->sa)
+    ue->received_config_request = false;
 
   return 0;
 }

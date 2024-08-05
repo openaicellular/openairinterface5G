@@ -346,7 +346,7 @@ static bool is_my_dci(NR_UE_MAC_INST_t *mac, nfapi_nr_dl_dci_pdu_t *received_pdu
   if (get_softmodem_params()->sa) {
     if (mac->state == UE_NOT_SYNC)
       return false;
-    if (received_pdu->RNTI == 0xFFFF && mac->phy_config_request_sent)
+    if (received_pdu->RNTI == 0xFFFF)
       return false;
     if (received_pdu->RNTI != mac->crnti && mac->ra.ra_state == nrRA_SUCCEEDED)
       return false;
@@ -1149,7 +1149,7 @@ int nr_ue_ul_indication(nr_uplink_indication_t *ul_info)
 
   LOG_T(NR_MAC, "Not calling scheduler mac->ra.ra_state = %d\n", mac->ra.ra_state);
 
-  if (mac->phy_config_request_sent && is_nr_UL_slot(mac->tdd_UL_DL_ConfigurationCommon, ul_info->slot, mac->frame_type))
+  if (is_nr_UL_slot(mac->tdd_UL_DL_ConfigurationCommon, ul_info->slot, mac->frame_type))
     nr_ue_ul_scheduler(mac, ul_info);
   pthread_mutex_unlock(&mac_IF_mutex);
 

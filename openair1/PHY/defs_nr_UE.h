@@ -384,7 +384,7 @@ typedef struct PHY_VARS_NR_UE_s {
   NR_UE_COMMON    common_vars;
 
   nr_ue_if_module_t *if_inst;
-
+  bool received_config_request;
   fapi_nr_config_request_t nrUE_config;
   nr_synch_request_t synch_request;
 
@@ -450,11 +450,9 @@ typedef struct PHY_VARS_NR_UE_s {
   int dlsch_mtch_errors[MAX_MBSFN_AREA][NUMBER_OF_CONNECTED_gNB_MAX];
   int dlsch_mcch_trials[MAX_MBSFN_AREA][NUMBER_OF_CONNECTED_gNB_MAX];
   int dlsch_mtch_trials[MAX_MBSFN_AREA][NUMBER_OF_CONNECTED_gNB_MAX];
-  uint8_t               decode_SIB;
-  uint8_t               decode_MIB;
-  uint8_t               init_sync_frame;
+  uint8_t init_sync_frame;
   /// temporary offset during cell search prior to MIB decoding
-  int              ssb_offset;
+  int ssb_offset;
   uint16_t symbol_offset; /// offset in terms of symbols for detected ssb in sync
   int64_t max_pos_avg; /// Timing offset IIR filter
 

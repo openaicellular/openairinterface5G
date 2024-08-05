@@ -549,13 +549,14 @@ int8_t nr_ue_scheduled_response(nr_scheduled_response_t *scheduled_response)
   return 0;
 }
 
-int8_t nr_ue_phy_config_request(nr_phy_config_t *phy_config)
+void nr_ue_phy_config_request(nr_phy_config_t *phy_config)
 {
-  fapi_nr_config_request_t *nrUE_config = &PHY_vars_UE_g[phy_config->Mod_id][phy_config->CC_id]->nrUE_config;
+  PHY_VARS_NR_UE *phy = PHY_vars_UE_g[phy_config->Mod_id][phy_config->CC_id];
+  fapi_nr_config_request_t *nrUE_config = &phy->nrUE_config;
   if(phy_config != NULL) {
+    phy->received_config_request = true;
     memcpy(nrUE_config, &phy_config->config_req, sizeof(fapi_nr_config_request_t));
   }
-  return 0;
 }
 
 void nr_ue_synch_request(nr_synch_request_t *synch_request)
@@ -567,8 +568,10 @@ void nr_ue_synch_request(nr_synch_request_t *synch_request)
 
 void nr_ue_sl_phy_config_request(nr_sl_phy_config_t *phy_config)
 {
-  sl_nr_phy_config_request_t *sl_config = &PHY_vars_UE_g[phy_config->Mod_id][phy_config->CC_id]->SL_UE_PHY_PARAMS.sl_config;
+  PHY_VARS_NR_UE *phy = PHY_vars_UE_g[phy_config->Mod_id][phy_config->CC_id];
+  sl_nr_phy_config_request_t *sl_config = &phy->SL_UE_PHY_PARAMS.sl_config;
   if (phy_config != NULL) {
+    phy->received_config_request = true;
     memcpy(sl_config, &phy_config->sl_config_req, sizeof(sl_nr_phy_config_request_t));
   }
 }
