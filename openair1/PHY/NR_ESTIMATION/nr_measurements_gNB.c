@@ -143,12 +143,12 @@ void gNB_I0_measurements(PHY_VARS_gNB *gNB, int slot, int first_symb, int num_sy
         int offset = offset0 + (frame_parms->first_carrier_offset + (rb*12))%frame_parms->ofdm_symbol_size;
         nb_symb[rb]++;
         for (int aarx=0; aarx<frame_parms->nb_antennas_rx; aarx++) {
-          int32_t *ul_ch = (int32_t *)&common_vars->rxdataF[aarx][offset];
+          c16_t *ul_ch = &common_vars->rxdataF[aarx][offset];
           int32_t signal_energy;
           if (((frame_parms->N_RB_UL&1) == 1) &&
               (rb==(frame_parms->N_RB_UL>>1))) {
             signal_energy = signal_energy_nodc(ul_ch, 6);
-            ul_ch = (int32_t *)&common_vars->rxdataF[aarx][offset0];
+            ul_ch = &common_vars->rxdataF[aarx][offset0];
             signal_energy += signal_energy_nodc(ul_ch, 6);
           } else {
             signal_energy = signal_energy_nodc(ul_ch, 12);
@@ -229,7 +229,7 @@ void nr_gnb_measurements(PHY_VARS_gNB *gNB,
 
     for (int aatx = 0; aatx < nrOfLayers; aatx++){
       rx_spatial_power[aatx][aarx] =
-          (signal_energy_nodc(&pusch_vars->ul_ch_estimates[aatx * fp->nb_antennas_rx + aarx][ch_offset],
+          (signal_energy_nodc((c16_t*)&pusch_vars->ul_ch_estimates[aatx * fp->nb_antennas_rx + aarx][ch_offset],
                               N_RB_UL * NR_NB_SC_PER_RB));
 
       if (rx_spatial_power[aatx][aarx] < 0) {

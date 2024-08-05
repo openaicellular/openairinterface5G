@@ -310,7 +310,6 @@ static int decodePDUSessionResourceSetup(pdusession_t *session)
         /* mandatory PDUSessionType */
       case NGAP_ProtocolIE_ID_id_PDUSessionType:
         session->pdu_session_type = (uint8_t)pdusessionTransfer_ies->value.choice.PDUSessionType;
-        AssertFatal(session->pdu_session_type == PDUSessionType_ipv4 || session->pdu_session_type == PDUSessionType_ipv4v6, "To be developped: support not IPv4 sessions\n");
         break;
 
         /* optional SecurityIndication */

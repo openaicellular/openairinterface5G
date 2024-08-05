@@ -761,7 +761,7 @@ int32_t subcarrier_energy(int32_t *,uint32_t, int32_t *subcarrier_energy, uint16
 /*!\fn int32_t signal_energy_nodc(int32_t *,uint32_t);
 \brief Computes the signal energy per subcarrier, without DC removal
 */
-int32_t signal_energy_nodc(int32_t *,uint32_t);
+int32_t signal_energy_nodc(const c16_t *input, uint32_t length);
 
 int32_t signal_power(int32_t *,uint32_t);
 int32_t interference_power(int32_t *,uint32_t);

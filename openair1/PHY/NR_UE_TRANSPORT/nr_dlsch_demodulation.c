@@ -438,12 +438,10 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
   //--------------------- RBs extraction ---------------------
   //----------------------------------------------------------
   const int n_rx = frame_parms->nb_antennas_rx;
-  time_stats_t meas = {0};
   const bool meas_enabled = cpumeas(CPUMEAS_GETSTATE);
 
-  if (meas_enabled)
-    start_meas(&meas);
   {
+    start_meas_nr_ue_phy(ue, DLSCH_EXTRACT_RBS_STATS);
     __attribute__((aligned(32))) c16_t rxdataF_ext[nbRx][rx_size_symbol];
     memset(rxdataF_ext, 0, sizeof(rxdataF_ext));
 
@@ -469,15 +467,15 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
                          dlsch_config->dlDmrsSymbPos,
                          csi_res_bitmap,
                          ue->chest_time);
+    stop_meas_nr_ue_phy(ue, DLSCH_EXTRACT_RBS_STATS);
     if (meas_enabled) {
-      stop_meas(&meas);
       LOG_D(PHY,
             "[AbsSFN %u.%d] Slot%d Symbol %d: Pilot/Data extraction %5.2f \n",
             frame,
             nr_slot_rx,
             slot,
             symbol,
-            meas.p_time / (cpuf * 1000.0));
+            ue->phy_cpu_stats.cpu_time_stats[DLSCH_EXTRACT_RBS_STATS].p_time / (cpuf * 1000.0));
     }
     if (ue->phy_sim_pdsch_rxdataF_ext)
       for (unsigned char aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
@@ -491,25 +489,23 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
     //----------------------------------------------------------
     //--------------------- Channel Scaling --------------------
     //----------------------------------------------------------
-    if (meas_enabled)
-      start_meas(&meas);
+    start_meas_nr_ue_phy(ue, DLSCH_CHANNEL_SCALE_STATS);
     nr_dlsch_scale_channel(rx_size_symbol, dl_ch_estimates_ext, frame_parms, nl, n_rx, symbol, pilots, nb_re_pdsch, nb_rb_pdsch);
+    stop_meas_nr_ue_phy(ue, DLSCH_CHANNEL_SCALE_STATS);
     if (meas_enabled) {
-      stop_meas(&meas);
       LOG_D(PHY,
             "[AbsSFN %u.%d] Slot%d Symbol %d: Channel Scale  %5.2f \n",
             frame,
             nr_slot_rx,
             slot,
             symbol,
-            meas.p_time / (cpuf * 1000.0));
+            ue->phy_cpu_stats.cpu_time_stats[DLSCH_CHANNEL_SCALE_STATS].p_time / (cpuf * 1000.0));
     }
 
     //----------------------------------------------------------
     //--------------------- Channel Level Calc. ----------------
     //----------------------------------------------------------
-    if (meas_enabled)
-      start_meas(&meas);
+    start_meas_nr_ue_phy(ue, DLSCH_CHANNEL_LEVEL_STATS);
     if (first_symbol_flag) {
       int32_t avg[MAX_ANT][MAX_ANT] = {};
       if (nb_re_pdsch)
@@ -537,8 +533,8 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
       // LOG_I(PHY, "avgs Power per SC is %d lg2_maxh %d\n", avgs,  log2_maxh);
       LOG_D(PHY, "[DLSCH] AbsSubframe %d.%d log2_maxh = %d (%d)\n", frame % 1024, nr_slot_rx, *log2_maxh, avgs);
     }
+    stop_meas_nr_ue_phy(ue, DLSCH_CHANNEL_LEVEL_STATS);
     if (meas_enabled) {
-      stop_meas(&meas);
       LOG_D(PHY,
             "[AbsSFN %u.%d] Slot%d Symbol %d first_symbol_flag %d: Channel Level  %5.2f \n",
             frame,
@@ -546,7 +542,7 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
             slot,
             symbol,
             first_symbol_flag,
-            meas.p_time / (cpuf * 1000.0));
+            ue->phy_cpu_stats.cpu_time_stats[DLSCH_CHANNEL_LEVEL_STATS].p_time / (cpuf * 1000.0));
     }
 #if T_TRACER
     T(T_UE_PHY_PDSCH_ENERGY, T_INT(gNB_id), T_INT(0), T_INT(frame % 1024), T_INT(nr_slot_rx));
@@ -556,8 +552,7 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
     //--------------------- channel compensation ---------------
     //----------------------------------------------------------
     // Disable correlation measurement for optimizing UE
-    if (meas_enabled)
-      start_meas(&meas);
+    start_meas_nr_ue_phy(ue, DLSCH_CHANNEL_COMPENSATION_STATS);
     nr_dlsch_channel_compensation(rx_size_symbol,
                                   nbRx,
                                   rxdataF_ext,
@@ -576,8 +571,8 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
                                   nb_rb_pdsch,
                                   *log2_maxh,
                                   measurements); // log2_maxh+I0_shift
+    stop_meas_nr_ue_phy(ue, DLSCH_CHANNEL_COMPENSATION_STATS);
     if (meas_enabled) {
-      stop_meas(&meas);
       LOG_D(PHY,
             "[AbsSFN %u.%d] Slot%d Symbol %d log2_maxh %d Channel Comp  %5.2f \n",
             frame,
@@ -585,13 +580,11 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
             slot,
             symbol,
             *log2_maxh,
-            meas.p_time / (cpuf * 1000.0));
+            ue->phy_cpu_stats.cpu_time_stats[DLSCH_CHANNEL_COMPENSATION_STATS].p_time / (cpuf * 1000.0));
     }
   }
 
-  if (meas_enabled)
-    start_meas(&meas);
-
+  start_meas_nr_ue_phy(ue, DLSCH_MRC_MMSE_STATS);
   if (n_rx > 1) {
     nr_dlsch_detection_mrc(rx_size_symbol,
                            nl,
@@ -620,20 +613,20 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
                     nb_re_pdsch,
                     nvar);
   }
+  stop_meas_nr_ue_phy(ue, DLSCH_MRC_MMSE_STATS);
 
   if (meas_enabled) {
-    stop_meas(&meas);
     LOG_D(PHY,
           "[AbsSFN %u.%d] Slot%d Symbol %d: Channel Combine and MMSE %5.2f \n",
           frame,
           nr_slot_rx,
           slot,
           symbol,
-          meas.p_time / (cpuf * 1000.0));
+          ue->phy_cpu_stats.cpu_time_stats[DLSCH_MRC_MMSE_STATS].p_time / (cpuf * 1000.0));
   }
 
-  if (meas_enabled)
-    start_meas(&meas);
+
+
   /* Store the valid DL RE's */
   dl_valid_re[symbol-1] = nb_re_pdsch;
   int startSymbIdx = 0;
@@ -682,6 +675,7 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
       else
         first_symbol_flag = 0;
       /* Calculate LLR's for each symbol */
+      start_meas_nr_ue_phy(ue, DLSCH_LLR_STATS);
       nr_dlsch_llr(rx_size_symbol,
                    nbRx,
                    rx_llr_layer_size,
@@ -703,8 +697,10 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
                    nr_slot_rx,
                    dlsch,
                    llr_offset);
+      stop_meas_nr_ue_phy(ue, DLSCH_LLR_STATS);
     }
 
+    start_meas_nr_ue_phy(ue, DLSCH_LAYER_DEMAPPING);
     nr_dlsch_layer_demapping(llr,
                              dlsch[0].Nl,
                              dlsch[0].dlsch_config.qamModOrder,
@@ -713,6 +709,7 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
                              codeword_TB1,
                              rx_llr_layer_size,
                              layer_llr);
+    stop_meas_nr_ue_phy(ue, DLSCH_LAYER_DEMAPPING);
     // Please keep it: useful for debugging
 #ifdef DEBUG_PDSCH_RX
     char filename[50];
@@ -742,14 +739,13 @@ int nr_rx_pdsch(PHY_VARS_NR_UE *ue,
   }
 
   if (meas_enabled) {
-    stop_meas(&meas);
     LOG_D(PHY,
           "[AbsSFN %u.%d] Slot%d Symbol %d: LLR Computation  %5.2f \n",
           frame,
           nr_slot_rx,
           slot,
           symbol,
-          meas.p_time / (cpuf * 1000.0));
+          ue->phy_cpu_stats.cpu_time_stats[DLSCH_LLR_STATS].p_time / (cpuf * 1000.0));
   }
 
 #if T_TRACER

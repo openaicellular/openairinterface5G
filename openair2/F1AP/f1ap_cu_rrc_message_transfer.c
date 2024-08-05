@@ -279,14 +279,13 @@ int CU_handle_UL_RRC_MESSAGE_TRANSFER(instance_t instance, sctp_assoc_t assoc_id
   uint8_t *mb = malloc16(ie->value.choice.RRCContainer.size);
   memcpy(mb, ie->value.choice.RRCContainer.buf, ie->value.choice.RRCContainer.size);
   LOG_D(F1AP, "Calling pdcp_data_ind for UE RNTI %lx srb_id %lu with size %ld (DCCH) \n", ctxt.rntiMaybeUEid, srb_id, ie->value.choice.RRCContainer.size);
-  //for (int i = 0; i < ie->value.choice.RRCContainer.size; i++)
-  //  printf("%02x ", mb->data[i]);
-  //printf("\n");
-  pdcp_data_ind (&ctxt,
-                 1, // srb_flag
-                 0, // embms_flag
-                 srb_id,
-                 ie->value.choice.RRCContainer.size,
-                 mb, NULL, NULL);
+  nr_pdcp_data_ind(&ctxt,
+                   1, // srb_flag
+                   0, // embms_flag
+                   srb_id,
+                   ie->value.choice.RRCContainer.size,
+                   mb,
+                   NULL,
+                   NULL);
   return 0;
 }

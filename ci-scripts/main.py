@@ -337,11 +337,13 @@ def GetParametersFromXML(action):
 		string_field = test.findtext('args')
 		if (string_field is not None):
 			EPC.cfgDeploy = string_field	
+		EPC.cnID = test.findtext('cn_id')
 
 	elif action == 'Terminate_5GCN':
 		string_field = test.findtext('args')
 		if (string_field is not None):
 			EPC.cfgUnDeploy = string_field	
+		EPC.cnID = test.findtext('cn_id')
 
 	elif action == 'Deploy_Object' or action == 'Undeploy_Object':
 		eNB_instance=test.findtext('eNB_instance')

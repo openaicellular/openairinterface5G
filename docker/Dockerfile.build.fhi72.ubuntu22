@@ -25,7 +25,7 @@
 #
 #---------------------------------------------------------------------
 
-FROM ran-base:latest as ran-base
+FROM ran-base:latest AS ran-base
 
 ARG E2AP_VERSION=E2AP_V3
 ARG KPM_VERSION=KPM_V3_00
@@ -61,7 +61,7 @@ RUN git clone https://gerrit.o-ran-sc.org/r/o-du/phy.git /opt/phy && \
     cd /opt/phy/fhi_lib/lib && \
     RTE_SDK=/oai-ran/dpdk-stable-20.11.9/ XRAN_DIR=/opt/phy/fhi_lib make XRAN_LIB_SO=1 
 
-FROM ran-base as ran-build-fhi72
+FROM ran-base AS ran-build-fhi72
 ## Build and install OAI
 #run build_oai to build the target image
 RUN /bin/sh oaienv && \ 

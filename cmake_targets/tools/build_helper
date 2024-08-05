@@ -171,10 +171,6 @@ clean_kernel() {
     $SUDO iptables -t filter -F
     $SUDO iptables -t raw -F
     echo_info "Flushed iptables"
-    $SUDO rmmod nasmesh > /dev/null 2>&1
-    $SUDO rmmod oai_nw_drv  > /dev/null 2>&1
-    $SUDO rmmod ue_ip > /dev/null 2>&1
-    echo_info "removed drivers from kernel"
 }
 
 clean_all_files() {

@@ -72,8 +72,6 @@ static int DEFRUTPCORES[] = {2,4,6,8};
 #include "ENB_APP/enb_paramdef.h"
 #include "common/config/config_userapi.h"
 
-#include "SIMULATION/ETH_TRANSPORT/proto.h"
-
 #include "T.h"
 
 #include "executables/softmodem-common.h"

@@ -539,7 +539,7 @@ int main(int argc, char **argv)
   }
 
   pucch_GroupHopping_t PUCCH_GroupHopping = pucch_tx_pdu.group_hop_flag + (pucch_tx_pdu.sequence_hop_flag<<1);
-
+  double tx_level_fp = 100.0;
   for(SNR=snr0;SNR<=snr1;SNR+=1){
     ack_nack_errors=0;
     sr_errors=0;
@@ -578,8 +578,8 @@ int main(int argc, char **argv)
             for (int aarx=0;aarx<n_rx;aarx++) {
               double nr = sqrt(sigma2/2)*gaussdouble(0.0,1.0);
               double ni = sqrt(sigma2/2)*gaussdouble(0.0,1.0);
-              rxdataF[aarx][i].r = (int16_t)(100.0*(nr)/sqrt((double)txlev));
-              rxdataF[aarx][i].i = (int16_t)(100.0*(ni)/sqrt((double)txlev));
+              rxdataF[aarx][i].r = (int16_t)(tx_level_fp * (nr) / sqrt((double)txlev));
+              rxdataF[aarx][i].i = (int16_t)(tx_level_fp * (ni) / sqrt((double)txlev));
             }
           }
         }
@@ -607,8 +607,8 @@ int main(int argc, char **argv)
             rxr = rxr_tmp;
             double nr = sqrt(sigma2/2)*gaussdouble(0.0,1.0);
             double ni = sqrt(sigma2/2)*gaussdouble(0.0,1.0);
-            rxdataF[aarx][i].r = (int16_t)(100.0*(rxr + nr)/sqrt((double)txlev));
-            rxdataF[aarx][i].i=(int16_t)(100.0*(rxi + ni)/sqrt((double)txlev));
+            rxdataF[aarx][i].r = (int16_t)(tx_level_fp * (rxr + nr) / sqrt((double)txlev));
+            rxdataF[aarx][i].i = (int16_t)(tx_level_fp * (rxi + ni) / sqrt((double)txlev));
 
             if (n_trials==1 && fabs(txr) > 0) printf("symb %d, re %d , aarx %d : txr %f, txi %f, chr %f, chi %f, nr %f, ni %f, rxr %f, rxi %f => %d,%d\n",
                                                     symb, re, aarx, txr,txi,

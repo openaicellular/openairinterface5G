@@ -25,12 +25,12 @@
 #
 #---------------------------------------------------------------------
 
-FROM ran-base:latest as gnb-base
+FROM ran-base:latest AS gnb-base
 
 FROM ran-build:latest AS gnb-build
 
 
-FROM ubuntu:jammy as oai-nr-cuup
+FROM ubuntu:jammy AS oai-nr-cuup
 ARG BUILD_OPTION
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe

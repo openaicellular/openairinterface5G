@@ -97,7 +97,7 @@ void get_common_options(configmodule_interface_t *cfg, uint32_t execmask)
   uint32_t glog_level=0 ;
   uint32_t start_telnetsrv = 0, start_telnetclt = 0;
   uint32_t start_websrv = 0;
-  uint32_t noS1 = 0, nokrnmod = 1, nonbiot = 0;
+  uint32_t noS1 = 0, nonbiot = 0;
   uint32_t rfsim = 0, do_forms = 0;
   int nfapi_index = 0;
   char *logmem_filename = NULL;
@@ -144,10 +144,6 @@ void get_common_options(configmodule_interface_t *cfg, uint32_t execmask)
 
   if (noS1) {
     set_softmodem_optmask(SOFTMODEM_NOS1_BIT);
-  }
-
-  if (nokrnmod) {
-    set_softmodem_optmask(SOFTMODEM_NOKRNMOD_BIT);
   }
 
   if (nonbiot) {

@@ -48,6 +48,7 @@ import helpreadme as HELP
 import constants as CONST
 import cls_cluster as OC
 import cls_cmd
+import cls_module
 #-----------------------------------------------------------
 # Class Declaration
 #-----------------------------------------------------------
@@ -75,6 +76,7 @@ class EPCManagement():
 		self.OCRegistry = "default-route-openshift-image-registry.apps.oai.cs.eurecom.fr/"
 		self.OCUserName = ''
 		self.OCPassword = ''
+		self.cnID = ''
 		self.imageToPull = ''
 		self.eNBSourceCodePath = ''
 
@@ -298,7 +300,8 @@ class EPCManagement():
 						html_cell += '(' + res4.group('date') + ')'
 					html_cell += '\n'
 		elif re.match('OC-OAI-CN5G', self.Type, re.IGNORECASE):
-			succeeded, report = OC.OC_deploy_CN(mySSH, self.OCUserName, self.OCPassword)
+			cn = cls_module.Module_UE(self.cnID)
+			succeeded, report = OC.OC_deploy_CN(mySSH, self.OCUserName, self.OCPassword, cn.getNamespace(), cn.getCNPath())
 			if not succeeded:
 				HTML.CreateHtmlTestRow('N/A', 'KO', report)
 				HTML.CreateHtmlTabFooter(False)
@@ -575,7 +578,8 @@ class EPCManagement():
 			mySSH.copyin(f'{self.SourceCodePath}/logs/test_logs_CN.zip','test_logs_CN.zip')
 			logging.debug(message)
 		elif re.match('OC-OAI-CN5G', self.Type, re.IGNORECASE):
-			succeeded, report = OC.OC_undeploy_CN(mySSH, self.OCUserName, self.OCPassword)
+			cn = cls_module.Module_UE(self.cnID)
+			succeeded, report = OC.OC_undeploy_CN(mySSH, self.OCUserName, self.OCPassword, cn.getNamespace(), cn.getCNPath())
 			if not succeeded:
 				HTML.CreateHtmlTestRow('N/A', 'KO', report)
 				HTML.CreateHtmlTabFooter(False)

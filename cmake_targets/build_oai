@@ -85,7 +85,7 @@ Options:
 --RU
   Makes the OAI RRU
 --UE
-   Makes the UE specific parts (ue_ip, usim, nvram) from the given configuration file
+   Makes the UE specific parts (usim, nvram) from the given configuration file
 --nrUE
   Makes the NR UE softmodem
 --UE-conf-nvram [configuration file]
@@ -271,9 +271,6 @@ function main() {
        --UE-gen-nvram)
             gen_nvram_path=$(readlink -f "$2")
             shift 2;;
-       --UE-ip)
-            TARGET_LIST="$TARGET_LIST ue_ip"
-            shift;;
        -w | --hardware)
             case "$2" in
                 "USRP" | "BLADERF" | "LMSSDR" | "IRIS")

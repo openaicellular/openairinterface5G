@@ -313,10 +313,13 @@ static int nr_process_mac_pdu(instance_t module_idP,
         int PH;
         const int PCMAX = phr->PCMAX;
         /* 38.133 Table10.1.17.1-1 */
-        if (phr->PH < 55)
+        if (phr->PH < 55) {
           PH = phr->PH - 32;
-        else
-          PH = phr->PH - 32 + (phr->PH - 54);
+        } else if (phr->PH < 63) {
+          PH = 28 + (phr->PH - 55) * 2;
+        } else {
+          PH = 42;
+        }
         // in sched_ctrl we set normalized PH wrt MCS and PRBs
         long *deltaMCS = ul_bwp->pusch_Config ? ul_bwp->pusch_Config->pusch_PowerControl->deltaMCS : NULL;
         sched_ctrl->ph = PH
@@ -331,8 +334,16 @@ static int nr_process_mac_pdu(instance_t module_idP,
         sched_ctrl->ph0 = PH;
         /* 38.133 Table10.1.18.1-1 */
         sched_ctrl->pcmax = PCMAX - 29;
-        LOG_D(NR_MAC, "SINGLE ENTRY PHR R1 %d PH %d (%d dB) R2 %d PCMAX %d (%d dBm)\n",
-              phr->R1, PH, sched_ctrl->ph, phr->R2, PCMAX, sched_ctrl->pcmax);
+        LOG_D(NR_MAC,
+              "SINGLE ENTRY PHR %d.%d R1 %d PH %d (%d dB) R2 %d PCMAX %d (%d dBm)\n",
+              frameP,
+              slot,
+              phr->R1,
+              PH,
+              sched_ctrl->ph,
+              phr->R2,
+              PCMAX,
+              sched_ctrl->pcmax);
         break;
 
       case UL_SCH_LCID_MULTI_ENTRY_PHR_1_OCT:

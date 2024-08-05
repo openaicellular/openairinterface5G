@@ -1814,6 +1814,64 @@ static uint32_t nr_get_sf_periodicBSRTimer(long periodicBSR)
   return timer;
 }
 
+static uint32_t get_data_inactivity_timer(long setup)
+{
+  uint32_t timer_s = 0;
+  switch (setup) {
+    case NR_DataInactivityTimer_s1 :
+      timer_s = 1;
+      break;
+    case NR_DataInactivityTimer_s2 :
+      timer_s = 2;
+      break;
+    case NR_DataInactivityTimer_s3 :
+      timer_s = 3;
+      break;
+    case NR_DataInactivityTimer_s5 :
+      timer_s = 5;
+      break;
+    case NR_DataInactivityTimer_s7 :
+      timer_s = 7;
+      break;
+    case NR_DataInactivityTimer_s10 :
+      timer_s = 10;
+      break;
+    case NR_DataInactivityTimer_s15 :
+      timer_s = 15;
+      break;
+    case NR_DataInactivityTimer_s20 :
+      timer_s = 20;
+      break;
+    case NR_DataInactivityTimer_s40 :
+      timer_s = 40;
+      break;
+    case NR_DataInactivityTimer_s50 :
+      timer_s = 50;
+      break;
+    case NR_DataInactivityTimer_s60 :
+      timer_s = 60;
+      break;
+    case NR_DataInactivityTimer_s80 :
+      timer_s = 80;
+      break;
+    case NR_DataInactivityTimer_s100 :
+      timer_s = 100;
+      break;
+    case NR_DataInactivityTimer_s120 :
+      timer_s = 120;
+      break;
+    case NR_DataInactivityTimer_s150 :
+      timer_s = 150;
+      break;
+    case NR_DataInactivityTimer_s180 :
+      timer_s = 180;
+      break;
+    default :
+      AssertFatal(false, "Invalid data inactivity timer\n");
+  }
+  return timer_s;
+}
+
 static void configure_maccellgroup(NR_UE_MAC_INST_t *mac, const NR_MAC_CellGroupConfig_t *mcg)
 {
   NR_UE_SCHEDULING_INFO *si = &mac->scheduling_info;
@@ -1879,7 +1937,34 @@ static void configure_maccellgroup(NR_UE_MAC_INST_t *mac, const NR_MAC_CellGroup
     }
   }
   if (mcg->phr_Config) {
-    // TODO configuration when PHR is implemented
+    nr_phr_info_t *phr_info = &si->phr_info;
+    phr_info->is_configured = mcg->phr_Config->choice.setup != NULL;
+    if (phr_info->is_configured) {
+      int slots_per_subframe = nr_slots_per_frame[scs] / 10;
+      struct NR_PHR_Config *config = mcg->phr_Config->choice.setup;
+      AssertFatal(config->multiplePHR == 0, "mulitplePHR not supported");
+      phr_info->PathlossChange_db = config->phr_Tx_PowerFactorChange;
+      const int periodic_timer_sf_enum_to_sf[] = {10, 20, 50, 100, 200, 500, 1000, UINT_MAX};
+      int periodic_timer_sf = periodic_timer_sf_enum_to_sf[config->phr_PeriodicTimer];
+      nr_timer_setup(&phr_info->periodicPHR_Timer, periodic_timer_sf * slots_per_subframe, 1);
+      const int prohibit_timer_sf_enum_to_sf[] = {0, 10, 20, 50, 100, 200, 500, 1000};
+      int prohibit_timer_sf = prohibit_timer_sf_enum_to_sf[config->phr_ProhibitTimer];
+      nr_timer_setup(&phr_info->prohibitPHR_Timer, prohibit_timer_sf * slots_per_subframe, 1);
+      phr_info->phr_reporting = (1 << phr_cause_phr_config);
+    }
+  }
+
+  if (mcg->ext1 && mcg->ext1->dataInactivityTimer) {
+    struct NR_SetupRelease_DataInactivityTimer *setup_release = mcg->ext1->dataInactivityTimer;
+    if (setup_release->present == NR_SetupRelease_DataInactivityTimer_PR_release)
+      free(mac->data_inactivity_timer);
+    if (setup_release->present == NR_SetupRelease_DataInactivityTimer_PR_setup) {
+      if (!mac->data_inactivity_timer)
+        mac->data_inactivity_timer = calloc(1, sizeof(*mac->data_inactivity_timer));
+      uint32_t timer_s = get_data_inactivity_timer(setup_release->choice.setup); // timer in seconds
+      int scs = mac->current_DL_BWP->scs;
+      nr_timer_setup(mac->data_inactivity_timer, (timer_s * 1000) << scs, 1); // 1 slot update rate
+    }
   }
 }
 

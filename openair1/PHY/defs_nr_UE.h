@@ -40,6 +40,7 @@
 #include "defs_nr_common.h"
 #include "CODING/nrPolar_tools/nr_polar_pbch_defs.h"
 #include "PHY/defs_nr_sl_UE.h"
+#include "openair1/PHY/nr_phy_common/inc/nr_ue_phy_meas.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -502,56 +503,10 @@ typedef struct PHY_VARS_NR_UE_s {
   scheduling_request_config_t scheduling_request_config_nr[NUMBER_OF_CONNECTED_gNB_MAX];
 
 #endif
-
-  time_stats_t phy_proc;
-  time_stats_t phy_proc_tx;
-  time_stats_t phy_proc_rx;
-
-  time_stats_t ue_ul_indication_stats;
-
   uint32_t use_ia_receiver;
-
-  time_stats_t ofdm_mod_stats;
-  time_stats_t ulsch_encoding_stats;
-  time_stats_t ulsch_ldpc_encoding_stats;
-  time_stats_t ulsch_modulation_stats;
-  time_stats_t ulsch_segmentation_stats;
-  time_stats_t ulsch_rate_matching_stats;
-  time_stats_t ulsch_interleaving_stats;
-  time_stats_t ulsch_multiplexing_stats;
-
-  time_stats_t ue_front_end_stat;
-  time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
-  time_stats_t pdcch_procedures_stat;
-  time_stats_t pdsch_procedures_stat;
-  time_stats_t pdsch_procedures_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
-  time_stats_t dlsch_procedures_stat;
-
-  time_stats_t rx_pdsch_stats;
-  time_stats_t ofdm_demod_stats;
-  time_stats_t dlsch_rx_pdcch_stats;
-  time_stats_t rx_dft_stats;
-  time_stats_t dlsch_channel_estimation_stats;
-  time_stats_t dlsch_freq_offset_estimation_stats;
-  time_stats_t dlsch_decoding_stats;
-  time_stats_t dlsch_demodulation_stats;
-  time_stats_t dlsch_rate_unmatching_stats;
-  time_stats_t dlsch_ldpc_decoding_stats;
-  time_stats_t dlsch_deinterleaving_stats;
-  time_stats_t dlsch_llr_stats;
-  time_stats_t dlsch_llr_stats_parallelization[LTE_SLOTS_PER_SUBFRAME];
-  time_stats_t dlsch_unscrambling_stats;
-  time_stats_t dlsch_rate_matching_stats;
-  time_stats_t dlsch_ldpc_encoding_stats;
-  time_stats_t dlsch_interleaving_stats;
-  time_stats_t dlsch_tc_init_stats;
-  time_stats_t dlsch_tc_alpha_stats;
-  time_stats_t dlsch_tc_beta_stats;
-  time_stats_t dlsch_tc_gamma_stats;
-  time_stats_t dlsch_tc_ext_stats;
-  time_stats_t dlsch_tc_intl1_stats;
-  time_stats_t dlsch_tc_intl2_stats;
-  time_stats_t tx_prach;
+  // TODO: move this out of phy
+  time_stats_t ue_ul_indication_stats;
+  nr_ue_phy_cpu_stat_t phy_cpu_stats;
 
   /// RF and Interface devices per CC
   openair0_device rfdevice;
@@ -685,5 +640,12 @@ typedef struct LDPCDecode_ue_s {
   UE_nr_rxtx_proc_t proc;
 } ldpcDecode_ue_t;
 
-#include "SIMULATION/ETH_TRANSPORT/defs.h"
+static inline void start_meas_nr_ue_phy(PHY_VARS_NR_UE *ue, int meas_index) {
+  start_meas(&ue->phy_cpu_stats.cpu_time_stats[meas_index]);
+}
+
+static inline void stop_meas_nr_ue_phy(PHY_VARS_NR_UE *ue, int meas_index) {
+  stop_meas(&ue->phy_cpu_stats.cpu_time_stats[meas_index]);
+}
+
 #endif

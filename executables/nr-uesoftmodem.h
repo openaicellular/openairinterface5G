@@ -3,9 +3,6 @@
 #include <executables/nr-softmodem-common.h>
 #include <executables/softmodem-common.h>
 #include "PHY/defs_nr_UE.h"
-#include "SIMULATION/ETH_TRANSPORT/proto.h"
-
-
 
 #define  CONFIG_HLP_IF_FREQ                "IF frequency for RF, if needed\n"
 #define  CONFIG_HLP_IF_FREQ_OFF            "UL IF frequency offset for RF, if needed\n"
