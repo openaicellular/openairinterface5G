@@ -122,6 +122,29 @@ void nr_normal_prefix_mod(c16_t *txdataF, c16_t *txdata, uint8_t nsymb, const NR
 
 }
 
+void nr_PHY_ofdm_mod(void *args)
+{
+  nr_ofdm_mod_data_t *data = (nr_ofdm_mod_data_t *)args;
+  const uint fftSize = data->fftSize;
+  const uint prefixSize = data->prefixSize;
+  const c16_t *in = data->in;
+  c16_t *out = data->out;
+  const idft_size_idx_t idftSize = get_idft(fftSize);
+
+  /* 3/4 sampling CP is not 32 byte aligned */
+  c16_t temp[fftSize] __attribute__((aligned(32)));
+  const bool isUnligned = ((intptr_t)(out + prefixSize) & 0x1f);
+  c16_t *tmpOut = isUnligned ? temp : (out + prefixSize);
+
+  idft(idftSize, (int16_t *)in, (int16_t *)tmpOut, 1);
+
+  memcpy(out, tmpOut + fftSize - prefixSize, sizeof(c16_t) * prefixSize);
+
+  /* copy to out if 3/4 sampling is used */
+  if (isUnligned)
+    memcpy(out + prefixSize, tmpOut, sizeof(c16_t) * fftSize);
+}
+
 void PHY_ofdm_mod(int *input,                       /// pointer to complex input
                   int *output,                      /// pointer to complex output
                   int fftsize,            /// FFT_SIZE

@@ -52,6 +52,14 @@ void nr_normal_prefix_mod(c16_t *txdataF, c16_t *txdata, uint8_t nsymb, const NR
 
 void do_OFDM_mod(c16_t **txdataF, c16_t **txdata, uint32_t frame,uint16_t next_slot, LTE_DL_FRAME_PARMS *frame_parms);
 
+typedef struct {
+  c16_t *in;
+  uint fftSize;
+  uint prefixSize;
+  c16_t *out;
+} nr_ofdm_mod_data_t;
+
+void nr_PHY_ofdm_mod(void *args);
 
 /** @}*/
 #endif
