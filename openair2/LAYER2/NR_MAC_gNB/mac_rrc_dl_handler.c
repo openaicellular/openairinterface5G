@@ -24,6 +24,7 @@
 #include "mac_proto.h"
 #include "openair2/F1AP/f1ap_ids.h"
 #include "openair2/F1AP/f1ap_common.h"
+#include "openair2/E1AP/e1ap_common.h"
 #include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
 #include "F1AP_CauseRadioNetwork.h"
 #include "openair3/ocp-gtpu/gtp_itf.h"
@@ -33,11 +34,6 @@
 
 #include "uper_decoder.h"
 #include "uper_encoder.h"
-
-// Standarized 5QI values and Default Priority levels as mentioned in 3GPP TS 23.501 Table 5.7.4-1
-const uint64_t qos_fiveqi[26] = {1, 2, 3, 4, 65, 66, 67, 71, 72, 73, 74, 76, 5, 6, 7, 8, 9, 69, 70, 79, 80, 82, 83, 84, 85, 86};
-const uint64_t qos_priority[26] = {20, 40, 30, 50, 7, 20, 15, 56, 56, 56, 56, 56, 10,
-                                   60, 70, 80, 90, 5, 55, 65, 68, 19, 22, 24, 21, 18};
 
 static instance_t get_f1_gtp_instance(void)
 {
@@ -248,32 +244,50 @@ static NR_RLC_BearerConfig_t *get_bearerconfig_from_drb(const f1ap_drb_to_be_set
   return get_DRB_RLC_BearerConfig(get_lcid_from_drbid(drb->drb_id), drb->drb_id, rlc_conf, priority);
 }
 
-static int get_non_dynamic_priority(int fiveqi)
-{
-  for (int i = 0; i < sizeofArray(qos_fiveqi); ++i)
-    if (qos_fiveqi[i] == fiveqi)
-      return qos_priority[i];
-  AssertFatal(false, "illegal 5QI value %d\n", fiveqi);
-  return 0;
-}
-
-static NR_QoS_config_t get_qos_config(const f1ap_qos_characteristics_t *qos_char)
+static NR_QoS_config_t get_qos_config(const qos_characteristics_t *qos_char)
 {
   NR_QoS_config_t qos_c = {0};
   switch (qos_char->qos_type) {
-    case dynamic:
+    case dynamic_5qi:
       qos_c.priority = qos_char->dynamic.qos_priority_level;
       qos_c.fiveQI = qos_char->dynamic.fiveqi > 0 ? qos_char->dynamic.fiveqi : 0;
       break;
-    case non_dynamic:
+    case non_dynamic_5qi:
       qos_c.fiveQI = qos_char->non_dynamic.fiveqi;
-      qos_c.priority = get_non_dynamic_priority(qos_char->non_dynamic.fiveqi);
+      qos_c.priority = params_5QI[get_5QI_id(qos_c.fiveQI)].priority_level;
       break;
     default:
       AssertFatal(false, "illegal QoS type %d\n", qos_char->qos_type);
       break;
   }
   return qos_c;
+}
+
+static nr_lc_config_t nr_prepare_lcconfig(long lcid, const f1ap_drb_to_be_setup_t *drb)
+{
+  const gbr_qos_flow_information_t *gbr_qos_info_drb = drb->drb_info.drb_qos.gbr_qos_flow_info;
+  const qos_characteristics_t *qos_char = &drb->drb_info.drb_qos.qos_characteristics;
+
+  nr_lc_config_t c = {.lcid = lcid, .nssai = drb->nssai};
+  int prio = 100;
+  for (int q = 0; q < drb->drb_info.flows_to_be_setup_length; ++q) {
+    c.qos_config[q] = get_qos_config(&drb->drb_info.flows_mapped_to_drb[q].qos_params.qos_characteristics);
+  }
+  if (qos_char->qos_type == non_dynamic_5qi)
+    prio = get_non_dynamic_priority(qos_char->non_dynamic.fiveqi);
+  else
+    prio = qos_char->dynamic.qos_priority_level;
+  c.priority = prio;
+
+  int m_bitrate = 0, g_bitrate = 0;
+  if (gbr_qos_info_drb) {
+    g_bitrate = gbr_qos_info_drb->gbr_dl;
+    m_bitrate = gbr_qos_info_drb->mbr_dl;
+  }
+  c.guaranteed_bitrate = g_bitrate;
+  c.max_bitrate = m_bitrate;
+
+  return c;
 }
 
 static int handle_ue_context_drbs_setup(NR_UE_info_t *UE,
@@ -291,17 +305,13 @@ static int handle_ue_context_drbs_setup(NR_UE_info_t *UE,
   AssertFatal(*resp_drbs != NULL, "out of memory\n");
   for (int i = 0; i < drbs_len; i++) {
     const f1ap_drb_to_be_setup_t *drb = &req_drbs[i];
+
     f1ap_drb_to_be_setup_t *resp_drb = &(*resp_drbs)[i];
     NR_RLC_BearerConfig_t *rlc_BearerConfig = get_bearerconfig_from_drb(drb);
     nr_rlc_add_drb(UE->rnti, drb->drb_id, rlc_BearerConfig);
 
-    nr_lc_config_t c = {.lcid = rlc_BearerConfig->logicalChannelIdentity, .nssai = drb->nssai};
-    int prio = 100;
-    for (int q = 0; q < drb->drb_info.flows_to_be_setup_length; ++q) {
-      c.qos_config[q] = get_qos_config(&drb->drb_info.flows_mapped_to_drb[q].qos_params.qos_characteristics);
-      prio = min(prio, c.qos_config[q].priority);
-    }
-    c.priority = prio;
+    nr_lc_config_t c = nr_prepare_lcconfig(rlc_BearerConfig->logicalChannelIdentity, drb);
+
     nr_mac_add_lcid(&UE->UE_sched_ctrl, &c);
 
     *resp_drb = *drb;

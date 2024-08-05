@@ -39,12 +39,13 @@
 #include "rrc_extern.h"
 #include "openair2/RRC/NR/rrc_gNB_NGAP.h"
 
-static void f1ap_write_drb_qos_param(const f1ap_qos_flow_level_qos_parameters_t *drb_qos_in, F1AP_QoSFlowLevelQoSParameters_t *asn1_qosparam)
+static void f1ap_write_drb_qos_param(const qos_flow_level_qos_parameters_t *drb_qos_in,
+                                     F1AP_QoSFlowLevelQoSParameters_t *asn1_qosparam)
 {
   int type = drb_qos_in->qos_characteristics.qos_type;
 
-  const f1ap_qos_characteristics_t *drb_qos_char_in = &drb_qos_in->qos_characteristics;
-  if (type == non_dynamic) {
+  const qos_characteristics_t *drb_qos_char_in = &drb_qos_in->qos_characteristics;
+  if (type == non_dynamic_5qi) {
     asn1_qosparam->qoS_Characteristics.present = F1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
     asn1cCalloc(asn1_qosparam->qoS_Characteristics.choice.non_Dynamic_5QI, tmp);
 
@@ -80,12 +81,12 @@ static void f1ap_write_drb_qos_param(const f1ap_qos_flow_level_qos_parameters_t 
 
   /* OPTIONAL */
   /* gBR_QoS_Flow_Information */
-  if (0) {
+  if (drb_qos_in->gbr_qos_flow_info) {
     asn1cCalloc(asn1_qosparam->gBR_QoS_Flow_Information, tmp);
-    asn_long2INTEGER(&tmp->maxFlowBitRateDownlink, 1L);
-    asn_long2INTEGER(&tmp->maxFlowBitRateUplink, 1L);
-    asn_long2INTEGER(&tmp->guaranteedFlowBitRateDownlink, 1L);
-    asn_long2INTEGER(&tmp->guaranteedFlowBitRateUplink, 1L);
+    asn_long2INTEGER(&tmp->maxFlowBitRateDownlink, drb_qos_in->gbr_qos_flow_info->mbr_dl);
+    asn_long2INTEGER(&tmp->maxFlowBitRateUplink, drb_qos_in->gbr_qos_flow_info->mbr_ul);
+    asn_long2INTEGER(&tmp->guaranteedFlowBitRateDownlink, drb_qos_in->gbr_qos_flow_info->gbr_dl);
+    asn_long2INTEGER(&tmp->guaranteedFlowBitRateUplink, drb_qos_in->gbr_qos_flow_info->gbr_ul);
 
     /* OPTIONAL */
     /* maxPacketLossRateDownlink */
@@ -93,7 +94,7 @@ static void f1ap_write_drb_qos_param(const f1ap_qos_flow_level_qos_parameters_t 
 
     /* OPTIONAL */
     /* maxPacketLossRateUplink */
-    //asn1cCallocOne(asn1_qosparam->gBR_QoS_Flow_Information->maxPacketLossRateUplink, 1L);
+    // asn1cCallocOne(asn1_qosparam->gBR_QoS_Flow_Information->maxPacketLossRateUplink, 1L);
   }
 
   /* OPTIONAL */
@@ -123,14 +124,14 @@ static void f1ap_write_flows_mapped(const f1ap_flows_mapped_to_drb_t *flows_mapp
     flow_item->qoSFlowIdentifier = qos_flow_in->qfi;
 
     /* qoSFlowLevelQoSParameters */
-    const f1ap_qos_flow_level_qos_parameters_t *flow_qos_params_in = &qos_flow_in->qos_params;
+    const qos_flow_level_qos_parameters_t *flow_qos_params_in = &qos_flow_in->qos_params;
     /* qoS_Characteristics */
 
     F1AP_QoS_Characteristics_t *QosParams = &flow_item->qoSFlowLevelQoSParameters.qoS_Characteristics;
-    const f1ap_qos_characteristics_t *flow_qos_char_in = &flow_qos_params_in->qos_characteristics;
+    const qos_characteristics_t *flow_qos_char_in = &flow_qos_params_in->qos_characteristics;
 
     int type = flow_qos_params_in->qos_characteristics.qos_type;
-    if (type == non_dynamic) {
+    if (type == non_dynamic_5qi) {
       QosParams->present = F1AP_QoS_Characteristics_PR_non_Dynamic_5QI;
       asn1cCalloc(QosParams->choice.non_Dynamic_5QI, tmp);
 
@@ -169,18 +170,19 @@ static void f1ap_write_flows_mapped(const f1ap_flows_mapped_to_drb_t *flows_mapp
 
     /* OPTIONAL */
     /* gBR_QoS_Flow_Information */
-    if (0) {
+    if (flow_qos_params_in->gbr_qos_flow_info) {
       asn1cCalloc(flow_item->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information, tmp);
-      asn_long2INTEGER(&tmp->maxFlowBitRateDownlink, 1L);
-      asn_long2INTEGER(&tmp->maxFlowBitRateUplink, 1L);
-      asn_long2INTEGER(&tmp->guaranteedFlowBitRateDownlink, 1L);
-      asn_long2INTEGER(&tmp->guaranteedFlowBitRateUplink, 1L);
+      asn_long2INTEGER(&tmp->maxFlowBitRateDownlink, flow_qos_params_in->gbr_qos_flow_info->mbr_dl);
+      asn_long2INTEGER(&tmp->maxFlowBitRateUplink, flow_qos_params_in->gbr_qos_flow_info->mbr_ul);
+      asn_long2INTEGER(&tmp->guaranteedFlowBitRateDownlink, flow_qos_params_in->gbr_qos_flow_info->gbr_dl);
+      asn_long2INTEGER(&tmp->guaranteedFlowBitRateUplink, flow_qos_params_in->gbr_qos_flow_info->gbr_ul);
 
       /* OPTIONAL maxPacketLossRateDownlink */
-      //asn1cCallocOne(flows_mapped_to_drb_item->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->maxPacketLossRateDownlink, 1L);
+      // asn1cCallocOne(flows_mapped_to_drb_item->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->maxPacketLossRateDownlink,
+      // 1L);
 
       /* OPTIONAL maxPacketLossRateUplink */
-      //asn1cCallocOne(flows_mapped_to_drb_item->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->maxPacketLossRateUplink, 1L);
+      // asn1cCallocOne(flows_mapped_to_drb_item->qoSFlowLevelQoSParameters.gBR_QoS_Flow_Information->maxPacketLossRateUplink, 1L);
     }
 
     /* OPTIONAL reflective_QoS_Attribute */

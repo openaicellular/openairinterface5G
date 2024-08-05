@@ -39,19 +39,19 @@
 #include "openair2/LAYER2/NR_MAC_gNB/nr_mac_gNB.h"
 #include "openair2/LAYER2/nr_pdcp/nr_pdcp_oai_api.h"
 
-static void f1ap_read_drb_qos_param(const F1AP_QoSFlowLevelQoSParameters_t *asn1_qos, f1ap_qos_flow_level_qos_parameters_t *drb_qos)
+static void f1ap_read_drb_qos_param(const F1AP_QoSFlowLevelQoSParameters_t *asn1_qos, qos_flow_level_qos_parameters_t *drb_qos)
 {
-  f1ap_qos_characteristics_t *drb_qos_char = &drb_qos->qos_characteristics;
+  qos_characteristics_t *drb_qos_char = &drb_qos->qos_characteristics;
   const F1AP_QoS_Characteristics_t *dRB_QoS_Char = &asn1_qos->qoS_Characteristics;
 
   if (dRB_QoS_Char->present == F1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
-    drb_qos_char->qos_type = non_dynamic;
+    drb_qos_char->qos_type = non_dynamic_5qi;
     drb_qos_char->non_dynamic.fiveqi = dRB_QoS_Char->choice.non_Dynamic_5QI->fiveQI;
     drb_qos_char->non_dynamic.qos_priority_level = (dRB_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel != NULL)
                                                        ? *dRB_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel
                                                        : -1;
   } else {
-    drb_qos_char->qos_type = dynamic;
+    drb_qos_char->qos_type = dynamic_5qi;
     drb_qos_char->dynamic.fiveqi =
         (dRB_QoS_Char->choice.dynamic_5QI->fiveQI != NULL) ? *dRB_QoS_Char->choice.dynamic_5QI->fiveQI : -1;
     drb_qos_char->dynamic.qos_priority_level = dRB_QoS_Char->choice.dynamic_5QI->qoSPriorityLevel;
@@ -64,6 +64,15 @@ static void f1ap_read_drb_qos_param(const F1AP_QoSFlowLevelQoSParameters_t *asn1
   drb_qos->alloc_reten_priority.priority_level = asn1_qos->nGRANallocationRetentionPriority.priorityLevel;
   drb_qos->alloc_reten_priority.preemption_vulnerability = asn1_qos->nGRANallocationRetentionPriority.pre_emptionVulnerability;
   drb_qos->alloc_reten_priority.preemption_capability = asn1_qos->nGRANallocationRetentionPriority.pre_emptionVulnerability;
+
+  /* gbr qos information */
+  if (asn1_qos->gBR_QoS_Flow_Information) {
+    asn1cCalloc(drb_qos->gbr_qos_flow_info, tmp);
+    asn_INTEGER2long(&asn1_qos->gBR_QoS_Flow_Information->guaranteedFlowBitRateDownlink, &tmp->gbr_dl);
+    asn_INTEGER2long(&asn1_qos->gBR_QoS_Flow_Information->guaranteedFlowBitRateUplink, &tmp->gbr_ul);
+    asn_INTEGER2long(&asn1_qos->gBR_QoS_Flow_Information->maxFlowBitRateDownlink, &tmp->mbr_dl);
+    asn_INTEGER2long(&asn1_qos->gBR_QoS_Flow_Information->maxFlowBitRateUplink, &tmp->mbr_ul);
+  }
 }
 
 static void f1ap_read_flows_mapped(const F1AP_Flows_Mapped_To_DRB_List_t *asn1_flows_mapped, f1ap_flows_mapped_to_drb_t *flows_mapped, int n)
@@ -76,21 +85,21 @@ static void f1ap_read_flows_mapped(const F1AP_Flows_Mapped_To_DRB_List_t *asn1_f
 
     /* QoS-Flow-Level-QoS-Parameters */
     {
-      f1ap_qos_flow_level_qos_parameters_t *flow_qos = &flows_mapped_to_drb->qos_params;
+      qos_flow_level_qos_parameters_t *flow_qos = &flows_mapped_to_drb->qos_params;
       const F1AP_QoSFlowLevelQoSParameters_t *Flow_QoS = &flows_Mapped_To_Drb->qoSFlowLevelQoSParameters;
 
       /* QoS Characteristics*/
-      f1ap_qos_characteristics_t *flow_qos_char = &flow_qos->qos_characteristics;
+      qos_characteristics_t *flow_qos_char = &flow_qos->qos_characteristics;
       const F1AP_QoS_Characteristics_t *Flow_QoS_Char = &Flow_QoS->qoS_Characteristics;
 
       if (Flow_QoS_Char->present == F1AP_QoS_Characteristics_PR_non_Dynamic_5QI) {
-        flow_qos_char->qos_type = non_dynamic;
+        flow_qos_char->qos_type = non_dynamic_5qi;
         flow_qos_char->non_dynamic.fiveqi = Flow_QoS_Char->choice.non_Dynamic_5QI->fiveQI;
         flow_qos_char->non_dynamic.qos_priority_level = (Flow_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel != NULL)
                                                             ? *Flow_QoS_Char->choice.non_Dynamic_5QI->qoSPriorityLevel
                                                             : -1;
       } else {
-        flow_qos_char->qos_type = dynamic;
+        flow_qos_char->qos_type = dynamic_5qi;
         flow_qos_char->dynamic.fiveqi =
             (Flow_QoS_Char->choice.dynamic_5QI->fiveQI != NULL) ? *Flow_QoS_Char->choice.dynamic_5QI->fiveQI : -1;
         flow_qos_char->dynamic.qos_priority_level = Flow_QoS_Char->choice.dynamic_5QI->qoSPriorityLevel;
@@ -103,6 +112,15 @@ static void f1ap_read_flows_mapped(const F1AP_Flows_Mapped_To_DRB_List_t *asn1_f
       flow_qos->alloc_reten_priority.priority_level = Flow_QoS->nGRANallocationRetentionPriority.priorityLevel;
       flow_qos->alloc_reten_priority.preemption_vulnerability = Flow_QoS->nGRANallocationRetentionPriority.pre_emptionVulnerability;
       flow_qos->alloc_reten_priority.preemption_capability = Flow_QoS->nGRANallocationRetentionPriority.pre_emptionVulnerability;
+
+      /* gbr qos information */
+      if (Flow_QoS->gBR_QoS_Flow_Information) {
+        asn1cCalloc(flow_qos->gbr_qos_flow_info, tmp);
+        asn_INTEGER2long(&Flow_QoS->gBR_QoS_Flow_Information->guaranteedFlowBitRateDownlink, &tmp->gbr_dl);
+        asn_INTEGER2long(&Flow_QoS->gBR_QoS_Flow_Information->guaranteedFlowBitRateUplink, &tmp->gbr_ul);
+        asn_INTEGER2long(&Flow_QoS->gBR_QoS_Flow_Information->maxFlowBitRateDownlink, &tmp->mbr_dl);
+        asn_INTEGER2long(&Flow_QoS->gBR_QoS_Flow_Information->maxFlowBitRateUplink, &tmp->mbr_ul);
+      }
     }
   }
 }
