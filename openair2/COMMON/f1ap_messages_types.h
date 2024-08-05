@@ -374,7 +374,7 @@ typedef struct f1ap_qos_characteristics_s {
       } packet_error_rate;
     } dynamic;
   };
-  fiveQI_type_t qos_type;
+  fiveQI_t qos_type;
 } f1ap_qos_characteristics_t;
 
 typedef struct f1ap_ngran_allocation_retention_priority_s {

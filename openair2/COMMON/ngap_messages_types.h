@@ -201,7 +201,7 @@ typedef struct pdusession_level_qos_parameter_s {
   uint8_t qfi;
   uint64_t fiveQI;
   uint64_t qos_priority;
-  fiveQI_type_t fiveQI_type;
+  fiveQI_t fiveQI_type;
   ngap_allocation_retention_priority_t allocation_retention_priority;
 } pdusession_level_qos_parameter_t;
 

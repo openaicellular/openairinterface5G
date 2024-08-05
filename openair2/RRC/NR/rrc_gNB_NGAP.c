@@ -248,11 +248,11 @@ static void fill_qos(NGAP_QosFlowSetupRequestList_t *qos, pdusession_t *session)
     AssertFatal(qosChar, "Qos characteristics are not available for qos flow index %d\n", qosIdx);
     if (qosChar->present == NGAP_QosCharacteristics_PR_nonDynamic5QI) {
       AssertFatal(qosChar->choice.dynamic5QI, "Non-Dynamic 5QI is NULL\n");
-      session->qos[qosIdx].fiveQI_type = non_dynamic;
+      session->qos[qosIdx].fiveQI_type = NON_DYNAMIC;
       session->qos[qosIdx].fiveQI = (uint64_t)qosChar->choice.nonDynamic5QI->fiveQI;
     } else {
       AssertFatal(qosChar->choice.dynamic5QI, "Dynamic 5QI is NULL\n");
-      session->qos[qosIdx].fiveQI_type = dynamic;
+      session->qos[qosIdx].fiveQI_type = DYNAMIC;
       session->qos[qosIdx].fiveQI = (uint64_t)(*qosChar->choice.dynamic5QI->fiveQI);
     }
 
@@ -412,7 +412,7 @@ void trigger_bearer_setup(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, pdusession
         qos_characteristics_t *qos_char = &qos_flow->qos_params.qos_characteristics;
         qos_flow->qfi = qos_session->qfi;
         qos_char->qos_type = qos_session->fiveQI_type;
-        if (qos_char->qos_type == dynamic) {
+        if (qos_char->qos_type == DYNAMIC) {
           qos_char->dynamic.fiveqi = qos_session->fiveQI;
           qos_char->dynamic.qos_priority_level = qos_session->qos_priority;
         } else {
@@ -861,11 +861,11 @@ static void fill_qos2(NGAP_QosFlowAddOrModifyRequestList_t *qos, pdusession_t *s
     AssertFatal(qosChar, "Qos characteristics are not available for qos flow index %d\n", qosIdx);
     if (qosChar->present == NGAP_QosCharacteristics_PR_nonDynamic5QI) {
       AssertFatal(qosChar->choice.dynamic5QI, "Non-Dynamic 5QI is NULL\n");
-      session->qos[qosIdx].fiveQI_type = non_dynamic;
+      session->qos[qosIdx].fiveQI_type = NON_DYNAMIC;
       session->qos[qosIdx].fiveQI = (uint64_t)qosChar->choice.nonDynamic5QI->fiveQI;
     } else {
       AssertFatal(qosChar->choice.dynamic5QI, "Dynamic 5QI is NULL\n");
-      session->qos[qosIdx].fiveQI_type = dynamic;
+      session->qos[qosIdx].fiveQI_type = DYNAMIC;
       session->qos[qosIdx].fiveQI = (uint64_t)(*qosChar->choice.dynamic5QI->fiveQI);
     }
 

@@ -29,6 +29,6 @@ typedef struct nssai_s {
   uint32_t sd;
 } nssai_t;
 
-typedef enum { non_dynamic, dynamic } fiveQI_type_t;
+typedef enum { NON_DYNAMIC, DYNAMIC } fiveQI_t;
 
 #endif

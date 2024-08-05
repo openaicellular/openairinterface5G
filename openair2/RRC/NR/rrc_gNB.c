@@ -2173,12 +2173,12 @@ void rrc_gNB_process_e1_bearer_context_setup_resp(e1ap_bearer_setup_resp_t *resp
 
         pdusession_level_qos_parameter_t *in_qos_char = get_qos_characteristics(drb_config->qosFlows[j].qfi, RRC_pduSession);
         f1ap_qos_characteristics_t *qos_char = &drb->drb_info.flows_mapped_to_drb[j].qos_params.qos_characteristics;
-        if (in_qos_char->fiveQI_type == dynamic) {
-          qos_char->qos_type = dynamic;
+        if (in_qos_char->fiveQI_type == DYNAMIC) {
+          qos_char->qos_type = DYNAMIC;
           qos_char->dynamic.fiveqi = in_qos_char->fiveQI;
           qos_char->dynamic.qos_priority_level = in_qos_char->qos_priority;
         } else {
-          qos_char->qos_type = non_dynamic;
+          qos_char->qos_type = NON_DYNAMIC;
           qos_char->non_dynamic.fiveqi = in_qos_char->fiveQI;
           qos_char->non_dynamic.qos_priority_level = in_qos_char->qos_priority;
         }

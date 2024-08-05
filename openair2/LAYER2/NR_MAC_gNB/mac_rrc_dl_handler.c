@@ -261,11 +261,11 @@ static NR_QoS_config_t get_qos_config(const f1ap_qos_characteristics_t *qos_char
 {
   NR_QoS_config_t qos_c = {0};
   switch (qos_char->qos_type) {
-    case dynamic:
+    case DYNAMIC:
       qos_c.priority = qos_char->dynamic.qos_priority_level;
       qos_c.fiveQI = qos_char->dynamic.fiveqi > 0 ? qos_char->dynamic.fiveqi : 0;
       break;
-    case non_dynamic:
+    case NON_DYNAMIC:
       qos_c.fiveQI = qos_char->non_dynamic.fiveqi;
       qos_c.priority = get_non_dynamic_priority(qos_char->non_dynamic.fiveqi);
       break;
