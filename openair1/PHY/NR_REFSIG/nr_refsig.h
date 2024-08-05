@@ -27,8 +27,6 @@
 #include "PHY/defs_gNB.h"
 #include "openair1/PHY/NR_REFSIG/nr_refsig_common.h"
 
-int nr_pusch_dmrs_delta(uint8_t dmrs_config_type, unsigned short p);
-
 int nr_pusch_dmrs_rx(PHY_VARS_gNB *gNB,
                      unsigned int Ns,
                      const uint32_t *nr_gold_pusch,

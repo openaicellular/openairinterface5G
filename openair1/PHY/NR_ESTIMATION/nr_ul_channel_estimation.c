@@ -30,7 +30,7 @@
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/NR_UE_TRANSPORT/srs_modulation_nr.h"
 #include "PHY/NR_UE_ESTIMATION/filt16a_32.h"
-
+#include "PHY/NR_TRANSPORT/nr_sch_dmrs.h"
 #include "PHY/NR_REFSIG/ul_ref_seq_nr.h"
 #include "executables/softmodem-common.h"
 #include "nr_phy_common.h"
@@ -86,16 +86,15 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
   NR_gNB_PUSCH *pusch_vars = &gNB->pusch_vars[ul_id];
   c16_t **ul_ch_estimates = (c16_t **)pusch_vars->ul_ch_estimates;
   const int symbolSize = gNB->frame_parms.ofdm_symbol_size;
-  const int soffset = (Ns & 3) * gNB->frame_parms.symbols_per_slot*symbolSize;
-  const int nushift = (p >> 1) & 1;
-  int ch_offset = symbolSize*symbol;
-  const int symbol_offset = symbolSize*symbol;
+  const int slot_offset = (Ns & 3) * gNB->frame_parms.symbols_per_slot * symbolSize;
+  const int delta = get_delta(p, pusch_pdu->dmrs_config_type);
+  const int symbol_offset = symbolSize * symbol;
   const int k0 = bwp_start_subcarrier;
   const int nb_rb_pusch = pusch_pdu->rb_size;
 
-  LOG_D(PHY, "ch_offset %d, soffset %d, symbol_offset %d, OFDM size %d, Ns = %d, k0 = %d, symbol %d\n",
-        ch_offset, soffset,
+  LOG_D(PHY, "symbol_offset %d, slot_offset %d, OFDM size %d, Ns = %d, k0 = %d, symbol %d\n",
         symbol_offset,
+        slot_offset,
         symbolSize,
         Ns,
         k0,
@@ -154,25 +153,27 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
   memset(delay, 0, sizeof(*delay));
 
   for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
-    c16_t *rxdataF = (c16_t *)&gNB->common_vars.rxdataF[aarx][symbol_offset];
-    c16_t *ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][ch_offset];
+    c16_t *rxdataF = (c16_t *)&gNB->common_vars.rxdataF[aarx][symbol_offset + slot_offset];
+    c16_t *ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][symbol_offset];
 
-    memset(ul_ch,0,sizeof(*ul_ch)*symbolSize);
+    memset(ul_ch, 0, sizeof(*ul_ch) * symbolSize);
 #ifdef DEBUG_PUSCH
-    LOG_I(PHY, "In %s symbol_offset %d, nushift %d\n", __FUNCTION__, symbol_offset, nushift);
-    LOG_I(PHY, "In %s ch est pilot, N_RB_UL %d\n", __FUNCTION__, gNB->frame_parms.N_RB_UL);
-    LOG_I(PHY, "In %s bwp_start_subcarrier %d, k0 %d, first_carrier %d, nb_rb_pusch %d\n", __FUNCTION__, bwp_start_subcarrier, k0, gNB->frame_parms.first_carrier_offset, nb_rb_pusch);
-    LOG_I(PHY, "In %s ul_ch addr %p nushift %d\n", __FUNCTION__, ul_ch, nushift);
+    LOG_I(PHY, "symbol_offset %d, delta %d\n", symbol_offset, delta);
+    LOG_I(PHY, "ch est pilot, N_RB_UL %d\n", gNB->frame_parms.N_RB_UL);
+    LOG_I(PHY,
+          "bwp_start_subcarrier %d, k0 %d, first_carrier %d, nb_rb_pusch %d\n",
+          bwp_start_subcarrier,
+          k0,
+          gNB->frame_parms.first_carrier_offset,
+          nb_rb_pusch);
+    LOG_I(PHY, "ul_ch addr %p \n", ul_ch);
 #endif
 
     if (pusch_pdu->dmrs_config_type == pusch_dmrs_type1 && chest_freq == 0) {
       c16_t *pil   = pilot;
       int re_offset = k0;
       LOG_D(PHY,"PUSCH estimation DMRS type 1, Freq-domain interpolation");
-      // For configuration type 1: k = 4*n + 2*k' + delta,
-      // where k' is 0 or 1, and delta is in Table 6.4.1.1.3-1 from TS 38.211
       int pilot_cnt = 0;
-      int delta = nr_pusch_dmrs_delta(pusch_dmrs_type1, p);
 
       for (int n = 0; n < 3 * nb_rb_pusch; n++) {
         // LS estimation
@@ -180,7 +181,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
         for (int k_line = 0; k_line <= 1; k_line++) {
           re_offset = (k0 + (n << 2) + (k_line << 1) + delta) % symbolSize;
-          ch = c32x16maddShift(*pil, rxdataF[soffset + re_offset], ch, 16);
+          ch = c32x16maddShift(*pil, rxdataF[re_offset], ch, 16);
           pil++;
         }
 
@@ -212,9 +213,9 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
 #ifdef DEBUG_PUSCH
           re_offset = (k0 + (n << 2) + (k_line << 1)) % symbolSize;
-          c16_t *rxF = &rxdataF[soffset + re_offset];
+          c16_t *rxF = &rxdataF[re_offset];
           printf("pilot %4d: pil -> (%6d,%6d), rxF -> (%4d,%4d), ch -> (%4d,%4d)\n",
-                 pilot_cnt, pil->r, pil->i, rxF->r, rxF->i, ch.r, ch.i);
+                 pilot_cnt, pil->r, pil->i, rxF->r, rxF->i, ch16.r, ch16.i);
 #endif
 
           if (pilot_cnt == 0) {
@@ -236,7 +237,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
       // Revert delay
       pilot_cnt = 0;
-      ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][ch_offset];
+      ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][symbol_offset];
       int inv_delay_idx = get_delay_idx(-delay->est_delay, MAX_DELAY_COMP);
       c16_t *ul_inv_delay_table = gNB->frame_parms.delay_table[inv_delay_idx];
       for (int n = 0; n < 3 * nb_rb_pusch; n++) {
@@ -249,7 +250,6 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
 #ifdef DEBUG_PUSCH
           re_offset = (k0 + (n << 2) + (k_line << 1)) % symbolSize;
-          c16_t *rxF = &rxdataF[soffset + re_offset];
           printf("ch -> (%4d,%4d), ch_inter -> (%4d,%4d)\n", ul_ls_est[k].r, ul_ls_est[k].i, ul_ch[k].r, ul_ch[k].i);
 #endif
           pilot_cnt++;
@@ -260,7 +260,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
     } else if (pusch_pdu->dmrs_config_type == pusch_dmrs_type2 && chest_freq == 0) { // pusch_dmrs_type2  |p_r,p_l,d,d,d,d,p_r,p_l,d,d,d,d|
       LOG_D(PHY, "PUSCH estimation DMRS type 2, Freq-domain interpolation\n");
       c16_t *pil = pilot;
-      c16_t *rx = &rxdataF[soffset + nushift];
+      c16_t *rx = &rxdataF[delta];
       for (int n = 0; n < nb_rb_pusch * NR_NB_SC_PER_RB; n += 6) {
         c16_t ch0 = c16mulShift(*pil, rx[(k0 + n) % symbolSize], 15);
         pil++;
@@ -284,16 +284,16 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
       }
 
     }
-
-    else if (pusch_pdu->dmrs_config_type == pusch_dmrs_type1) { // this is case without frequency-domain linear interpolation, just take average of LS channel estimates of 6 DMRS REs and use a common value for the whole PRB
+    // this is case without frequency-domain linear interpolation, just take average of LS channel estimates of 6 DMRS REs and use a common value for the whole PRB
+    else if (pusch_pdu->dmrs_config_type == pusch_dmrs_type1) {
       LOG_D(PHY,"PUSCH estimation DMRS type 1, no Freq-domain interpolation\n");
-      c16_t *rxF   =  &rxdataF[soffset + nushift];
+      c16_t *rxF = &rxdataF[delta];
       int pil_offset = 0;
       int re_offset = k0;
       c16_t ch;
 
       // First PRB
-      ch=c32x16cumulVectVectWithSteps(pilot, &pil_offset, 1, rxF, &re_offset, 2, symbolSize, 6);
+      ch = c32x16cumulVectVectWithSteps(pilot, &pil_offset, 1, rxF, &re_offset, 2, symbolSize, 6);
 
 #if NO_INTERP
       for (c16_t *end=ul_ch+12; ul_ch<end; ul_ch++)
@@ -308,7 +308,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 #endif
 
       for (int pilot_cnt=6; pilot_cnt<6*(nb_rb_pusch-1); pilot_cnt += 6) {
-        ch=c32x16cumulVectVectWithSteps(pilot, &pil_offset, 1, rxF, &re_offset, 2, symbolSize, 6);
+        ch = c32x16cumulVectVectWithSteps(pilot, &pil_offset, 1, rxF, &re_offset, 2, symbolSize, 6);
         *max_ch = max(*max_ch, max(abs(ch.r), abs(ch.i)));
 
 #if NO_INTERP
@@ -344,32 +344,21 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 #endif
     } else  { // this is case without frequency-domain linear interpolation, just take average of LS channel estimates of 4 DMRS REs and use a common value for the whole PRB
       LOG_D(PHY,"PUSCH estimation DMRS type 2, no Freq-domain interpolation");
-      c16_t *pil   = pilot;
-      int re_offset = k0;
-      c32_t ch0={0};
+      c16_t *pil = pilot;
+      int re_offset = (k0 + delta) % symbolSize;
+      c32_t ch0 = {0};
       //First PRB
-      ch0=c32x16mulShift(*pil,
-                         rxdataF[soffset + nushift + re_offset],
-                         15);
+      ch0 = c32x16mulShift(*pil, rxdataF[re_offset], 15);
       pil++;
-      re_offset = (re_offset+1) % symbolSize;
-      ch0=c32x16maddShift(*pil,
-                          rxdataF[nushift+re_offset],
-                          ch0,
-                          15);
+      re_offset = (re_offset + 1) % symbolSize;
+      ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
       pil++;
-      re_offset = (re_offset+5) % symbolSize;
-      ch0=c32x16maddShift(*pil,
-                          rxdataF[nushift+re_offset],
-                          ch0,
-                          15);
-      re_offset = (re_offset+1) % symbolSize;
-      ch0=c32x16maddShift(*pil,
-                          rxdataF[nushift+re_offset],
-                          ch0,
-                          15);
+      re_offset = (re_offset + 5) % symbolSize;
+      ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
+      re_offset = (re_offset + 1) % symbolSize;
+      ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
       pil++;
-      re_offset = (re_offset+5) % symbolSize;
+      re_offset = (re_offset + 5) % symbolSize;
 
       c16_t ch=c16x32div(ch0, 4);
 #if NO_INTERP
@@ -386,19 +375,19 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
 
       for (int pilot_cnt=4; pilot_cnt<4*(nb_rb_pusch-1); pilot_cnt += 4) {
         c32_t ch0;
-        ch0=c32x16mulShift(*pil, rxdataF[nushift+re_offset], 15);
+        ch0 = c32x16mulShift(*pil, rxdataF[re_offset], 15);
         pil++;
-        re_offset = (re_offset+1) % symbolSize;
+        re_offset = (re_offset + 1) % symbolSize;
 
-        ch0=c32x16maddShift(*pil, rxdataF[nushift+re_offset], ch0, 15);
+        ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
         pil++;
-        re_offset = (re_offset+5) % symbolSize;
+        re_offset = (re_offset + 5) % symbolSize;
 
-        ch0=c32x16maddShift(*pil, rxdataF[nushift+re_offset], ch0, 15);
+        ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
         pil++;
-        re_offset = (re_offset+1) % symbolSize;
+        re_offset = (re_offset + 1) % symbolSize;
 
-        ch0=c32x16maddShift(*pil, rxdataF[nushift+re_offset], ch0, 15);
+        ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
         pil++;
         re_offset = (re_offset+5) % symbolSize;
 
@@ -421,21 +410,21 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
       }
 
       // Last PRB
-      ch0=c32x16mulShift(*pil, rxdataF[nushift+re_offset], 15);
+      ch0 = c32x16mulShift(*pil, rxdataF[re_offset], 15);
       pil++;
-      re_offset = (re_offset+1) % symbolSize;
+      re_offset = (re_offset + 1) % symbolSize;
 
-      ch0=c32x16maddShift(*pil, rxdataF[nushift+re_offset], ch0, 15);
+      ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
       pil++;
-      re_offset = (re_offset+5) % symbolSize;
+      re_offset = (re_offset + 5) % symbolSize;
 
-      ch0=c32x16maddShift(*pil, rxdataF[nushift+re_offset], ch0, 15);
+      ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
       pil++;
-      re_offset = (re_offset+1) % symbolSize;
+      re_offset = (re_offset + 1) % symbolSize;
 
-      ch0=c32x16maddShift(*pil, rxdataF[nushift+re_offset], ch0, 15);
+      ch0 = c32x16maddShift(*pil, rxdataF[re_offset], ch0, 15);
       pil++;
-      re_offset = (re_offset+5) % symbolSize;
+      re_offset = (re_offset + 5) % symbolSize;
 
       ch=c16x32div(ch0, 4);
 #if NO_INTERP
@@ -451,7 +440,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
     }
 
 #ifdef DEBUG_PUSCH
-    ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][ch_offset];
+    ul_ch = &ul_ch_estimates[nl * gNB->frame_parms.nb_antennas_rx + aarx][symbol_offset];
     for (int idxP = 0; idxP < ceil((float)nb_rb_pusch * 12 / 8); idxP++) {
       for (int idxI = 0; idxI < 8; idxI++) {
           printf("%d\t%d\t", ul_ch[idxP * 8 + idxI].r, ul_ch[idxP * 8 + idxI].i);

@@ -1402,6 +1402,7 @@ void NFAPI_NR_DMRS_TYPE2_average_prb(NR_DL_FRAME_PARMS *frame_parms,
   c16multaddVectRealComplex(filt8_avlip6, &ch, dl_ch, 8);
 #endif
 }
+
 int nr_pdsch_channel_estimation(PHY_VARS_NR_UE *ue,
                                 const UE_nr_rxtx_proc_t *proc,
                                 int nl,
