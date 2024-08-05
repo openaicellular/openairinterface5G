@@ -1692,7 +1692,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
       rdata->scramblingSequence = scramblingSequence;
       rdata->nvar = nvar;
 
-      if (rel15_ul->pdu_bit_map & PUSCH_PDU_BITMAP_PUSCH_PTRS) {
+      if (1) { //rel15_ul->pdu_bit_map & PUSCH_PDU_BITMAP_PUSCH_PTRS) {
         nr_pusch_symbol_processing(rdata);
       } else {
         pushTpool(&gNB->threadPool, req);
