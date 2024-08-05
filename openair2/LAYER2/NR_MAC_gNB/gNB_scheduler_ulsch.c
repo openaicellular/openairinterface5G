@@ -215,8 +215,19 @@ static int nr_process_mac_pdu(instance_t module_idP,
   NR_UE_UL_BWP_t *ul_bwp = &UE->current_UL_BWP;
   NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
 
-  if (pduP[0] != UL_SCH_LCID_PADDING)
-    trace_NRpdu(DIRECTION_UPLINK, pduP, pdu_len, WS_C_RNTI, UE->rnti, frameP, 0, 0, 0);
+  if (pduP[0] != UL_SCH_LCID_PADDING) {
+    ws_trace_t tmp = {.nr = true,
+                      .direction = DIRECTION_UPLINK,
+                      .pdu_buffer = pduP,
+                      .pdu_buffer_size = pdu_len,
+                      .ueid = 0,
+                      .rntiType = WS_C_RNTI,
+                      .rnti = UE->rnti,
+                      .sysFrame = frameP,
+                      .subframe = slot,
+                      .harq_pid = harq_pid};
+    trace_pdu(&tmp);
+  }
 
 #ifdef ENABLE_MAC_PAYLOAD_DEBUG
   LOG_I(NR_MAC, "In %s: dumping MAC PDU in %d.%d:\n", __func__, frameP, slot);

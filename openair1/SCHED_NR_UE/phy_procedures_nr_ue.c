@@ -146,7 +146,17 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
             t = WS_RA_RNTI;
           if (pdu_type == FAPI_NR_RX_PDU_TYPE_SIB)
             t = WS_SI_RNTI;
-          trace_NRpdu(DIRECTION_DOWNLINK, b, rx->pdsch_pdu.pdu_length, t, dlsch0->rnti, proc->frame_rx, proc->nr_slot_rx, 0, 0);
+          ws_trace_t tmp = {.nr = true,
+                            .direction = DIRECTION_DOWNLINK,
+                            .pdu_buffer = b,
+                            .pdu_buffer_size = rx->pdsch_pdu.pdu_length,
+                            .ueid = 0,
+                            .rntiType = t,
+                            .rnti = dlsch0->rnti,
+                            .sysFrame = proc->frame_rx,
+                            .subframe = proc->nr_slot_rx,
+                            .harq_pid = dlsch0->dlsch_config.harq_process_nbr};
+          trace_pdu(&tmp);
         }
       }
       if(dlsch1) {

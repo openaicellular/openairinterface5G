@@ -183,8 +183,19 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
                             unav_res,
                             mod_order,
                             Nl);
-
-  trace_NRpdu(DIRECTION_UPLINK, harq_process_ul_ue->payload_AB, tb_size, WS_C_RNTI, rnti, frame, slot, 0, 0);
+  ws_trace_t tmp = {.nr = true,
+                    .direction = DIRECTION_UPLINK,
+                    .pdu_buffer = harq_process_ul_ue->payload_AB,
+                    .pdu_buffer_size = tb_size,
+                    .ueid = 0,
+                    .rntiType = WS_C_RNTI,
+                    .rnti = rnti,
+                    .sysFrame = frame,
+                    .subframe = slot,
+                    .harq_pid = harq_pid,
+                    .oob_event = 0,
+                    .oob_event_value = 0};
+  trace_pdu(&tmp);
 
   if (nr_ulsch_encoding(UE, ulsch_ue, frame_parms, harq_pid, tb_size, G) == -1)
     return;

@@ -276,8 +276,21 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_gNB_DLSCH_ENCODING, VCD_FUNCTION_IN);
   uint32_t A = rel15->TBSize[0]<<3;
   unsigned char *a=harq->pdu;
-  if (rel15->rnti != SI_RNTI)
-    trace_NRpdu(DIRECTION_DOWNLINK, a, rel15->TBSize[0], WS_C_RNTI, rel15->rnti, frame, slot,0, 0);
+  if (rel15->rnti != SI_RNTI) {
+    ws_trace_t tmp = {.nr = true,
+                      .direction = DIRECTION_DOWNLINK,
+                      .pdu_buffer = a,
+                      .pdu_buffer_size = rel15->TBSize[0],
+                      .ueid = 0,
+                      .rntiType = WS_C_RNTI,
+                      .rnti = rel15->rnti,
+                      .sysFrame = frame,
+                      .subframe = slot,
+                      .harq_pid = 0, // difficult to find the harq pid here
+                      .oob_event = 0,
+                      .oob_event_value = 0};
+    trace_pdu(&tmp);
+  }
 
   NR_gNB_PHY_STATS_t *phy_stats = NULL;
   if (rel15->rnti != 0xFFFF)
