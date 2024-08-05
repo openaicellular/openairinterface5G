@@ -915,4 +915,4 @@ elif re.match('^LoadParams$', mode, re.IGNORECASE):
 else:
 	HELP.GenericHelp(CONST.Version)
 	sys.exit('Invalid mode')
-sys.exit(0)
+os._exit(0)
