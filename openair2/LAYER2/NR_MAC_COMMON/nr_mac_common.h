@@ -231,6 +231,8 @@ NR_tda_info_t get_info_from_tda_tables(default_table_type_t table_type,
                                        int dmrs_TypeA_Position,
                                        int normal_CP);
 
+NR_tda_info_t set_tda_info_from_list(NR_PDSCH_TimeDomainResourceAllocationList_t *tdalist, int tda_index);
+
 default_table_type_t get_default_table_type(int mux_pattern);
 
 void fill_coresetZero(NR_ControlResourceSet_t *coreset0, NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config);
