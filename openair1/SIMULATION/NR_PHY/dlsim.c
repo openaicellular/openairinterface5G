@@ -153,6 +153,7 @@ void nr_dlsim_preprocessor(module_id_t module_id,
                                       /* CC_id = */ 0,
                                       sched_ctrl->aggregation_level,
                                       nr_of_candidates,
+                                      0,
                                       &sched_ctrl->sched_pdcch,
                                       sched_ctrl->coreset,
                                       Y);

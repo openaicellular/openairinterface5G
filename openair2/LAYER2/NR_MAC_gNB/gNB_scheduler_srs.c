@@ -470,7 +470,8 @@ static void nr_configure_srs(nfapi_nr_srs_pdu_t *srs_pdu,
     srs_pdu->beamforming.prg_size = 1;
   }
 
-  uint16_t *vrb_map_UL = &RC.nrmac[module_id]->common_channels[CC_id].vrb_map_UL[buffer_index * MAX_BWP_SIZE];
+  // TODO properly use beam allocation
+  uint16_t *vrb_map_UL = &RC.nrmac[module_id]->common_channels[CC_id].vrb_map_UL[0][buffer_index * MAX_BWP_SIZE];
   uint64_t mask = SL_to_bitmap(13 - srs_pdu->time_start_position, srs_pdu->num_symbols);
   for (int i = 0; i < srs_pdu->bwp_size; ++i)
     vrb_map_UL[i + srs_pdu->bwp_start] |= mask;

@@ -501,11 +501,12 @@ int find_pdcch_candidate(const gNB_MAC_INST *mac,
                          int cc_id,
                          int aggregation,
                          int nr_of_candidates,
+                         int beam_idx,
                          const NR_sched_pdcch_t *pdcch,
                          const NR_ControlResourceSet_t *coreset,
                          uint32_t Y)
 {
-  const uint16_t *vrb_map = mac->common_channels[cc_id].vrb_map;
+  const uint16_t *vrb_map = mac->common_channels[cc_id].vrb_map[beam_idx];
   const int N_ci = 0;
 
   const int N_rb = pdcch->n_rb;  // nb of rbs of coreset per symbol
@@ -546,6 +547,7 @@ int get_cce_index(const gNB_MAC_INST *nrmac,
                   const int slot,
                   const rnti_t rnti,
                   uint8_t *aggregation_level,
+                  int beam_idx,
                   const NR_SearchSpace_t *ss,
                   const NR_ControlResourceSet_t *coreset,
                   NR_sched_pdcch_t *sched_pdcch,
@@ -567,6 +569,7 @@ int get_cce_index(const gNB_MAC_INST *nrmac,
                                       CC_id,
                                       *aggregation_level,
                                       nr_of_candidates,
+                                      beam_idx,
                                       sched_pdcch,
                                       coreset,
                                       Y);
@@ -577,9 +580,10 @@ void fill_pdcch_vrb_map(gNB_MAC_INST *mac,
                         int CC_id,
                         NR_sched_pdcch_t *pdcch,
                         int first_cce,
-                        int aggregation){
-
-  uint16_t *vrb_map = mac->common_channels[CC_id].vrb_map;
+                        int aggregation,
+                        int beam)
+{
+  uint16_t *vrb_map = mac->common_channels[CC_id].vrb_map[beam];
 
   int N_rb = pdcch->n_rb; // nb of rbs of coreset per symbol
   int L = pdcch->RegBundleSize;
@@ -2718,7 +2722,9 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
 
   NR_SCHED_ENSURE_LOCKED(&gNB_mac->sched_lock);
 
-  uint16_t *vrb_map = gNB_mac->common_channels[CC_id].vrb_map;
+  // TODO implement beam procedures
+  int beam = 0;
+  uint16_t *vrb_map = gNB_mac->common_channels[CC_id].vrb_map[beam];
 
   UE_info->sched_csirs = 0;
 
@@ -3099,6 +3105,45 @@ void UL_tti_req_ahead_initialization(gNB_MAC_INST *gNB, int n, int CCid, frame_t
     nfapi_nr_ul_tti_request_t *req = &gNB->UL_tti_req_ahead[CCid][abs_slot % gNB->UL_tti_req_ahead_size];
     req->SFN = (abs_slot / n) % MAX_FRAME_NUMBER;
     req->Slot = abs_slot % n;
+  }
+}
+
+// return index of beam in period if valid or -1 if not valid
+NR_beam_alloc_stuct_t beam_allocation_procedure(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame)
+{
+  NR_beam_alloc_stuct_t beam_struct;
+  beam_struct.new_beam = false;
+  beam_struct.idx = -1;
+  // if no beam allocation for analog beamforming we always return beam index 0 (no multiple beams)
+  if(!beam_info->beam_allocation) {
+    beam_struct.idx = 0;
+    return beam_struct;
+  }
+  const int index = ((frame * slots_per_frame + slot) / beam_info->slots_in_beam_period) % beam_info->beam_allocation_size;
+  for (int i = 0; i < beam_info->beams_per_period; i++) {
+    if (beam_info->beam_allocation[i][index] == beam_index) {
+      beam_struct.idx = i;
+      return beam_struct;
+    }
+    if (beam_info->beam_allocation[i][index] == -1) {
+      beam_info->beam_allocation[i][index] = beam_index;
+      beam_struct.new_beam = true;
+      beam_struct.idx = i;
+      return beam_struct;
+    }
+  }
+  return beam_struct;
+}
+
+void reset_beam_status(NR_beam_info_t *beam_info, int frame, int slot, int beam_index, int slots_per_frame)
+{
+  // if digital beamforming, no restriction
+  if(!beam_info->beam_allocation)
+    return;
+  const int index = ((frame * slots_per_frame + slot) / beam_info->slots_in_beam_period) % beam_info->beam_allocation_size;
+  for (int i = 0; i < beam_info->beams_per_period; i++) {
+    if (beam_info->beam_allocation[i][index] == beam_index)
+      beam_info->beam_allocation[i][index] = -1;
   }
 }
 
