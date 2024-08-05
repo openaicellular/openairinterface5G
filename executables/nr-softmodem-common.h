@@ -80,7 +80,6 @@
 #define CONFIG_HLP_TNOFORK       "to ease debugging with gdb\n"
 #define CONFIG_HLP_DISABLNBIOT   "disable nb-iot, even if defined in config\n"
 #define CONFIG_HLP_DISABLETIMECORR "disable UE timing correction\n"
-#define CONFIG_HLP_RRC_CFG_PATH  "path for RRC configuration\n"
 #define CONFIG_HLP_RE_CFG_FILE "filename for reconfig.raw in phy-test mode\n"
 #define CONFIG_HLP_RB_CFG_FILE "filename for rbconfig.raw in phy-test mode\n"
 #define CONFIG_HLP_UECAP_FILE    "path for UE Capabilities file\n"

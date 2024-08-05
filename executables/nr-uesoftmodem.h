@@ -30,27 +30,26 @@
 /*------------------------------------------------------------------------------------------------------------------------------------------*/
 // clang-format off
 #define CMDLINE_NRUEPARAMS_DESC {  \
-  {"usrp-args",                CONFIG_HLP_USRP_ARGS,           0,               .strptr=&usrp_args,                       .defstrval="type=b200",          TYPE_STRING,   0}, \
-  {"tx_subdev",                CONFIG_HLP_TX_SUBDEV,           0,               .strptr=&tx_subdev,                       .defstrval=NULL,                 TYPE_STRING,   0}, \
-  {"rx_subdev",                CONFIG_HLP_RX_SUBDEV,           0,               .strptr=&rx_subdev,                       .defstrval=NULL,                 TYPE_STRING,   0}, \
+  {"usrp-args",                CONFIG_HLP_USRP_ARGS,           0,               .strptr=&nrUE_params.usrp_args,           .defstrval="type=b200",          TYPE_STRING,   0}, \
+  {"tx_subdev",                CONFIG_HLP_TX_SUBDEV,           0,               .strptr=&nrUE_params.tx_subdev,           .defstrval=NULL,                 TYPE_STRING,   0}, \
+  {"rx_subdev",                CONFIG_HLP_RX_SUBDEV,           0,               .strptr=&nrUE_params.rx_subdev,           .defstrval=NULL,                 TYPE_STRING,   0}, \
   {"dlsch-parallel",           CONFIG_HLP_DLSCH_PARA,          0,               .u8ptr=NULL,                              .defintval=0,                    TYPE_UINT8,    0}, \
   {"offset-divisor",           CONFIG_HLP_OFFSET_DIV,          0,               .uptr=&nrUE_params.ofdm_offset_divisor,   .defuintval=8,                   TYPE_UINT32,   0}, \
   {"max-ldpc-iterations",      CONFIG_HLP_MAX_LDPC_ITERATIONS, 0,               .iptr=&nrUE_params.max_ldpc_iterations,   .defuintval=8,                  TYPE_UINT8,    0}, \
   {"ldpc-offload-enable",      CONFIG_HLP_LDPC_OFFLOAD,        PARAMFLAG_BOOL,  .iptr=&(nrUE_params.ldpc_offload_flag),   .defintval=0,                   TYPE_INT,      0}, \
-  {"V" ,                       CONFIG_HLP_VCD,                 PARAMFLAG_BOOL,  .iptr=&vcdflag,                           .defintval=0,                    TYPE_INT,      0}, \
-  {"uecap_file",               CONFIG_HLP_UECAP_FILE,          0,               .strptr=&uecap_file,                      .defstrval="./uecap_ports1.xml", TYPE_STRING,   0}, \
-  {"rrc_config_path",          CONFIG_HLP_RRC_CFG_PATH,        0,               .strptr=&rrc_config_path,                 .defstrval=NULL,                 TYPE_STRING,   0}, \
-  {"reconfig-file",            CONFIG_HLP_RE_CFG_FILE,         0,               .strptr=&reconfig_file,                   .defstrval="./reconfig.raw",     TYPE_STRING,   0}, \
-  {"rbconfig-file",            CONFIG_HLP_RB_CFG_FILE,         0,               .strptr=&rbconfig_file,                   .defstrval="./rbconfig.raw",     TYPE_STRING,   0}, \
-  {"ue-idx-standalone",        NULL,                           0,               .u16ptr=&ue_idx_standalone,               .defuintval=0xFFFF,              TYPE_UINT16,   0}, \
-  {"ue-rxgain",                    CONFIG_HLP_UERXG,           0,               .dblptr=&(rx_gain[0][0]),            .defdblval=110,    TYPE_DOUBLE,   0}, \
-  {"ue-rxgain-off",                CONFIG_HLP_UERXGOFF,        0,               .dblptr=&rx_gain_off,                .defdblval=0,      TYPE_DOUBLE,   0}, \
-  {"ue-txgain",                    CONFIG_HLP_UETXG,           0,               .dblptr=&(tx_gain[0][0]),            .defdblval=0,      TYPE_DOUBLE,   0}, \
+  {"V" ,                       CONFIG_HLP_VCD,                 PARAMFLAG_BOOL,  .iptr=&nrUE_params.vcdflag,                 .defintval=0,                    TYPE_INT,      0}, \
+  {"uecap_file",               CONFIG_HLP_UECAP_FILE,          0,               .strptr=&nrUE_params.uecap_file,            .defstrval="./uecap_ports1.xml", TYPE_STRING,   0}, \
+  {"reconfig-file",            CONFIG_HLP_RE_CFG_FILE,         0,               .strptr=&nrUE_params.reconfig_file,         .defstrval="./reconfig.raw",     TYPE_STRING,   0}, \
+  {"rbconfig-file",            CONFIG_HLP_RB_CFG_FILE,         0,               .strptr=&nrUE_params.rbconfig_file,         .defstrval="./rbconfig.raw",     TYPE_STRING,   0}, \
+  {"ue-idx-standalone",        NULL,                           0,               .u16ptr=&ue_idx_standalone,                 .defuintval=0xFFFF,              TYPE_UINT16,   0}, \
+  {"ue-rxgain",                    CONFIG_HLP_UERXG,           0,               .dblptr=&nrUE_params.rx_gain,               .defdblval=110,    TYPE_DOUBLE,   0}, \
+  {"ue-rxgain-off",                CONFIG_HLP_UERXGOFF,        0,               .dblptr=&nrUE_params.rx_gain_off,           .defdblval=0,      TYPE_DOUBLE,   0}, \
+  {"ue-txgain",                    CONFIG_HLP_UETXG,           0,               .dblptr=&nrUE_params.tx_gain,               .defdblval=0,      TYPE_DOUBLE,   0}, \
   {"ue-nb-ant-rx",                 CONFIG_HLP_UENANTR,         0,               .iptr=&(nrUE_params.nb_antennas_rx),        .defuintval=1,     TYPE_UINT8,    0}, \
   {"ue-nb-ant-tx",                 CONFIG_HLP_UENANTT,         0,               .iptr=&(nrUE_params.nb_antennas_tx),        .defuintval=1,     TYPE_UINT8,    0}, \
   {"ue-scan-carrier",              CONFIG_HLP_UESCAN,          PARAMFLAG_BOOL,  .iptr=&(nrUE_params.UE_scan_carrier),        .defintval=0,      TYPE_INT,      0}, \
   {"ue-fo-compensation",           CONFIG_HLP_UEFO,            PARAMFLAG_BOOL,  .iptr=&(nrUE_params.UE_fo_compensation),     .defintval=0,      TYPE_INT,      0}, \
-  {"ue-max-power",                 NULL,                       0,               .iptr=&(tx_max_power[0]),            .defintval=90,     TYPE_INT,      0}, \
+  {"ue-max-power",                 NULL,                       0,               .iptr=&(nrUE_params.tx_max_power),            .defintval=90,     TYPE_INT,      0}, \
   {"r"  ,                          CONFIG_HLP_PRB_SA,          0,               .iptr=&(nrUE_params.N_RB_DL),                .defintval=106,    TYPE_UINT,     0}, \
   {"ssb",                          CONFIG_HLP_SSC,             0,               .iptr=&(nrUE_params.ssb_start_subcarrier), .defintval=516,    TYPE_UINT16,   0}, \
   {"if_freq" ,                     CONFIG_HLP_IF_FREQ,         0,               .u64ptr=&(nrUE_params.if_freq),              .defuintval=0,     TYPE_UINT64,   0}, \
@@ -67,25 +66,36 @@
 // clang-format on
 
 typedef struct {
-  uint64_t       optmask;   //mask to store boolean config options
-  uint32_t       ofdm_offset_divisor; // Divisor for sample offset computation for each OFDM symbol
-  int            max_ldpc_iterations; // number of maximum LDPC iterations
-  tpool_t        Tpool;             // thread pool 
-  int            UE_scan_carrier;
+  uint64_t optmask; // mask to store boolean config options
+  uint32_t ofdm_offset_divisor; // Divisor for sample offset computation for each OFDM symbol
+  int max_ldpc_iterations; // number of maximum LDPC iterations
+  tpool_t Tpool; // thread pool
+  int UE_scan_carrier;
   int UE_fo_compensation;
-  uint64_t       if_freq;
-  int            if_freq_off;
-  int            chest_freq;
-  int            chest_time;
-  int            no_timing_correction;
-  int            nb_antennas_rx;
+  uint64_t if_freq;
+  int if_freq_off;
+  int chest_freq;
+  int chest_time;
+  int no_timing_correction;
+  int nb_antennas_rx;
   int nb_antennas_tx;
-  int            N_RB_DL;
-  int            ssb_start_subcarrier;
+  int N_RB_DL;
+  int ssb_start_subcarrier;
   int ldpc_offload_flag;
-  unsigned int   ntn_koffset;
-  double         ntn_ta_common;
+  unsigned int ntn_koffset;
+  double ntn_ta_common;
   int agc;
+  char *usrp_args;
+  char *tx_subdev;
+  char *rx_subdev;
+  char *reconfig_file;
+  char *rbconfig_file;
+  char *uecap_file;
+  double tx_gain;
+  double rx_gain;
+  double rx_gain_off;
+  int vcdflag;
+  int tx_max_power;
 } nrUE_params_t;
 extern uint64_t get_nrUE_optmask(void);
 extern uint64_t set_nrUE_optmask(uint64_t bitmask);
