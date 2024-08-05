@@ -23,13 +23,17 @@
 
 #ifndef __RFSIMULATOR_H
 #define  __RFSIMULATOR_H
+#include "openair1/PHY/TOOLS/tools_defs.h"
+#include "openair1/SIMULATION/TOOLS/sim.h"
 void rxAddInput( const c16_t *input_sig,
                  c16_t *after_channel_sig,
                  int rxAnt,
                  channel_desc_t *channelDesc,
                  int nbSamples,
                  uint64_t TS,
-                 uint32_t CirSize
+                 uint32_t CirSize,
+                 int16_t rx_gain,
+                 int16_t tx_power
                );
 
 #endif

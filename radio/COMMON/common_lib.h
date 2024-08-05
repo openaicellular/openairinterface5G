@@ -628,6 +628,7 @@ typedef struct {
   uint64_t timestamp;      // Timestamp value of first sample
   uint32_t option_value;   // Option value
   uint32_t option_flag;    // Option flag
+  int16_t tx_power;
 } samplesBlockHeader_t;
 
 #ifdef __cplusplus

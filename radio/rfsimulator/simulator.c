@@ -177,6 +177,9 @@ typedef struct {
   poll_telnetcmdq_func_t poll_telnetcmdq;
   int wait_timeout;
   double prop_delay_ms;
+  int tx_power;
+  int tx_gain;
+  int rx_gain;
 } rfsimulator_state_t;
 
 static int allocCirBuf(rfsimulator_state_t *bridge, int sock)
@@ -612,7 +615,7 @@ static int rfsimulator_write_internal(rfsimulator_state_t *t, openair0_timestamp
     buffer_t *b=&t->buf[i];
 
     if (b->conn_sock >= 0 ) {
-      samplesBlockHeader_t header = {nsamps, nbAnt, timestamp};
+      samplesBlockHeader_t header = {nsamps, nbAnt, timestamp, 0, 0, t->tx_power + t->tx_gain};
       fullwrite(b->conn_sock,&header, sizeof(header), t);
       sample_t tmpSamples[nsamps][nbAnt];
 
@@ -898,7 +901,9 @@ static int rfsimulator_read(openair0_device *device, openair0_timestamp *ptimest
                      ptr->channel_model,
                      nsamps,
                      t->nextRxTstamp,
-                     CirSize);
+                     CirSize,
+                     t->rx_gain,
+                     ptr->th.tx_power);
         }
         else { // no channel modeling
           int nbAnt_tx = ptr->th.nbAnt; // number of Tx antennas
