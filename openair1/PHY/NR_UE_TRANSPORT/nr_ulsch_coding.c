@@ -148,19 +148,22 @@ int nr_ulsch_encoding(PHY_VARS_NR_UE *ue,
     }
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_LDPC_ENCODER_OPTIM, VCD_FUNCTION_IN);
   }
-  start_meas(&ue->ulsch_ldpc_encoding_stats);
   if (ldpc_interface_offload.LDPCencoder) {
+    start_meas(&ue->ulsch_ldpc_encoding_stats);
     for (int j = 0; j < impp.n_segments; j++) {
       impp.perCB[j].E_cb = nr_get_E(G, impp.n_segments, impp.Qm, ulsch->pusch_pdu.nrOfLayers, j);
     }
     ldpc_interface_offload.LDPCencoder(harq_process->c, &harq_process->f, &impp);
+    stop_meas(&ue->ulsch_ldpc_encoding_stats);
   } else {
     if (ulsch->pusch_pdu.pusch_data.new_data_indicator) {
+      start_meas(&ue->ulsch_ldpc_encoding_stats);
       for (int j = 0; j < (impp.n_segments / 8 + 1); j++) {
         impp.macro_num = j;
         impp.Kr = impp.K;
         ldpc_interface.LDPCencoder(harq_process->c, harq_process->d, &impp);
       }
+      stop_meas(&ue->ulsch_ldpc_encoding_stats);
       VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_LDPC_ENCODER_OPTIM, VCD_FUNCTION_OUT);
 
 #ifdef DEBUG_ULSCH_CODING

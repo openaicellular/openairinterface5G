@@ -512,6 +512,9 @@ typedef struct PHY_VARS_NR_UE_s {
   uint32_t use_ia_receiver;
 
   time_stats_t ofdm_mod_stats;
+  time_stats_t pusch_procedures_stats;
+  time_stats_t pucch_procedures_stats;
+  time_stats_t prach_procedures_stats;
   time_stats_t ulsch_encoding_stats;
   time_stats_t ulsch_ldpc_encoding_stats;
   time_stats_t ulsch_modulation_stats;
