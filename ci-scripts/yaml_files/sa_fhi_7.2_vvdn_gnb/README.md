@@ -14,35 +14,35 @@
 
 ![Docker deploy 7.2](../../../doc/images/docker-deploy-oai-7-2.png)
 
-This docker-compose is designed to use `OAI-gNB` with a 7.2 compatible Radio Unit. Before using this docker compose you have to configure 
-the host machine as per the [ORAN_FHI7.2_Tutorial](../../../doc/ORAN_FHI7.2_Tutorial.md). The container image used by the docker compose file is tested only on `Ubuntu 22.04` docker host. 
+This docker-compose is designed to use `OAI-gNB` with a 7.2 compatible Radio Unit. Before using this docker compose you have to configure
+the host machine as per the [ORAN_FHI7.2_Tutorial](../../../doc/ORAN_FHI7.2_Tutorial.md). The container image used by the docker compose file is tested only on `Ubuntu 22.04` and `RHEL 9.4` docker host.
 
 ## Build Image (Optional)
 
 Refer to [OAI Docker/Podman Build and Usage Procedures](../../../docker/README.md)
 
-## Configure Networking 
+## Configure Networking
 
 ### SR-IOV Virtual Functions (VFs)
 
-In docker-compose environment there is no automated method 
-to configure the VFs on the fly. The user will have to manually configure 
-C/U plane VFs before starting the container `OAI-gNB`. 
+In docker-compose environment there is no automated method
+to configure the VFs on the fly. The user will have to manually configure
+C/U plane VFs before starting the container `OAI-gNB`.
 
-You can follow the step 
+You can follow the step
 [configure-network-interfaces-and-dpdk-vfs](../../../doc/ORAN_FHI7.2_Tutorial.md#configure-network-interfaces-and-dpdk-vfs).
 
 ### Interface towards AMF (N2)
 
-For `N2` interface we are using `macvlan` driver of docker. 
+For `N2` interface we are using `macvlan` driver of docker.
 
-You can use the `bridge` driver, in situation 
+You can use the `bridge` driver, in situation
 
-- When the core network is running on the same machine 
-- or different machine but you have configured 
-needed `ip route` and forwarding to access the core network from RAN host.  
+- When the core network is running on the same machine
+- or different machine but you have configured
+needed `ip route` and forwarding to access the core network from RAN host.
 
-To configure docker `macvlan` network 
+To configure docker `macvlan` network
 you need to choose `ipam.config` and `driver_opts.parent` are per your environment
 
 ```
@@ -59,7 +59,7 @@ you need to choose `ipam.config` and `driver_opts.parent` are per your environme
             parent: enp193s0f0
 ```
 
-To configure `bridge` network you need to choose `ipam.config.subnet` as per your environment. 
+To configure `bridge` network you need to choose `ipam.config.subnet` as per your environment.
 
 ```
     oai-net:
@@ -74,7 +74,7 @@ To configure `bridge` network you need to choose `ipam.config.subnet` as per you
 
 ## Deploy OAI-gNB Container
 
-The [configuration file](../../../targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band78.273prb.fhi72.4x4-benetel650.conf) used  by docker compose is configured for Benetel 650 RU (RAN650-1v1.0.4-dda1bf5). 
+The [configuration file](../../conf_files/gnb.sa.band77.273prb.fhi72.4x4-vvdn.conf) used by docker compose is configured for VVDN RU.
 
 ```bash
 docker-compose up -d

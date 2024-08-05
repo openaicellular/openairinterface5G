@@ -43,7 +43,6 @@ NAMESPACE = "oaicicd-ran"
 OCUrl = "https://api.oai.cs.eurecom.fr:6443"
 OCRegistry = "default-route-openshift-image-registry.apps.oai.cs.eurecom.fr/"
 CI_OC_RAN_NAMESPACE = "oaicicd-ran"
-CI_OC_CORE_NAMESPACE = "oaicicd-core-for-ci-ran"
 CN_IMAGES = ["mysql", "oai-nrf", "oai-amf", "oai-smf", "oai-upf", "oai-ausf", "oai-udm", "oai-udr", "oai-traffic-server"]
 CN_CONTAINERS = ["", "-c nrf", "-c amf", "-c smf", "-c upf", "-c ausf", "-c udm", "-c udr", ""]
 
@@ -68,10 +67,9 @@ def OC_login(cmd, ocUserName, ocPassword, ocProjectName):
 def OC_logout(cmd):
 	cmd.run(f'oc logout')
 
-def OC_deploy_CN(cmd, ocUserName, ocPassword):
-	logging.debug('OC OAI CN5G: Deploying OAI CN5G on Openshift Cluster')
-	path = "/opt/oai-cn5g-fed-develop-2024-april-00102"
-	succeeded = OC_login(cmd, ocUserName, ocPassword, CI_OC_CORE_NAMESPACE)
+def OC_deploy_CN(cmd, ocUserName, ocPassword, ocNamespace, path):
+	logging.debug(f'OC OAI CN5G: Deploying OAI CN5G on Openshift Cluster: {ocNamespace}')
+	succeeded = OC_login(cmd, ocUserName, ocPassword, ocNamespace)
 	if not succeeded:
 		return False, CONST.OC_LOGIN_FAIL
 	cmd.run('helm uninstall oai5gcn --wait --timeout 60s')
@@ -84,10 +82,9 @@ def OC_deploy_CN(cmd, ocUserName, ocPassword):
 	OC_logout(cmd)
 	return True, report
 
-def OC_undeploy_CN(cmd, ocUserName, ocPassword):
-	logging.debug('OC OAI CN5G: Terminating CN on Openshift Cluster')
-	path = "/opt/oai-cn5g-fed-develop-2024-april-00102"
-	succeeded = OC_login(cmd, ocUserName, ocPassword, CI_OC_CORE_NAMESPACE)
+def OC_undeploy_CN(cmd, ocUserName, ocPassword, ocNamespace, path):
+	logging.debug(f'OC OAI CN5G: Terminating CN on Openshift Cluster: {ocNamespace}')
+	succeeded = OC_login(cmd, ocUserName, ocPassword, ocNamespace)
 	if not succeeded:
 		return False, CONST.OC_LOGIN_FAIL
 	cmd.run(f'rm -Rf {path}/logs')

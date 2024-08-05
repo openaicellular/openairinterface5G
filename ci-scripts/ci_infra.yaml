@@ -18,6 +18,14 @@ up2:
   IF: wwan0
   MTU: 1500
 
+up2-fhi72:
+  Host: up2
+  AttachScript: sudo /opt/mbim-fhi72/start_quectel_mbim.sh
+  DetachScript: sudo /opt/mbim-fhi72/stop_quectel_mbim.sh
+  NetworkScript: ip a show dev wwan0
+  IF: wwan0
+  MTU: 1500
+
 sphex_quectel:
   Host: sphex
   InitScript: sudo stdbuf -oL /home/oaicicd/quectel-CM/quectel-CM -4 -s oai.ipv4 &> /tmp/quecel-cm.log &
@@ -58,7 +66,16 @@ adb_ue_2:
 
 oc-cn5g:
   Host: avra
+  Namespace: "oaicicd-core-for-ci-ran"
+  CNPath: "/opt/oai-cn5g-fed-develop-2024-april-00102"
   NetworkScript: echo "inet 172.21.6.102"
+  RunIperf3Server: False
+
+oc-cn5g-20897:
+  Host: cacofonix
+  Namespace: "oaicicd-core-for-fhi72"
+  CNPath: "/opt/oai-cn5g-fed-develop-2024-april-20897"
+  NetworkScript: echo "inet 172.21.6.105"
   RunIperf3Server: False
 
 matix-cn5g:
@@ -98,6 +115,10 @@ ltebox-nepes:
 amarisoft_ue:
   Host: amariue
   InitScript: /root/lteue-linux-2023-10-27/ue/lteue /root/oaicicd/ran_sa_aw2s_asue_2x2/aw2s-multi-00102-2x2.cfg &
+  TermScript: /root/2023-10-27/libs/ws.js -t 10 127.0.0.1:9002 '{"message":"quit"}' || killall -KILL lteue-avx2
+amarisoft_ue_fhi72:
+  Host: amariue
+  InitScript: /root/lteue-linux-2023-10-27/ue/lteue /root/oaicicd/ran_sa_fhi72_asue_2x2_benetel550/fhi72-multi-20897-2x2.cfg &
   TermScript: /root/2023-10-27/libs/ws.js -t 10 127.0.0.1:9002 '{"message":"quit"}' || killall -KILL lteue-avx2
 amarisoft_ue_1:
   Host: amariue

@@ -65,6 +65,8 @@ class Module_UE:
 			self.logStore = m.get('LogStore')
 			self.cmd_prefix = m.get('CmdPrefix')
 			self.runIperf3Server = m.get('RunIperf3Server', True)
+			self.namespace = m.get('Namespace')
+			self.cnPath = m.get('CNPath')
 			logging.info(f'initialized {self.module_name}@{self.host} from {filename}')
 
 	def __str__(self):
@@ -189,6 +191,12 @@ class Module_UE:
 
 	def getHost(self):
 		return self.host
+
+	def getNamespace(self):
+		return self.namespace
+
+	def getCNPath(self):
+		return self.cnPath
 
 	def getRunIperf3Server(self):
 		return self.runIperf3Server
