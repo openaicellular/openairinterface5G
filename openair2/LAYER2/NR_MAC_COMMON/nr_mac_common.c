@@ -3113,6 +3113,58 @@ uint16_t get_rb_bwp_dci(nr_dci_format_t format,
   return N_RB;
 }
 
+// 32 HARQ processes supported in rel17, default is 8
+int get_nrofHARQ_ProcessesForPDSCH(const NR_UE_ServingCell_Info_t *sc_info)
+{
+  if (sc_info && sc_info->nrofHARQ_ProcessesForPDSCH_v1700)
+    return 32;
+
+  if (!sc_info || !sc_info->nrofHARQ_ProcessesForPDSCH)
+    return 8;
+
+  int IEvalues[] = {2, 4, 6, 10, 12, 16};
+  return IEvalues[*sc_info->nrofHARQ_ProcessesForPDSCH];
+}
+
+// 32 HARQ processes supported in rel17, default is 16
+int get_nrofHARQ_ProcessesForPUSCH(const NR_UE_ServingCell_Info_t *sc_info)
+{
+  if (sc_info && sc_info->nrofHARQ_ProcessesForPUSCH_r17)
+    return 32;
+
+  return 16;
+}
+
+static int get_nrofHARQ_bits_PDSCH(int dci_format, int num_dl_harq, NR_PDSCH_Config_t *dl_cfg)
+{
+  // IF DCI Format 1_0 - then use 4 bits. Refer to Spec 38.212 section 7.3.1.2.1
+  int harqbits = 4;
+  if (dl_cfg && dl_cfg->ext3) {
+    // 5 bits if higher layer parameter harq-ProcessNumberSizeDCI-1-1 is configured, otherwise 4 bits
+    // Refer to Spec 38.212 section 7.3.1.2.2
+    if (dci_format == NR_DL_DCI_FORMAT_1_1 && dl_cfg->ext3->harq_ProcessNumberSizeDCI_1_1_r17) {
+      harqbits = 5;
+      AssertFatal(num_dl_harq == 32, "Incorrect configuration of DL HARQ processes %d\n",num_dl_harq);
+    }
+  }
+  return harqbits;
+}
+
+static int get_nrofHARQ_bits_PUSCH(int dci_format, int num_ul_harq, NR_PUSCH_Config_t *ul_cfg)
+{
+  // IF DCI Format 0_0 - then use 4 bits. Refer to Spec 38.212 section 7.3.1.1.1
+  int harqbits = 4;
+  if (ul_cfg && ul_cfg->ext2) {
+    // 5 bits if higher layer parameter harq-ProcessNumberSizeDCI-0-1 is configured, otherwise 4 bits
+    // Refer to Spec 38.212 section 7.3.1.1.2
+    if (dci_format == NR_UL_DCI_FORMAT_0_1 && ul_cfg->ext2->harq_ProcessNumberSizeDCI_0_1_r17) {
+      harqbits = 5;
+      AssertFatal(num_ul_harq == 32, "Incorrect configuration of UL HARQ processes %d\n",num_ul_harq);
+    }
+  }
+  return harqbits;
+}
+
 uint16_t nr_dci_size(const NR_UE_DL_BWP_t *DL_BWP,
                      const NR_UE_UL_BWP_t *UL_BWP,
                      const NR_UE_ServingCell_Info_t *sc_info,
@@ -3146,10 +3198,17 @@ uint16_t nr_dci_size(const NR_UE_DL_BWP_t *DL_BWP,
                           sc_info->initial_ul_BWPSize,
                           sc_info->initial_dl_BWPSize);
 
+  const int num_dl_harq = get_nrofHARQ_ProcessesForPDSCH(sc_info);
+  const int num_ul_harq = get_nrofHARQ_ProcessesForPUSCH(sc_info);
+  const int num_dlharqbits = get_nrofHARQ_bits_PDSCH(format, num_dl_harq, pdsch_Config);
+  const int num_ulharqbits = get_nrofHARQ_bits_PUSCH(format, num_ul_harq, pusch_Config);
+
   switch(format) {
     case NR_UL_DCI_FORMAT_0_0:
       /// fixed: Format identifier 1, Hop flag 1, MCS 5, NDI 1, RV 2, HARQ PID 4, PUSCH TPC 2 Time Domain assgnmt 4 --20
       size += 20;
+      // HARQ pid - 4bits , Spec 38.212 section 7.3.1.1.1
+      dci_pdu->harq_pid.nbits = 4;
       dci_pdu->frequency_domain_assignment.nbits = (uint8_t)ceil(log2((N_RB * (N_RB + 1)) >>1)); // Freq domain assignment -- hopping scenario to be updated
       size += dci_pdu->frequency_domain_assignment.nbits;
       if(alt_size >= size)
@@ -3166,8 +3225,12 @@ uint16_t nr_dci_size(const NR_UE_DL_BWP_t *DL_BWP,
         LOG_E(NR_MAC, "Error! Not possible to configure DCI format 01 without UL BWP.\n");
         return 0;
       }
-      /// fixed: Format identifier 1, MCS 5, NDI 1, RV 2, HARQ PID 4, PUSCH TPC 2, ULSCH indicator 1 --16
-      size += 16;
+      /// fixed: Format identifier 1, MCS 5, NDI 1, RV 2, PUSCH TPC 2, ULSCH indicator 1 --12
+      size += 12;
+      // HARQ PID - 4/5 bits Spec 38.212 section 7.3.1.1.2
+      // 5 bits if higher layer parameter harq-ProcessNumberSizeDCI-0-1 is configured;otherwise 4 bits
+      dci_pdu->harq_pid.nbits = num_ulharqbits;
+      size += dci_pdu->harq_pid.nbits;
       // Carrier indicator
       if (sc_info->crossCarrierSchedulingConfig) {
         dci_pdu->carrier_indicator.nbits = 3;
@@ -3309,6 +3372,8 @@ uint16_t nr_dci_size(const NR_UE_DL_BWP_t *DL_BWP,
       // Size of DCI format 1_0 is given by the size of CORESET 0 if CORESET 0 is configured for the cell and the size
       // of initial DL bandwidth part if CORESET 0 is not configured for the cell
       size = 28;
+      // HARQ pid - 4 bits. Spec 38.212 section 7.3.1.2.1
+      dci_pdu->harq_pid.nbits = 4;
       dci_pdu->frequency_domain_assignment.nbits = (uint8_t)ceil(log2((N_RB * (N_RB + 1)) >> 1)); // Freq domain assignment
       size += dci_pdu->frequency_domain_assignment.nbits;
       if(ss_type == NR_SearchSpace__searchSpaceType_PR_ue_Specific && alt_size >= size)
@@ -3391,8 +3456,10 @@ uint16_t nr_dci_size(const NR_UE_DL_BWP_t *DL_BWP,
       if ((maxCWperDCI != NULL) && (*maxCWperDCI == 2)) {
         size += 8;
       }
-      // HARQ PID
-      size += 4;
+      // HARQ process number – 5 bits if higher layer parameter harq-ProcessNumberSizeDCI-1-1 is configured;
+      // otherwise 4 bits. Spec 38.212 Section 7.3.1.2.2
+      dci_pdu->harq_pid.nbits = num_dlharqbits;
+      size += dci_pdu->harq_pid.nbits;
       // DAI
       if (pdsch_HARQ_ACK_Codebook == NR_PhysicalCellGroupConfig__pdsch_HARQ_ACK_Codebook_dynamic) { // FIXME in case of more than one serving cell
         dci_pdu->dai[0].nbits = 2;

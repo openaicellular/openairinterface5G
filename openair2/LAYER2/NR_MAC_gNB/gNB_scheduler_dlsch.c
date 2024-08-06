@@ -1211,7 +1211,7 @@ void nr_schedule_ue_spec(module_id_t module_id,
     dci_payload.time_domain_assignment.val = sched_pdsch->time_domain_allocation;
     dci_payload.mcs = sched_pdsch->mcs;
     dci_payload.rv = pdsch_pdu->rvIndex[0];
-    dci_payload.harq_pid = current_harq_pid;
+    dci_payload.harq_pid.val = current_harq_pid;
     dci_payload.ndi = harq->ndi;
     dci_payload.dai[0].val = pucch ? (pucch->dai_c-1)&3 : 0;
     dci_payload.tpc = sched_ctrl->tpc1; // TPC for PUCCH: table 7.2.1-1 in 38.213

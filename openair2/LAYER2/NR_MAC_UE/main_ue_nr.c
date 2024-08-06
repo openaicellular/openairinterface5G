@@ -276,6 +276,8 @@ void release_mac_configuration(NR_UE_MAC_INST_t *mac, NR_UE_MAC_reset_cause_t ca
   asn1cFreeStruc(asn_DEF_NR_DownlinkHARQ_FeedbackDisabled_r17, sc->downlinkHARQ_FeedbackDisabled_r17);
   free(sc->xOverhead_PDSCH);
   free(sc->nrofHARQ_ProcessesForPDSCH);
+  free(sc->nrofHARQ_ProcessesForPDSCH_v1700);
+  free(sc->nrofHARQ_ProcessesForPUSCH_r17);
   free(sc->rateMatching_PUSCH);
   free(sc->xOverhead_PUSCH);
   free(sc->maxMIMO_Layers_PDSCH);

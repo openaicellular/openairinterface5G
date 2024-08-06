@@ -40,7 +40,7 @@
 
 #define MAX_BWP_SIZE 275
 #define NR_MAX_NUM_BWP 4
-#define NR_MAX_HARQ_PROCESSES 16
+#define NR_MAX_HARQ_PROCESSES 32
 #define NR_NB_REG_PER_CCE 6
 #define NR_NB_SC_PER_RB 12
 #define NR_MAX_NUM_LCID 32

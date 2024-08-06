@@ -308,7 +308,7 @@ typedef struct {
   uint8_t     mcs; //5 bits
   uint8_t     ndi; //1 bit
   uint8_t     rv; //2 bits
-  uint8_t     harq_pid; //4 bits
+  dci_field_t harq_pid; // 4/5 bits
   uint8_t     tpc; //2 bits
   uint8_t     short_messages_indicator; //2 bits
   uint8_t     short_messages; //8 bits
@@ -604,6 +604,8 @@ typedef struct {
   int ul_bw_tbslbrm;
   NR_NTN_Config_r17_t *ntn_Config_r17;
   NR_DownlinkHARQ_FeedbackDisabled_r17_t *downlinkHARQ_FeedbackDisabled_r17;
+  long *nrofHARQ_ProcessesForPDSCH_v1700;
+  long *nrofHARQ_ProcessesForPUSCH_r17;
 } NR_UE_ServingCell_Info_t;
 
 typedef enum {

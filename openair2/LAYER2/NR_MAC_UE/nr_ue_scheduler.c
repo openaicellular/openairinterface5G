@@ -814,7 +814,7 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
     pusch_config_pdu->mcs_table = get_pusch_mcs_table(mcs_table_config, tp_enabled, dci_format, rnti_type, ss_type, false);
 
     /* NDI */
-    NR_UL_HARQ_INFO_t *harq = &mac->ul_harq_info[dci->harq_pid];
+    NR_UL_HARQ_INFO_t *harq = &mac->ul_harq_info[dci->harq_pid.val];
     pusch_config_pdu->pusch_data.new_data_indicator = false;
     if (dci->ndi != harq->last_ndi) {
       pusch_config_pdu->pusch_data.new_data_indicator = true;
@@ -825,7 +825,7 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
     /* RV */
     pusch_config_pdu->pusch_data.rv_index = dci->rv;
     /* HARQ_PROCESS_NUMBER */
-    pusch_config_pdu->pusch_data.harq_process_id = dci->harq_pid;
+    pusch_config_pdu->pusch_data.harq_process_id = dci->harq_pid.val;
 
     if (NR_DMRS_ulconfig != NULL)
       add_pos = (NR_DMRS_ulconfig->dmrs_AdditionalPosition == NULL) ? 2 : *NR_DMRS_ulconfig->dmrs_AdditionalPosition;

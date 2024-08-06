@@ -1651,7 +1651,7 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
   dci_payload.mcs = pdsch_pdu_rel15->mcsIndex[0];
   dci_payload.tb_scaling = tb_scaling;
   dci_payload.rv = pdsch_pdu_rel15->rvIndex[0];
-  dci_payload.harq_pid = current_harq_pid;
+  dci_payload.harq_pid.val = current_harq_pid;
   dci_payload.ndi = ndi;
   dci_payload.dai[0].val = pucch ? (pucch->dai_c-1) & 3 : 0;
   dci_payload.tpc = tpc; // TPC for PUCCH: table 7.2.1-1 in 38.213
