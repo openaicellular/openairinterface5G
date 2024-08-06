@@ -1296,7 +1296,7 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
   uint64_t random_value = 0;
   const char *scause = get_reestab_cause(req->reestablishmentCause);
   const long physCellId = req->ue_Identity.physCellId;
-  LOG_D(NR_RRC, "UE %04x physCellId %ld NR_RRCReestablishmentRequest cause %s\n", msg->crnti, physCellId, scause);
+  LOG_I(NR_RRC, "UE %04x physCellId %ld NR_RRCReestablishmentRequest cause %s\n", msg->crnti, physCellId, scause);
 
   const nr_rrc_du_container_t *du = get_du_by_assoc_id(rrc, assoc_id);
   if (du == NULL) {
@@ -1409,11 +1409,11 @@ static void process_Event_Based_Measurement_Report(NR_ReportConfigNR_t *report, 
 
   switch (event_triggered->eventId.present) {
     case NR_EventTriggerConfig__eventId_PR_eventA2:
-      LOG_I(NR_RRC, "\nHO LOG: Event A2 (Serving becomes worse than threshold)\n");
+      LOG_I(NR_RRC, "HO LOG: Event A2 (Serving becomes worse than threshold)\n");
       break;
 
     case NR_EventTriggerConfig__eventId_PR_eventA3: {
-      LOG_I(NR_RRC, "\nHO LOG: Event A3 Report - Neighbour Becomes Better than Serving!\n");
+      LOG_I(NR_RRC, "HO LOG: Event A3 Report - Neighbour Becomes Better than Serving!\n");
       const NR_MeasResults_t *measResults = &measurementReport->criticalExtensions.choice.measurementReport->measResults;
 
       for (int serving_cell_idx = 0; serving_cell_idx < measResults->measResultServingMOList.list.count; serving_cell_idx++) {
