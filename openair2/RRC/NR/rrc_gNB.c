@@ -2214,8 +2214,10 @@ static void rrc_CU_process_ue_context_release_request(MessageDef *msg_p)
     return;
   }
 
-  if (ue_context_p->ue_context.ho_context != NULL) {
-    AssertFatal(false, "not implemented: should abort handover\n");
+  gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
+  if (UE->ho_context != NULL) {
+    LOG_W(NR_RRC, "UE %d: received UE Context release request during handover, aborting handover\n", UE->rrc_ue_id);
+    free_and_zero(UE->ho_context);
   }
 
   /* TODO: marshall types correctly */
