@@ -513,7 +513,7 @@ void dump_du_info(const gNB_RRC_INST *rrc, FILE *f)
       fprintf(f, "assoc_id %d", du->assoc_id);
     }
     const f1ap_served_cell_info_t *info = &sr->cell[0].info;
-    fprintf(f, ": nrCellID %ld, PCI %d\n", info->nr_cellid, info->nr_pci);
+    fprintf(f, ": nrCellID %ld, PCI %d, SSB ARFCN %d\n", info->nr_cellid, info->nr_pci, get_ssb_arfcn(du));
 
     if (info->mode == F1AP_MODE_TDD) {
       const f1ap_nr_frequency_info_t *fi = &info->tdd.freqinfo;
