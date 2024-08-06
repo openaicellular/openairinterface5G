@@ -877,6 +877,10 @@ static void fill_rf_config(RU_t *ru, char *rf_config_file)
   cfg->num_rb_dl=N_RB;
   cfg->tx_num_channels=ru->nb_tx;
   cfg->rx_num_channels=ru->nb_rx;
+  double band_kHz = config->carrier_config.dl_bandwidth.value * 1000;
+  // 5G hard code 240 sub carriers for PBCH regardless numerology (TS 38.211 - 7.4.3.1)
+  double pbch_band = 240 * (15 << config->ssb_config.scs_common.value);
+  double power_antenna_at_0dBFS = config->ssb_config.ss_pbch_power.value + 10 * log(band_kHz / pbch_band) - 10 * log(ru->nb_tx);
   LOG_I(PHY,"Setting RF config for N_RB %d, NB_RX %d, NB_TX %d\n",cfg->num_rb_dl,cfg->rx_num_channels,cfg->tx_num_channels);
   LOG_I(PHY,"tune_offset %.0f Hz, sample_rate %.0f Hz\n",cfg->tune_offset,cfg->sample_rate);
 
@@ -890,9 +894,10 @@ static void fill_rf_config(RU_t *ru, char *rf_config_file)
       cfg->tx_freq[i] = (double)ru->if_frequency;
     }
 
-    cfg->tx_gain[i] = ru->att_tx;
+    cfg->tx_gain[i] = ru->att_tx; // weird !
     LOG_I(PHY, "Channel %d: setting tx_gain offset %.0f, tx_freq %.0f Hz\n", 
           i, cfg->tx_gain[i],cfg->tx_freq[i]);
+    cfg->output_power_dbm[i] = power_antenna_at_0dBFS;
   }
 
   for (i=0; i<ru->nb_rx; i++) {

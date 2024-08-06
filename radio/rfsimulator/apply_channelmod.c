@@ -64,7 +64,7 @@ void rxAddInput( const c16_t *input_sig,
   // so, in actual RF: tx gain + path loss + rx gain (+antenna gain, ...)
   // UE and NB gain control to be added
   // Fixme: not sure when it is "volts" so dB is 20*log10(...) or "power", so dB is 10*log10(...)
-  const double pathLossLinear = pow(10,channelDesc->path_loss_dB/20.0);
+  const double pathLossLinear = pow(10, channelDesc->path_loss_dB / 10.0);
   // Energy in one sample to calibrate input noise
   // the normalized OAI value seems to be 256 as average amplitude (numerical amplification = 1)
   const double noise_per_sample = pow(10,channelDesc->noise_power_dB/10.0) * 256;

@@ -177,6 +177,9 @@ typedef struct {
   poll_telnetcmdq_func_t poll_telnetcmdq;
   int wait_timeout;
   double prop_delay_ms;
+  float tx_power[8];
+  double rx_gain[8];
+  double rx_power;
 } rfsimulator_state_t;
 
 static int allocCirBuf(rfsimulator_state_t *bridge, int sock)
@@ -612,7 +615,8 @@ static int rfsimulator_write_internal(rfsimulator_state_t *t, openair0_timestamp
     buffer_t *b=&t->buf[i];
 
     if (b->conn_sock >= 0 ) {
-      samplesBlockHeader_t header = {nsamps, nbAnt, timestamp};
+      // let's assume all tx have same power for now
+      samplesBlockHeader_t header = {nsamps, nbAnt, timestamp, t->tx_power[0]};
       fullwrite(b->conn_sock,&header, sizeof(header), t);
       sample_t tmpSamples[nsamps][nbAnt];
 
@@ -750,7 +754,8 @@ static bool flushInput(rfsimulator_state_t *t, int timeout, int nsamps_for_initi
       // check the header and start block transfer
       if ( b->headerMode==true && b->remainToTransfer==0) {
         b->headerMode = false;
-
+        t->rx_power = b->th.power;
+        // negligate the tx poxer can change in each trasnmission, we consider it as static for the size of circularBuf
         if (t->nextRxTstamp == 0) { // First block in UE, resync with the gNB current TS
           t->nextRxTstamp=b->th.timestamp> nsamps_for_initial ?
                            b->th.timestamp -  nsamps_for_initial :
@@ -761,8 +766,7 @@ static bool flushInput(rfsimulator_state_t *t, int timeout, int nsamps_for_initi
           LOG_D(HW, "UE got first timestamp: starting at %lu\n", t->nextRxTstamp);
           b->trashingPacket=true;
         } else if (b->lastReceivedTS < b->th.timestamp) {
-          int nbAnt= b->th.nbAnt;
-
+          int nbAnt = b->th.nbAnt;
           if ( b->th.timestamp-b->lastReceivedTS < CirSize ) {
             for (uint64_t index=b->lastReceivedTS; index < b->th.timestamp; index++ ) {
               for (int a=0; a < nbAnt; a++) {
@@ -966,6 +970,11 @@ static int rfsimulator_set_freq(openair0_device *device, openair0_config_t *open
   return 0;
 }
 static int rfsimulator_set_gains(openair0_device *device, openair0_config_t *openair0_cfg) {
+  rfsimulator_state_t *s = device->priv;
+  for (int i = 0; i < s->tx_num_channels; i++)
+    s->tx_power[i] = openair0_cfg->output_power_dbm[i];
+  for (int i = 0; i < s->rx_num_channels; i++)
+    s->rx_gain[i] = openair0_cfg->rx_gain[i];
   return 0;
 }
 static int rfsimulator_write_init(openair0_device *device) {
@@ -980,7 +989,9 @@ int device_init(openair0_device *device, openair0_config_t *openair0_cfg) {
   rfsimulator->tx_num_channels=openair0_cfg->tx_num_channels;
   rfsimulator->rx_num_channels=openair0_cfg->rx_num_channels;
   rfsimulator->sample_rate=openair0_cfg->sample_rate;
-  rfsimulator->tx_bw=openair0_cfg->tx_bw;  
+  rfsimulator->tx_bw = openair0_cfg->tx_bw;
+  for (int i = 0; i < rfsimulator->tx_num_channels; i++)
+    rfsimulator->tx_power[i] = openair0_cfg->output_power_dbm[i];
   rfsimulator_readconfig(rfsimulator);
   if (rfsimulator->prop_delay_ms > 0.0)
     rfsimulator->chan_offset = ceil(rfsimulator->sample_rate * rfsimulator->prop_delay_ms / 1000);
@@ -1005,11 +1016,12 @@ int device_init(openair0_device *device, openair0_config_t *openair0_cfg) {
   device->trx_set_freq_func    = rfsimulator_set_freq;
   device->trx_set_gains_func   = rfsimulator_set_gains;
   device->trx_write_func       = rfsimulator_write;
-  device->trx_read_func      = rfsimulator_read;
-  /* let's pretend to be a b2x0 */
+  device->trx_read_func = rfsimulator_read;
   device->type = RFSIMULATOR;
-  openair0_cfg[0].rx_gain[0] = 0;
-  device->openair0_cfg=&openair0_cfg[0];
+  for (int i = 0; i < rfsimulator->tx_num_channels; i++)
+    rfsimulator->rx_gain[i] = openair0_cfg->rx_gain[i];
+  // OAI style, global variables pointers stored in other modules, with race cond ignored
+  device->openair0_cfg = openair0_cfg;
   device->priv = rfsimulator;
   device->trx_write_init = rfsimulator_write_init;
 

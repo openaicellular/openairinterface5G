@@ -253,7 +253,10 @@ typedef struct openair0_config {
   //! index: [0..rx_num_channels]
   double rx_gain_offset[8];
   //! gain for TX in dB
+  // for legacy code, we keep tx_gain that is actually misleading name and impossible to compute in BBU
   double tx_gain[8];
+  // Actual value for tx ouput power for 0 dBFS per antenna
+  double output_power_dbm[8];
   //! RX bandwidth in Hz
   double rx_bw;
   //! TX bandwidth in Hz
@@ -628,6 +631,12 @@ typedef struct {
   uint64_t timestamp;      // Timestamp value of first sample
   uint32_t option_value;   // Option value
   uint32_t option_flag;    // Option flag
+  float power;
+  // in dBm for 0 dBFS and all Tx antenna sum (dBFS is dB relative to Full Scale, so a pure single carrier sinus wave)
+  // FS is OAI full scale, so int16_t, independant of the actual number of bits in DAC/ADC
+  // if we do ofdm, the power per carrier is this power/(nb_tx_antennas  * nb_carriers)
+  // in 3GPP standard, we have EPRE (Energy Per Resource Element), that is output power/(nb_tx_antennas  * nb_RB * carriers_
+  // per_RB), so in dBm: power -10log(nb_tx_antennas) - 10*log(n_RB*12)
 } samplesBlockHeader_t;
 
 #ifdef __cplusplus
