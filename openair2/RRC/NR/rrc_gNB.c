@@ -1828,12 +1828,17 @@ static void handle_rrcReconfigurationComplete(const protocol_ctxt_t *const ctxt_
   }
 
   if (UE->ho_context != NULL) {
+    /* update UE info */
     rnti_t new_rnti = UE->ho_context->data.intra_cu.new_rnti;
     LOG_I(NR_RRC, "UE %d: after handover, update UE RNTI from %04x to %04x\n", UE->rrc_ue_id, UE->rnti, new_rnti);
     UE->rnti = new_rnti;
+    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
+    ue_data.secondary_ue = UE->ho_context->data.intra_cu.target_secondary_ue;
+    ue_data.du_assoc_id = UE->ho_context->data.intra_cu.target_du;
+    cu_remove_f1_ue_data(UE->rrc_ue_id);
+    cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
 
     gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
-    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
     RETURN_IF_INVALID_ASSOC_ID(ue_data);
     f1ap_ue_context_release_cmd_t ue_context_release_cmd = {
         .gNB_CU_ue_id = UE->rrc_ue_id,
