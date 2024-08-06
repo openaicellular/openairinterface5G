@@ -1415,7 +1415,7 @@ int do_NR_HandoverPreparationInformation(const uint8_t *uecap_buf, int uecap_buf
     list = NULL;
   }
 
-  if (true)
+  if (false)
     xer_fprint(stdout, &asn_DEF_NR_HandoverPreparationInformation, hpi);
 
   asn_enc_rval_t enc_rval = uper_encode_to_buffer(&asn_DEF_NR_HandoverPreparationInformation, NULL, hpi, buf, buf_size);
