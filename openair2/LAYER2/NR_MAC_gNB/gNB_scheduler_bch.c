@@ -397,7 +397,6 @@ static uint32_t schedule_control_sib1(module_id_t module_id,
   return TBS;
 }
 
-
 static uint32_t schedule_control_other_si(module_id_t module_id,
                                       int CC_id,
                                       NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config,
@@ -743,8 +742,8 @@ static void nr_fill_nfapi_dl_other_si_pdu(int Mod_idP,
   LOG_D(NR_MAC,"sib19:dlDmrsSymbPos = 0x%x\n", pdsch_pdu_rel15->dlDmrsSymbPos);
 
   pdsch_pdu_rel15->maintenance_parms_v3.tbSizeLbrmBytes = nr_compute_tbslbrm(0,
-                                                                             pdsch_pdu_rel15->BWPSize,
-                                                                             1);
+                                                                            pdsch_pdu_rel15->BWPSize,
+                                                                            1);
   pdsch_pdu_rel15->maintenance_parms_v3.ldpcBaseGraph = get_BG(TBS<<3,pdsch_pdu_rel15->targetCodeRate[0]);
 
   /* Fill PDCCH DL DCI PDU */
@@ -855,7 +854,7 @@ void schedule_nr_sib1(module_id_t module_idP,
        (type0_PDCCH_CSS_config->num_rbs > 0) &&
        (type0_PDCCH_CSS_config->active == true)) {
 
-      LOG_I(NR_MAC,"(%d.%d) SIB1 transmission: ssb_index %d\n", frameP, slotP, type0_PDCCH_CSS_config->ssb_index);
+      LOG_D(NR_MAC,"(%d.%d) SIB1 transmission: ssb_index %d\n", frameP, slotP, type0_PDCCH_CSS_config->ssb_index);
 
       default_table_type_t table_type = get_default_table_type(type0_PDCCH_CSS_config->type0_pdcch_ss_mux_pattern);
       // assuming normal CP
@@ -911,7 +910,6 @@ void schedule_nr_sib1(module_id_t module_idP,
   }
 }
 
-
 void schedule_nr_sib19(module_id_t module_idP,
                       frame_t frameP,
                       sub_frame_t slotP,
@@ -951,7 +949,7 @@ void schedule_nr_sib19(module_id_t module_idP,
 
   if (!found)
   {
-    LOG_I(GNB_APP, "SIB1 does not contain scheduling info for SIB19\n");
+    LOG_E(GNB_APP, "SIB1 does not contain scheduling info for SIB19\n");
     return;
   }
   
@@ -984,7 +982,7 @@ void schedule_nr_sib19(module_id_t module_idP,
        (type0_PDCCH_CSS_config->num_rbs > 0))
        {
 
-      LOG_I(NR_MAC,"(%d.%d) SIB19 transmission: ssb_index %d\n", frameP, slotP, type0_PDCCH_CSS_config->ssb_index);
+      LOG_D(NR_MAC,"(%d.%d) SIB19 transmission: ssb_index %d\n", frameP, slotP, type0_PDCCH_CSS_config->ssb_index);
 
       NR_tda_info_t tda_info = set_tda_info_from_list(scc->downlinkConfigCommon->initialDownlinkBWP->pdsch_ConfigCommon->choice.setup->pdsch_TimeDomainAllocationList, time_domain_allocation);
       LOG_D(NR_MAC,"tda_info.startSymbolIndex: %d, tda_info.nrOfSymbols: %d\n", tda_info.startSymbolIndex, tda_info.nrOfSymbols);
@@ -1014,7 +1012,6 @@ void schedule_nr_sib19(module_id_t module_idP,
 
       // Data to be transmitted
       memcpy(tx_req->TLVs[0].value.direct, cc->sib19_bcch_pdu, TBS);
-      xer_fprint(stdout, &asn_DEF_NR_BCCH_DL_SCH_Message,(void *)cc->sib19);
 
       tx_req->PDU_length = TBS;
       tx_req->PDU_index  = pdu_index;

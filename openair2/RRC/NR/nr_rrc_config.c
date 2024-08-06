@@ -2458,9 +2458,8 @@ NR_BCCH_DL_SCH_Message_t *get_SIB1_NR(const NR_ServingCellConfigCommon_t *scc,
   // nonCriticalExtension
   // TODO: add nonCriticalExtension
 
-  // if (LOG_DEBUGFLAG(DEBUG_ASN1)) {
-  if (true) {  
-    xer_fprint(stdout, &asn_DEF_NR_SIB1, (const void*)sib1_message->message.choice.c1->choice.systemInformationBlockType1);
+  if (LOG_DEBUGFLAG(DEBUG_ASN1)) { 
+    xer_fprint(stdout, &asn_DEF_NR_BCCH_DL_SCH_Message,(void *)sib1_message);
   }
 
   return sib1_message;
@@ -2506,8 +2505,10 @@ NR_BCCH_DL_SCH_Message_t *get_SIB19_NR(const NR_ServingCellConfigCommon_t *scc)
 
   asn1cSeqAdd(&ies->sib_TypeAndInfo.list, sib19);
 
+  if (LOG_DEBUGFLAG(DEBUG_ASN1)) { 
   xer_fprint(stdout, &asn_DEF_NR_BCCH_DL_SCH_Message,(void *)sib_message);
-
+  }
+  
   return sib_message;
 }
 
@@ -2523,7 +2524,6 @@ int encode_SIB19_NR(NR_BCCH_DL_SCH_Message_t *sib19, uint8_t *buffer, int max_bu
   AssertFatal (enc_rval.encoded > 0, "ASN1 message encoding failed (%s, %lu)!\n",
                enc_rval.failed_type->name, enc_rval.encoded);
 
-  // xer_fprint(stdout, &asn_DEF_NR_BCCH_DL_SCH_Message,(void *)sib19);
   return((enc_rval.encoded+7)/8);
 }
 
