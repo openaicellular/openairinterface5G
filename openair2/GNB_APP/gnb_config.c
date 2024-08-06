@@ -2383,6 +2383,45 @@ int gNB_app_handle_f1ap_gnb_cu_configuration_update(f1ap_gnb_cu_configuration_up
   return(ret);
 }
 
+xnap_net_config_t Read_IPconfig_Xn(void)
+{
+  xnap_net_config_t nc = {0};
+  paramdef_t XnParamsneighbour[] = Xn_NEIGHBOUR_PARAMS_DESC;
+  paramlist_def_t XnParamneighbourList = {GNB_CONFIG_STRING_TARGET_GNB_Xn_ADDRESS, NULL, 0};
+  paramdef_t SCTPParams[] = GNBSCTPPARAMS_DESC;
+  char aprefix[MAX_OPTNAME_SIZE * 2 + 8];
+  sprintf(aprefix, "%s.[%i]", GNB_CONFIG_STRING_GNB_LIST, 0);
+  config_getlist(config_get_if(), &XnParamneighbourList, XnParamsneighbour, sizeofArray(XnParamsneighbour), aprefix);
+  AssertFatal(XnParamneighbourList.numelt <= XNAP_MAX_NB_GNB_IP_ADDRESS,
+              "value of XnParamList.numelt %d must be lower than XnAP_MAX_NB_GNB_IP_ADDRESS %d value: reconsider to increase "
+              "XNAP_MAX_NB_GNB_IP_ADDRESS\n",
+              XnParamneighbourList.numelt,
+              XNAP_MAX_NB_GNB_IP_ADDRESS);
+  LOG_I(XNAP, "Number of Target gNBs configured: %d\n", XnParamneighbourList.numelt);
+  for (int l = 0; l < XnParamneighbourList.numelt; l++) {
+    nc.nb_xn += 1;
+    nc.target_gnb_xn_ip_address[l] = strdup(*(XnParamneighbourList.paramarray[l][GNB_CONFIG_STRING_TARGET_GNB_Xn_IP_ADDRESS_IDX].strptr));
+    LOG_I(XNAP, "Target gNB %d: %s \n", l+1, nc.target_gnb_xn_ip_address[l]);
+  }
+
+  // NETWORK_INTERFACES
+  paramdef_t XnParams[] = XnPARAMS_DESC;
+  config_get(config_get_if(), XnParams, sizeofArray(XnParams), aprefix);
+  nc.gnb_port_for_XNC = (uint32_t) * (XnParams[GNB_CONFIG_STRING_GNB_PORT_FOR_XNC_IDX].uptr);
+  AssertFatal(((XnParams[GNB_CONFIG_STRING_GNB_IP_ADDR_FOR_XNC_IDX].strptr != NULL) && (nc.gnb_port_for_XNC != 0)), 
+              "gNB Interface IP/Port not added in the CU/gNB configuration file \n");
+  nc.gnb_xn_interface_ip_address = strdup(*(XnParams[GNB_CONFIG_STRING_GNB_IP_ADDR_FOR_XNC_IDX].strptr));
+
+  // SCTP SETTING
+  nc.sctp_streams.sctp_out_streams = SCTP_OUT_STREAMS;
+  nc.sctp_streams.sctp_in_streams = SCTP_IN_STREAMS;
+  sprintf(aprefix, "%s.[%i].%s", GNB_CONFIG_STRING_GNB_LIST, 0, GNB_CONFIG_STRING_SCTP_CONFIG);
+  config_get(config_get_if(), SCTPParams, sizeofArray(SCTPParams), aprefix);
+  nc.sctp_streams.sctp_in_streams = (uint16_t) * (SCTPParams[GNB_SCTP_INSTREAMS_IDX].uptr);
+  nc.sctp_streams.sctp_out_streams = (uint16_t) * (SCTPParams[GNB_SCTP_OUTSTREAMS_IDX].uptr);
+  return nc;
+}
+
 ngran_node_t get_node_type(void)
 {
   paramdef_t        MacRLC_Params[] = MACRLCPARAMS_DESC;

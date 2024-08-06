@@ -524,6 +524,36 @@ typedef enum {
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
+/* Xn configuration parameters section name */
+
+#define XNAP_ENABLE  "enable_xn"
+
+#define GNB_CONFIG_STRING_GNB_IP_ADDR_FOR_XNC     "GNB_IP_ADDRESS_FOR_XNC"
+#define GNB_CONFIG_STRING_GNB_PORT_FOR_XNC        "GNB_PORT_FOR_XNC"
+
+#define XnPARAMS_DESC \
+  {\
+	{XNAP_ENABLE, "enable xn", PARAMFLAG_BOOL, .i64ptr = NULL, .defint64val = 0, TYPE_INT, 0}, \
+	{GNB_CONFIG_STRING_GNB_IP_ADDR_FOR_XNC, "interface ip for xnc", 0, .strptr=NULL, .defstrval=NULL, TYPE_STRING, 0},\
+	{GNB_CONFIG_STRING_GNB_PORT_FOR_XNC, NULL, 0, .uptr=NULL, .defintval=0L, TYPE_UINT, 0}, \
+  }
+
+#define XNAP_ENABLE_IDX                                               0
+#define GNB_CONFIG_STRING_GNB_IP_ADDR_FOR_XNC_IDX                     1
+#define GNB_CONFIG_STRING_GNB_PORT_FOR_XNC_IDX                        2
+
+#define GNB_CONFIG_STRING_TARGET_GNB_Xn_ADDRESS    "Target_gNB_XN_address"
+#define GNB_CONFIG_STRING_TARGET_GNB_Xn_IP_ADDRESS  "ip"
+
+#define Xn_NEIGHBOUR_PARAMS_DESC \
+  {\
+        {GNB_CONFIG_STRING_TARGET_GNB_Xn_IP_ADDRESS, "target ip address", 0,.uptr=NULL, .defstrval=NULL, TYPE_STRING, 0}, \
+  }
+
+#define GNB_CONFIG_STRING_TARGET_GNB_Xn_IP_ADDRESS_IDX              0
+
+/*---------------------------------------------------------------------------------------------------------------------------------------*/
+
 /* E1 configuration section */
 #define GNB_CONFIG_STRING_E1_PARAMETERS                   "E1_INTERFACE"
 
