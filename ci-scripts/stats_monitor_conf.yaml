@@ -1,4 +1,7 @@
 enb :
+  files: ["L1_stats.log", "MAC_stats.log", "PDCP_stats.log", "RRC_stats.log"]
+  test_params:
+    duration: 10 #Number of samples to average over for throughput
   PHR:
   bler:
   mcsoff:
@@ -11,10 +14,25 @@ enb :
       mcs:      
 
 gnb :
-  dlsch_err:
-  dlsch_err_perc_round_1:
-  ulsch_err:
-  ulsch_err_perc_round_1:
+  #files: ["nrL1_stats.log", "nrMAC_stats.log", "nrPDCP_stats.log", "nrRRC_stats.log"]
+  files: ["oai.log"]
+  test_params:
+    duration: 10 #Number of samples to average over for throughput
+  ue :
+    timestamp:
+    dlsch_bler:
+    dlsch_mbps:
+    dlsch_prev_bytes:
+    dlmcs:
+    dlbler:
+    dlsch_err:
+    dlsch_err_perc_round_1:
+    ulmcs:
+    ulbler:
+    ulsch_mbps:
+    ulsch_prev_bytes:
+    ulsch_err:
+    ulsch_err_perc_round_1:
   rt :
     feprx:
     feptx_prec:
@@ -29,10 +47,14 @@ gnb :
     Slot Indication:
   graph : 
     page1:
-      dlsch_err:
-      dlsch_err_perc_round_1:
-      ulsch_err:
-      ulsch_err_perc_round_1:
+      ue.dlsch_mbps:
+      #ue.dlsch_err:
+      ue.dlmcs:
+      ue.dlsch_err_perc_round_1:
+      ue.ulsch_mbps:
+      ue.ulmcs:
+       #ue.ulsch_err:
+      ue.ulsch_err_perc_round_1:
     page2:    
       rt.feprx:
       rt.feptx_prec:
