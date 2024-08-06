@@ -323,6 +323,8 @@ NR_UE_RRC_INST_t* nr_rrc_init_ue(char* uecap_file, int nb_inst, int num_ant_tx)
     rrc->ul_bwp_id = 0;
     rrc->as_security_activated = false;
     rrc->detach_after_release = false;
+    /* 5G-S-TMSI */
+    rrc->fiveG_S_TMSI = UINT64_MAX;
 
     FILE *f = NULL;
     if (uecap_file)
@@ -693,10 +695,8 @@ static void nr_rrc_ue_prepare_RRCSetupRequest(NR_UE_RRC_INST_t *rrc)
     rv[i] = taus() & 0xff;
 #endif
   }
-
   uint8_t buf[1024];
-  int len = do_RRCSetupRequest(buf, sizeof(buf), rv);
-
+  int len = do_RRCSetupRequest(buf, sizeof(buf), rv, rrc->fiveG_S_TMSI);
   nr_rlc_srb_recv_sdu(rrc->ue_id, 0, buf, len);
 }
 
@@ -905,24 +905,36 @@ static void rrc_ue_generate_RRCSetupComplete(const NR_UE_RRC_INST_t *rrc, const 
 {
   uint8_t buffer[100];
   const char *nas_msg;
-  int   nas_msg_length;
+  int nas_msg_length;
 
   if (get_softmodem_params()->sa) {
-    as_nas_info_t initialNasMsg;
-    nr_ue_nas_t *nas = get_ue_nas_info(rrc->ue_id);
-    generateRegistrationRequest(&initialNasMsg, nas);
-    nas_msg = (char*)initialNasMsg.data;
-    nas_msg_length = initialNasMsg.length;
+    if (rrc->nasRegReqMsg.data) {
+      nas_msg = (char *)rrc->nasRegReqMsg.data;
+      nas_msg_length = rrc->nasRegReqMsg.length;
+    } else {
+      LOG_E(NR_RRC, "Failed to complete RRCSetup. NAS Registration Request message not found. \n");
+      return;
+    }
   } else {
     nas_msg = nr_nas_attach_req_imsi_dummy_NSA_case;
     nas_msg_length = sizeof(nr_nas_attach_req_imsi_dummy_NSA_case);
   }
 
-  int size = do_RRCSetupComplete(buffer, sizeof(buffer), Transaction_id, rrc->selected_plmn_identity, nas_msg_length, nas_msg);
+  /* ng-5G-S-TMSI-Part2: The leftmost 9 bits of 5G-S-TMSI. */
+  if (rrc->fiveG_S_TMSI == UINT64_MAX)
+    LOG_D(NR_RRC, "5G-S-TMSI is not available!\n");
+  int size = do_RRCSetupComplete(buffer,
+                                 sizeof(buffer),
+                                 Transaction_id,
+                                 rrc->selected_plmn_identity,
+                                 rrc->ra_trigger == RRC_CONNECTION_SETUP,
+                                 rrc->fiveG_S_TMSI,
+                                 nas_msg_length,
+                                 nas_msg);
+  free(rrc->nasRegReqMsg.data);
   LOG_I(NR_RRC, "[UE %ld][RAPROC] Logical Channel UL-DCCH (SRB1), Generating RRCSetupComplete (bytes%d)\n", rrc->ue_id, size);
   int srb_id = 1; // RRC setup complete on SRB1
   LOG_D(NR_RRC, "[RRC_UE %ld] PDCP_DATA_REQ/%d Bytes RRCSetupComplete ---> %d\n", rrc->ue_id, size, srb_id);
-
   nr_pdcp_data_req_srb(rrc->ue_id, srb_id, 0, size, buffer, deliver_pdu_srb_rlc, NULL);
 }
 
@@ -945,6 +957,9 @@ static void nr_rrc_process_rrcsetup(NR_UE_RRC_INST_t *rrc,
   // perform the radio bearer configuration procedure in accordance with the received radioBearerConfig
   nr_rrc_ue_process_RadioBearerConfig(rrc,
                                       &rrcSetup->criticalExtensions.choice.rrcSetup->radioBearerConfig);
+
+  if (LOG_DEBUGFLAG(DEBUG_ASN1))
+    xer_fprint(stdout, &asn_DEF_NR_RadioBearerConfig, (const void *)&rrcSetup->criticalExtensions.choice.rrcSetup->radioBearerConfig);
 
   // TODO (not handled) if stored, discard the cell reselection priority information provided by
   // the cellReselectionPriorities or inherited from another RAT
@@ -1828,6 +1843,19 @@ void *rrc_nrue(void *notUsed)
     break;
   }
 
+  case NAS_5GMM_IND: {
+    Nas5GMMInd *req = &NAS_5GMM_IND(msg_p);
+    rrc->fiveG_S_TMSI = req->fiveG_STMSI;
+    break;
+  }
+
+  case NAS_REG_REQ_IND:
+    LOG_D(NR_RRC, "Received Registration Request indication from NAS\n");
+    NasRegistrationReqInd *ind = &NAS_REG_REQ_IND(msg_p);
+    rrc->nasRegReqMsg.length = ind->nasMsg.length;
+    rrc->nasRegReqMsg.data = calloc(ind->nasMsg.length, sizeof(*ind->nasMsg.data));
+    memcpy(rrc->nasRegReqMsg.data, ind->nasMsg.data, rrc->nasRegReqMsg.length);
+    break;
   default:
     LOG_E(NR_RRC, "[UE %ld] Received unexpected message %s\n", rrc->ue_id, ITTI_MSG_NAME(msg_p));
     break;
@@ -2251,6 +2279,8 @@ void nr_rrc_going_to_IDLE(NR_UE_RRC_INST_t *rrc,
 
   // discard the keys (only kgnb is stored)
   memset(rrc->kgnb, 0, sizeof(rrc->kgnb));
+  rrc->integrityProtAlgorithm = 0;
+  rrc->cipheringAlgorithm = 0;
 
   // release all radio resources, including release of the RLC entity,
   // the MAC configuration and the associated PDCP entity
