@@ -1357,7 +1357,25 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
   }
 
   if (UE->ho_context != NULL) {
-    AssertFatal(false, "not implemented: should abort handover\n");
+    /* DU association might have been different during handover (we expected
+     * the UE to come through the target cell, so update the association to the
+     * initial one, and trigger release on the target DU */
+    DevAssert(assoc_id != UE->ho_context->data.intra_cu.target_secondary_ue);
+    f1ap_ue_context_release_cmd_t ue_context_release_cmd = {
+        .gNB_CU_ue_id = UE->rrc_ue_id,
+        .gNB_DU_ue_id = UE->ho_context->data.intra_cu.target_secondary_ue,
+        .cause = F1AP_CAUSE_RADIO_NETWORK, // better
+        .cause_value = 5, // 5 = F1AP_CauseRadioNetwork_interaction_with_other_procedure
+        .srb_id = DCCH,
+    };
+    rrc->mac_rrc.ue_context_release_command(UE->ho_context->data.intra_cu.source_du, &ue_context_release_cmd);
+
+    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
+    ue_data.du_assoc_id = assoc_id;
+    cu_remove_f1_ue_data(UE->rrc_ue_id);
+    cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
+
+    /* UE->ho_context will be freed after the release message */
   }
 
   /* TODO: start timer in ITTI and drop UE if it does not come back */
@@ -2316,7 +2334,6 @@ static void rrc_CU_process_ue_context_modification_response(MessageDef *msg_p, i
     // come through the new DU, but do not overwrite RNTI information yet: if
     // there is a problem during reconfiguration, the UE will come
     // - TODO check for du_assoc_ue in UL information (reestablishment and others)
-    // - TODO roll back to old du_assoc_ue if reestablishment + handover case
     f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
     ue_data.secondary_ue = UE->ho_context->data.intra_cu.target_secondary_ue;
     ue_data.du_assoc_id = UE->ho_context->data.intra_cu.target_du;
