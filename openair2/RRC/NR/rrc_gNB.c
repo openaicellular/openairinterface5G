@@ -283,7 +283,7 @@ void nr_initiate_handover(const gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_rr
   ue->ho_context = malloc(sizeof(*ue->ho_context));
   AssertFatal(ue->ho_context != NULL, "out of memory\n");
   *ue->ho_context = *ho_ctxt;
-  LOG_I(NR_RRC, "Handover triggered for UE %u towards DU %ld\n", ue->rrc_ue_id, target_du->setup_req->gNB_DU_id);
+  LOG_A(NR_RRC, "Handover triggered for UE %u/RNTI %04x towards DU %ld\n", ue->rrc_ue_id, ue->rnti, target_du->setup_req->gNB_DU_id);
 
   // The gNB-CU sends a UE CONTEXT SETUP REQUEST message to the target gNB-DU to create a UE context and setup
 
@@ -2209,6 +2209,7 @@ static void rrc_CU_process_ue_context_setup_response(MessageDef *msg_p, instance
     int size = rrc_gNB_encode_RRCReconfiguration(rrc, UE, xid, NULL, buffer, sizeof(buffer), true);
     DevAssert(size > 0 && size <= sizeof(buffer));
     rrc_gNB_trigger_reconfiguration_for_handover(rrc, UE, buffer, size);
+    LOG_A(NR_RRC, "Send reconfiguration to UE %u/RNTI %04x\n", UE->rrc_ue_id, UE->rnti);
 
     /* Re-establish SRB2 according to clause 5.3.5.6.3 of 3GPP TS 38.331
      * (SRB1 is re-established with RRCReestablishment message)
@@ -2296,7 +2297,7 @@ static void rrc_CU_process_ue_context_release_complete(MessageDef *msg_p)
   if (UE->ho_context != NULL) {
     free(UE->ho_context);
     UE->ho_context = NULL;
-    LOG_A(NR_RRC, "handover for UE %d/RNTI %04x complete!\n", UE->rrc_ue_id, UE->rnti);
+    //LOG_A(NR_RRC, "handover for UE %d/RNTI %04x complete!\n", UE->rrc_ue_id, UE->rnti);
   } else {
     rrc_remove_ue(RC.nrrrc[0], ue_context_p);
   }
