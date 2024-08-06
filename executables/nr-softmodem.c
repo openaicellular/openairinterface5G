@@ -655,8 +655,9 @@ int main( int argc, char **argv ) {
 #define PACKAGE_VERSION "UNKNOWN-EXPERIMENTAL"
 #endif
   // strdup to put the sring in the core file for post mortem identification
-  LOG_I(HW, "Version: %s\n", strdup(PACKAGE_VERSION));
-
+  char *pckg = strdup(PACKAGE_VERSION);
+  LOG_I(HW, "Version: %s\n", pckg);
+  free(pckg);
   // don't create if node doesn't connect to RRC/S1/GTP
   const ngran_node_t node_type = get_node_type();
 

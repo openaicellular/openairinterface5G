@@ -2065,7 +2065,9 @@ int RCconfig_nr_parallel(void) {
 
   if(parallel_config == NULL) set_parallel_conf(parallel_conf);
   if(worker_config == NULL)   set_worker_conf(worker_conf);
-
+  // Free the memory allocated by strdup
+  free(parallel_conf);
+  free(worker_conf);
   return 0;
 }
 
