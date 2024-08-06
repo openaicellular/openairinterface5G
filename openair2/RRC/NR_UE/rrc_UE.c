@@ -1694,7 +1694,7 @@ static int nr_rrc_ue_decode_dcch(NR_UE_RRC_INST_t *rrc,
       break;
   }
   //  release memory allocation
-  SEQUENCE_free(&asn_DEF_NR_DL_DCCH_Message, (void *)dl_dcch_msg, 1);
+  SEQUENCE_free(&asn_DEF_NR_DL_DCCH_Message, (void *)dl_dcch_msg, ASFM_FREE_EVERYTHING);
   free((void *)Buffer);
   return 0;
 }
