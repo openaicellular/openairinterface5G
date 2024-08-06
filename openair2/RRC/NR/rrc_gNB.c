@@ -2343,18 +2343,12 @@ static void rrc_CU_process_ue_context_modification_response(MessageDef *msg_p, i
     rrc_gNB_generate_dedicatedRRCReconfiguration(&ctxt, ue_context_p);
   }
 
-  if (UE->ho_context != NULL) {
-    // Reconfiguration should have been sent to the UE, so it will attempt the
-    // handover. Update this UE context with info that we expect this UE to
-    // come through the new DU, but do not overwrite RNTI information yet: if
-    // there is a problem during reconfiguration, the UE will come
-    // - TODO check for du_assoc_ue in UL information (reestablishment and others)
-    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
-    ue_data.secondary_ue = UE->ho_context->data.intra_cu.target_secondary_ue;
-    ue_data.du_assoc_id = UE->ho_context->data.intra_cu.target_du;
-    cu_remove_f1_ue_data(UE->rrc_ue_id);
-    cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
-  }
+  // In the case of ongoing handover, there is nothing to be done here.
+  // Reconfiguration should have been sent to the UE, so the UE will attempt the
+  // RA at target. Any update of UE information (new RNTI, new assoc_id, ...)
+  // will be done once the reconfiguration is complete. This allows that the
+  // UE might attempt a reestablishment, and we still have the "old"
+  // information ot that UE.
 }
 
 static void rrc_CU_process_ue_modification_required(MessageDef *msg_p)
