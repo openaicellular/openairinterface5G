@@ -1248,17 +1248,18 @@ rrc_ue_process_radioResourceConfigDedicated(
     derive_key_nas(RRC_INT_ALG, UE_rrc_inst[ctxt_pP->module_id].integrity_algorithm, UE_rrc_inst[ctxt_pP->module_id].kenb, kRRCint);
 
     // Refresh SRBs
-    rrc_pdcp_config_asn1_req(ctxt_pP,
-                             radioResourceConfigDedicated->srb_ToAddModList,
-                             (LTE_DRB_ToAddModList_t *)NULL,
-                             (LTE_DRB_ToReleaseList_t *)NULL,
-                             UE_rrc_inst[ctxt_pP->module_id].ciphering_algorithm |
-                             (UE_rrc_inst[ctxt_pP->module_id].integrity_algorithm << 4),
-                             kRRCenc,
-                             kRRCint,
-                             NULL,
-                             (LTE_PMCH_InfoList_r9_t *)NULL,
-                             NULL);
+    rrc_pdcp_config_asn1_req(
+        ctxt_pP,
+        radioResourceConfigDedicated->srb_ToAddModList,
+        (LTE_DRB_ToAddModList_t *)NULL,
+        (LTE_DRB_ToReleaseList_t *)NULL,
+        UE_rrc_inst[ctxt_pP->module_id].ciphering_algorithm | (UE_rrc_inst[ctxt_pP->module_id].integrity_algorithm << 4),
+        kRRCenc,
+        kRRCint,
+        NULL,
+        (LTE_PMCH_InfoList_r9_t *)NULL,
+        NULL,
+        0);
     // Refresh SRBs
     rrc_rlc_config_asn1_req(ctxt_pP,
                             radioResourceConfigDedicated->srb_ToAddModList,
@@ -1396,17 +1397,18 @@ rrc_ue_process_radioResourceConfigDedicated(
     derive_key_nas(UP_ENC_ALG, UE_rrc_inst[ctxt_pP->module_id].integrity_algorithm, UE_rrc_inst[ctxt_pP->module_id].kenb, kUPenc);
 
     // Refresh DRBs
-    rrc_pdcp_config_asn1_req(ctxt_pP,
-                             (LTE_SRB_ToAddModList_t *)NULL,
-                             radioResourceConfigDedicated->drb_ToAddModList,
-                             (LTE_DRB_ToReleaseList_t *)NULL,
-                             UE_rrc_inst[ctxt_pP->module_id].ciphering_algorithm |
-                             (UE_rrc_inst[ctxt_pP->module_id].integrity_algorithm << 4),
-                             NULL,
-                             NULL,
-                             kUPenc,
-                             (LTE_PMCH_InfoList_r9_t *)NULL,
-                             UE_rrc_inst[ctxt_pP->module_id].defaultDRB);
+    rrc_pdcp_config_asn1_req(
+        ctxt_pP,
+        (LTE_SRB_ToAddModList_t *)NULL,
+        radioResourceConfigDedicated->drb_ToAddModList,
+        (LTE_DRB_ToReleaseList_t *)NULL,
+        UE_rrc_inst[ctxt_pP->module_id].ciphering_algorithm | (UE_rrc_inst[ctxt_pP->module_id].integrity_algorithm << 4),
+        NULL,
+        NULL,
+        kUPenc,
+        (LTE_PMCH_InfoList_r9_t *)NULL,
+        UE_rrc_inst[ctxt_pP->module_id].defaultDRB,
+        0);
     // Refresh DRBs
     rrc_rlc_config_asn1_req(ctxt_pP,
                             (LTE_SRB_ToAddModList_t *)NULL,
@@ -4833,8 +4835,8 @@ void decode_MBSFNAreaConfiguration( module_id_t ue_mod_idP, uint8_t eNB_index, f
                            NULL, // key rrc integrity
                            NULL, // key encryption
                            &(UE_rrc_inst[ue_mod_idP].mcch_message[eNB_index]->pmch_InfoList_r9),
-                           NULL
-                          );
+                           NULL,
+                           0);
   rrc_rlc_config_asn1_req(&ctxt,
                           NULL,// SRB_ToAddModList
                           NULL,// DRB_ToAddModList
@@ -5827,12 +5829,16 @@ void *rrc_control_socket_thread_fct(void *arg) {
         UE->DRB_configList = CALLOC(1,sizeof(LTE_DRB_ToAddModList_t));
         asn1cSeqAdd(&UE->DRB_configList->list,UE->DRB_config[0][0]);
         rrc_pdcp_config_asn1_req(&ctxt,
-                                 (LTE_SRB_ToAddModList_t *) NULL,
+                                 (LTE_SRB_ToAddModList_t *)NULL,
                                  UE->DRB_configList,
-                                 (LTE_DRB_ToReleaseList_t *) NULL,
-                                 0xff, NULL, NULL, NULL,
-                                 (LTE_PMCH_InfoList_r9_t *) NULL
-                                 ,NULL);
+                                 (LTE_DRB_ToReleaseList_t *)NULL,
+                                 0xff,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 (LTE_PMCH_InfoList_r9_t *)NULL,
+                                 NULL,
+                                 0);
         rrc_rlc_config_asn1_req(&ctxt,
                                 (LTE_SRB_ToAddModList_t *)NULL,
                                 UE->DRB_configList,
@@ -6032,11 +6038,16 @@ void *rrc_control_socket_thread_fct(void *arg) {
         UE->DRB_configList = CALLOC(1,sizeof(LTE_DRB_ToAddModList_t));
         asn1cSeqAdd(&UE->DRB_configList->list,UE->DRB_config[0][0]);
         rrc_pdcp_config_asn1_req(&ctxt,
-                                 (LTE_SRB_ToAddModList_t *) NULL,
+                                 (LTE_SRB_ToAddModList_t *)NULL,
                                  UE->DRB_configList,
-                                 (LTE_DRB_ToReleaseList_t *) NULL,
-                                 0xff, NULL, NULL, NULL,
-                                 (LTE_PMCH_InfoList_r9_t *) NULL,NULL);
+                                 (LTE_DRB_ToReleaseList_t *)NULL,
+                                 0xff,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 (LTE_PMCH_InfoList_r9_t *)NULL,
+                                 NULL,
+                                 0);
         rrc_rlc_config_asn1_req(&ctxt,
                                 (LTE_SRB_ToAddModList_t *)NULL,
                                 UE->DRB_configList,
@@ -6186,11 +6197,16 @@ void *rrc_control_socket_thread_fct(void *arg) {
         UE->DRB_configList = CALLOC(1,sizeof(LTE_DRB_ToAddModList_t));
         asn1cSeqAdd(&UE->DRB_configList->list,UE->DRB_config[0][0]);
         rrc_pdcp_config_asn1_req(&ctxt,
-                                 (LTE_SRB_ToAddModList_t *) NULL,
+                                 (LTE_SRB_ToAddModList_t *)NULL,
                                  UE->DRB_configList,
-                                 (LTE_DRB_ToReleaseList_t *) NULL,
-                                 0xff, NULL, NULL, NULL,
-                                 (LTE_PMCH_InfoList_r9_t *) NULL,NULL);
+                                 (LTE_DRB_ToReleaseList_t *)NULL,
+                                 0xff,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 (LTE_PMCH_InfoList_r9_t *)NULL,
+                                 NULL,
+                                 0);
         rrc_rlc_config_asn1_req(&ctxt,
                                 (LTE_SRB_ToAddModList_t *)NULL,
                                 UE->DRB_configList,
