@@ -162,6 +162,8 @@ int get_rnti_type(const NR_UE_MAC_INST_t *mac, const uint16_t rnti)
 
   if (rnti == ra->ra_rnti) {
     rnti_type = TYPE_RA_RNTI_;
+  } else if (rnti == ra->MsgB_rnti && (ra->ra_state == nrRA_WAIT_MSGB || ra->ra_state == nrRA_WAIT_CONTENTION_RESOLUTION)) {
+    rnti_type = TYPE_MSGB_RNTI_;
   } else if (rnti == ra->t_crnti && (ra->ra_state == nrRA_WAIT_RAR || ra->ra_state == nrRA_WAIT_CONTENTION_RESOLUTION)) {
     rnti_type = TYPE_TC_RNTI_;
   } else if (rnti == mac->crnti) {
@@ -3339,6 +3341,7 @@ static nr_dci_format_t nr_extract_dci_00_10(NR_UE_MAC_INST_t *mac,
       dci_pdu_rel15->format_indicator = format_indicator;
       break;
     case TYPE_TC_RNTI_ :
+    case TYPE_MSGB_RNTI_:
       // Identifier for DCI formats
       EXTRACT_DCI_ITEM(format_indicator, 1);
       if (format_indicator == 1) {
@@ -3411,6 +3414,98 @@ static nr_dci_format_t nr_extract_dci_info(NR_UE_MAC_INST_t *mac,
   return format;
 }
 
+bool check_ra_contention_resolution(const uint8_t *pdu, const uint8_t *cont_res)
+{
+  if (!IS_SOFTMODEM_IQPLAYER) { // Control is bypassed when replaying IQs (BMC)
+    for (int i = 0; i < 6; i++) {
+      if (pdu[i] != cont_res[i]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+int nr_ue_validate_successrar(uint8_t *pduP,
+                              int32_t pdu_len,
+                              NR_UE_MAC_INST_t *mac,
+                              uint8_t gNB_index,
+                              frame_t frameP,
+                              int slot)
+{
+  // TS 38.321 - Figure 6.1.5a-1: BI MAC subheader
+  // TS 38.321 - Figure 6.1.5a-3: SuccessRAR MAC subheader
+  int n = 0;
+  uint8_t E = 1;
+  uint8_t cont_res_id[6];
+  RA_config_t *ra = &mac->ra;
+
+  while (n < pdu_len && E) {
+    E = (pduP[n] >> 7) & 0x1;
+    uint8_t SUCESS_RAR_header_T1 = (pduP[n] >> 6) & 0x1;
+    if (SUCESS_RAR_header_T1 == 0) { // T2 exist
+      int SUCESS_RAR_header_T2 = (pduP[n] >> 5) & 0x1;
+      if (SUCESS_RAR_header_T2 == 0) { // BI
+        ra->RA_backoff_indicator = pduP[n] & 0x0F;
+        n++;
+      } else { // S
+        n++;
+        // TS 38.321 - Figure 6.2.3a-2: successRAR
+        for (int i = 0; i < 6; ++i)
+          cont_res_id[i] = pduP[n + i];
+        n += 6;
+        // Oct 7
+        ra->MsgB_R = 0;
+        ra->MsgB_CH_ACESS_CPEXT = (pduP[n] >> 5) & 0x3;
+        ra->MsgB_TPC = (pduP[n] >> 3) & 3;
+        ra->MsgB_HARQ_FTI = (int8_t)pduP[n] & 0x7;
+        // Oct 8
+        n++;
+        ra->PUCCH_RI = ((int8_t)pduP[n] >> 4) & 0x0F;
+        // Oct 8 and Oct 9
+        ra->timing_advance_command = ((uint16_t)(pduP[n] & 0xf) << 8) | pduP[n + 1];
+        n += 2;
+        // Oct 10 and Oct 11
+        ra->t_crnti = ((uint16_t)pduP[n] << 8) | pduP[n + 1];
+        n += 2;
+
+        LOG_D(NR_MAC,
+              "successRAR: Contention Resolution ID 0x%02x%02x%02x%02x%02x%02x R 0x%01x CH_ACESS_CPEXT 0x%02x TPC 0x%02x "
+              "HARQ_FTI 0x%03x PUCCH_RI 0x%04x TA 0x%012x CRNTI 0x%04x\n",
+              cont_res_id[0],
+              cont_res_id[1],
+              cont_res_id[2],
+              cont_res_id[3],
+              cont_res_id[4],
+              cont_res_id[5],
+              ra->MsgB_R,
+              ra->MsgB_CH_ACESS_CPEXT,
+              ra->MsgB_TPC,
+              ra->MsgB_HARQ_FTI,
+              ra->PUCCH_RI,
+              ra->timing_advance_command,
+              ra->t_crnti);
+
+        bool ra_success = check_ra_contention_resolution(cont_res_id, ra->cont_res_id);
+
+        if (ra->RA_active && ra_success) {
+          nr_ra_succeeded(mac, gNB_index, frameP, slot);
+        } else if (!ra_success) {
+          // nr_ra_failed(mac, CC_id, &ra->prach_resources, frameP, slot);
+          ra->ra_state = nrRA_UE_IDLE;
+          ra->RA_active = 0;
+        }
+      }
+    } else { // RAPID
+      int RAPID = pduP[n] & 0x3F;
+      n++;
+      LOG_D(MAC, "RAPID %d\n", RAPID);
+      AssertFatal(false, "FallbackRAR not implemented yet!\n");
+    }
+  }
+  return n;
+}
+
 ///////////////////////////////////
 // brief:     nr_ue_process_mac_pdu
 // function:  parsing DL PDU header
@@ -3434,9 +3529,12 @@ static nr_dci_format_t nr_extract_dci_info(NR_UE_MAC_INST_t *mac,
 //
 //  |0|1|2|3|4|5|6|7|  bit-wise
 //  |R|R|   LCID    |
-//  LCID: The Logical Channel ID field identifies the logical channel instance of the corresponding MAC SDU or the type of the corresponding MAC CE or padding as described
-//         in Tables 6.2.1-1 and 6.2.1-2 for the DL-SCH and UL-SCH respectively. There is one LCID field per MAC subheader. The LCID field size is 6 bits;
-//  L:    The Length field indicates the length of the corresponding MAC SDU or variable-sized MAC CE in bytes. There is one L field per MAC subheader except for subheaders
+//  LCID: The Logical Channel ID field identifies the logical channel instance of the corresponding MAC SDU or the type of the
+//  corresponding MAC CE or padding as described
+//         in Tables 6.2.1-1 and 6.2.1-2 for the DL-SCH and UL-SCH respectively. There is one LCID field per MAC subheader. The LCID
+//         field size is 6 bits;
+//  L:    The Length field indicates the length of the corresponding MAC SDU or variable-sized MAC CE in bytes. There is one L field
+//  per MAC subheader except for subheaders
 //         corresponding to fixed-sized MAC CEs and padding. The size of the L field is indicated by the F field;
 //  F:    lenght of L is 0:8 or 1:16 bits wide
 //  R:    Reserved bit, set to zero.
@@ -3452,16 +3550,23 @@ void nr_ue_process_mac_pdu(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_i
   uint8_t done = 0;
   RA_config_t *ra = &mac->ra;
 
-  if (!pduP){
+  if (!pduP) {
     return;
   }
 
-  LOG_D(MAC, "[%d.%d]: processing PDU %d (with length %d) of %d total number of PDUs...\n",
+  LOG_D(MAC,
+        "[%d.%d]: processing PDU %d (with length %d) of %d total number of PDUs...\n",
         frameP,
         slot,
         pdu_id,
         pdu_len,
         dl_info->rx_ind->number_pdus);
+
+  if (ra->ra_type == RA_2_STEP && ra->ra_state == nrRA_WAIT_MSGB) {
+    int n = nr_ue_validate_successrar(pduP, pdu_len, mac, gNB_index, frameP, slot);
+    pduP += n;
+    pdu_len -= n;
+  }
 
   while (!done && pdu_len > 0){
     uint16_t mac_len = 0x0000;
@@ -3607,15 +3712,7 @@ void nr_ue_process_mac_pdu(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_i
                 pduP[5],
                 pduP[6]);
 
-          bool ra_success = true;
-	  if (!IS_SOFTMODEM_IQPLAYER) { // Control is bypassed when replaying IQs (BMC)
-	    for(int i = 0; i < mac_len; i++) {
-	      if(ra->cont_res_id[i] != pduP[i + 1]) {
-		ra_success = false;
-		break;
-	      }
-	    }
-	  }
+          bool ra_success = check_ra_contention_resolution(&pduP[1], ra->cont_res_id);
 
           if (ra->RA_active && ra_success) {
             nr_ra_succeeded(mac, gNB_index, frameP, slot);

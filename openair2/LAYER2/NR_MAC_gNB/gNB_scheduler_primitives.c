@@ -2484,10 +2484,7 @@ NR_UE_info_t *add_new_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rntiP, NR_CellGroupConf
   UE->uid = uid_linear_allocator_new(&UE_info->uid_allocator);
   UE->CellGroup = CellGroup;
 
-  if (CellGroup)
-    UE->Msg4_ACKed = true;
-  else
-    UE->Msg4_ACKed = false;
+  UE->Msg4_MsgB_ACKed = CellGroup != NULL;
 
   NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
   memset(sched_ctrl, 0, sizeof(*sched_ctrl));

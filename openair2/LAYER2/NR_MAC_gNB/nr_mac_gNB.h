@@ -113,15 +113,17 @@ typedef struct {
 } NR_list_t;
 
 typedef enum {
-  nrRA_gNB_IDLE = 0,
-  nrRA_Msg2 = 1,
-  nrRA_WAIT_Msg3 = 2,
-  nrRA_Msg3_retransmission = 3,
-  nrRA_Msg4 = 4,
-  nrRA_WAIT_Msg4_ACK = 5,
+  nrRA_gNB_IDLE,
+  nrRA_Msg2,
+  nrRA_WAIT_MsgA_PUSCH,
+  nrRA_WAIT_Msg3,
+  nrRA_Msg3_retransmission,
+  nrRA_Msg4,
+  nrRA_MsgB,
+  nrRA_WAIT_Msg4_MsgB_ACK,
 } RA_gNB_state_t;
 static const char *const nrra_text[] =
-    {"IDLE", "Msg2", "WAIT_Msg3", "Msg3_retransmission", "Msg3_dcch_dtch", "Msg4", "WAIT_Msg4_ACK"};
+    {"IDLE", "Msg2", "WAIT_MsgA_PUSCH", "WAIT_Msg3", "Msg3_retransmission", "Msg3_dcch_dtch", "Msg4", "MsgB", "WAIT_Msg4_ACK"};
 typedef struct nr_pdsch_AntennaPorts_t {
   int N1;
   int N2;
@@ -207,6 +209,8 @@ typedef struct {
   rnti_t rnti;
   /// RA RNTI allocated from received PRACH
   uint16_t RA_rnti;
+  /// MsgB RNTI allocated from received MsgA
+  uint16_t MsgB_rnti;
   /// Received UE Contention Resolution Identifier
   uint8_t cont_res_id[6];
   /// Msg3 first RB
@@ -235,6 +239,7 @@ typedef struct {
   /// Preambles for contention-free access
   NR_preamble_ue_t preambles;
   int contention_resolution_timer;
+  nr_ra_type_t ra_type;
   /// CFRA flag
   bool cfra;
   // BWP for RA
@@ -724,7 +729,7 @@ typedef struct {
   NR_UE_NR_Capability_t *capability;
   // UE selected beam index
   uint8_t UE_beam_index;
-  bool Msg4_ACKed;
+  bool Msg4_MsgB_ACKed;
   float ul_thr_ue;
   float dl_thr_ue;
   long pdsch_HARQ_ACK_Codebook;

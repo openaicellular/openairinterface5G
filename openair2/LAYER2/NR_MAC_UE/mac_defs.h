@@ -192,11 +192,6 @@ typedef enum {
   RE_ESTABLISHMENT
 } NR_UE_MAC_reset_cause_t;
 
-typedef enum {
-  RA_2STEP = 0,
-  RA_4STEP
-} nr_ra_type_e;
-
 typedef struct {
   // after multiplexing buffer remain for each lcid
   int32_t LCID_buffer_remain;
@@ -269,16 +264,17 @@ typedef struct {
 } NR_UE_SCHEDULING_INFO;
 
 typedef enum {
-  nrRA_UE_IDLE = 0,
-  nrRA_GENERATE_PREAMBLE = 1,
-  nrRA_WAIT_RAR = 2,
-  nrRA_WAIT_CONTENTION_RESOLUTION = 3,
-  nrRA_SUCCEEDED = 4,
-  nrRA_FAILED = 5
+  nrRA_UE_IDLE,
+  nrRA_GENERATE_PREAMBLE,
+  nrRA_WAIT_RAR,
+  nrRA_WAIT_MSGB,
+  nrRA_WAIT_CONTENTION_RESOLUTION,
+  nrRA_SUCCEEDED,
+  nrRA_FAILED,
 } nrRA_UE_state_t;
 
 static const char *const nrra_ue_text[] =
-    {"UE_IDLE", "GENERATE_PREAMBLE", "WAIT_RAR", "WAIT_CONTENTION_RESOLUTION", "RA_SUCCEEDED", "RA_FAILED"};
+    {"UE_IDLE", "GENERATE_PREAMBLE", "WAIT_RAR", "WAIT_MSGB", "WAIT_CONTENTION_RESOLUTION", "RA_SUCCEEDED", "RA_FAILED"};
 
 typedef struct {
   /// PRACH format retrieved from prach_ConfigIndex
@@ -300,7 +296,7 @@ typedef struct {
   ///
   uint8_t RA_SCALING_FACTOR_BI;
   /// Indicating whether it is 2-step or 4-step RA
-  nr_ra_type_e RA_TYPE;
+  nr_ra_type_t RA_TYPE;
   /// UE configured maximum output power
   int RA_PCMAX;
 } NR_PRACH_RESOURCES_t;
@@ -313,10 +309,21 @@ typedef struct {
   nrRA_UE_state_t ra_state;
   /// RA contention type
   uint8_t cfra;
+  /// RA type
+  nr_ra_type_t ra_type;
   /// RA rx frame offset: compensate RA rx offset introduced by OAI gNB.
   uint8_t RA_offset;
+  /// MsgB SuccessRAR MAC subheader
+  int8_t MsgB_R;
+  int8_t MsgB_CH_ACESS_CPEXT;
+  uint8_t MsgB_TPC;
+  int8_t MsgB_HARQ_FTI;
+  uint16_t timing_advance_command;
+  int8_t PUCCH_RI;
   /// RA-rnti
   uint16_t ra_rnti;
+  /// MsgB RNTI
+  uint16_t MsgB_rnti;
   /// Temporary CRNTI
   uint16_t t_crnti;
   /// number of attempt for rach
