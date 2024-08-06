@@ -398,7 +398,7 @@ NR_CellGroupConfig_t *clone_CellGroupConfig(const NR_CellGroupConfig_t *orig)
   return cloned;
 }
 
-static NR_UE_info_t *create_new_UE_handover(gNB_MAC_INST *mac, uint32_t cu_id)
+static NR_UE_info_t *create_new_UE(gNB_MAC_INST *mac, uint32_t cu_id)
 {
   int CC_id = 0;
   const NR_COMMON_channels_t *cc = &mac->common_channels[CC_id];
@@ -460,7 +460,7 @@ void ue_context_setup_request(const f1ap_ue_context_setup_t *req)
 
   NR_UE_info_t *UE = NULL;
   if (!ue_id_provided) {
-    UE = create_new_UE_handover(mac, req->gNB_CU_ue_id);
+    UE = create_new_UE(mac, req->gNB_CU_ue_id);
     resp.gNB_DU_ue_id = UE->rnti;
     resp.crnti = &UE->rnti;
   } else {
