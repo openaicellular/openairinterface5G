@@ -621,6 +621,7 @@ int DU_send_UE_CONTEXT_SETUP_RESPONSE(sctp_assoc_t assoc_id, f1ap_ue_context_set
     F1AP_SRBs_Setup_Item_t *srbs_setup_item=&srbs_setup_item_ies->value.choice.SRBs_Setup_Item;
     /* sRBID */
     srbs_setup_item->sRBID = resp->srbs_to_be_setup[i].srb_id;
+    srbs_setup_item->lCID = resp->srbs_to_be_setup[i].lcid;
   }
   }
 
