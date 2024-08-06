@@ -321,7 +321,8 @@ static void configure_dlsch(NR_UE_DLSCH_t *dlsch0,
     // dlsch0_harq->status not ACTIVE due to false retransmission
     // Reset the following flag to skip PDSCH procedures in that case and retrasmit harq status
     dlsch0->active = false;
-    update_harq_status(mac, current_harq_pid, dlsch0_harq->ack);
+    LOG_W(NR_MAC, "dlsch0_harq->status not ACTIVE due to false retransmission harq pid: %d\n", current_harq_pid);
+    update_harq_status(mac, current_harq_pid, dlsch0_harq->decodeResult);
   }
 }
 
