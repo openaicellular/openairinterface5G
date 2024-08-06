@@ -151,6 +151,11 @@ static void nr_rrc_ue_process_masterCellGroup(NR_UE_RRC_INST_t *rrc,
 
 static void nr_rrc_ue_process_measConfig(rrcPerNB_t *rrc, NR_MeasConfig_t *const measConfig, NR_UE_Timers_Constants_t *timers);
 
+NR_UE_RRC_INST_t* get_NR_UE_rrc_inst(int instance)
+{
+  return &NR_UE_rrc_inst[instance];
+}
+
 static NR_RB_status_t get_DRB_status(const NR_UE_RRC_INST_t *rrc, NR_DRB_Identity_t drb_id)
 {
   AssertFatal(drb_id > 0 && drb_id < 33, "Invalid DRB ID %ld\n", drb_id);
@@ -786,6 +791,13 @@ static int8_t nr_rrc_ue_decode_NR_BCCH_DL_SCH_Message(NR_UE_RRC_INST_t *rrc,
   return 0;
 }
 
+static void nr_rrc_signal_maxrtxindication(int ue_id)
+{
+  MessageDef *msg = itti_alloc_new_message(TASK_RLC_UE, ue_id, NR_RRC_RLC_MAXRTX);
+  NR_RRC_RLC_MAXRTX(msg).ue_id = ue_id;
+  itti_send_msg_to_task(TASK_RRC_NRUE, ue_id, msg);
+}
+
 static void nr_rrc_manage_rlc_bearers(NR_UE_RRC_INST_t *rrc,
                                       const NR_CellGroupConfig_t *cellGroupConfig)
 {
@@ -814,9 +826,11 @@ static void nr_rrc_manage_rlc_bearers(NR_UE_RRC_INST_t *rrc,
         if (rlc_bearer->servedRadioBearer->present == NR_RLC_BearerConfig__servedRadioBearer_PR_srb_Identity) {
           NR_SRB_Identity_t srb_id = rlc_bearer->servedRadioBearer->choice.srb_Identity;
           nr_rlc_add_srb(rrc->ue_id, srb_id, rlc_bearer);
+          nr_rlc_set_rlf_handler(rrc->ue_id, nr_rrc_signal_maxrtxindication);
         } else { // DRB
           NR_DRB_Identity_t drb_id = rlc_bearer->servedRadioBearer->choice.drb_Identity;
           nr_rlc_add_drb(rrc->ue_id, drb_id, rlc_bearer);
+          nr_rlc_set_rlf_handler(rrc->ue_id, nr_rrc_signal_maxrtxindication);
         }
       }
     }
@@ -1755,6 +1769,15 @@ void *rrc_nrue(void *notUsed)
     nr_rrc_going_to_IDLE(rrc, release_cause, NULL);
     break;
 
+  case NR_RRC_RLC_MAXRTX:
+    // detection of RLF upon indication from RLC that the maximum number of retransmissions has been reached
+    LOG_W(NR_RRC,
+          "[UE %ld ID %d] Received indication that RLC reached max retransmissions\n",
+          instance,
+          NR_RRC_RLC_MAXRTX(msg_p).ue_id);
+    handle_rlf_detection(rrc);
+    break;
+
   case NR_RRC_MAC_MSG3_IND:
     nr_rrc_handle_msg3_indication(rrc, NR_RRC_MAC_MSG3_IND(msg_p).rnti);
     break;
@@ -2188,6 +2211,26 @@ void handle_RRCRelease(NR_UE_RRC_INST_t *rrc)
     nr_rrc_going_to_IDLE(rrc, cause, rrc->RRCRelease);
   }
   asn1cFreeStruc(asn_DEF_NR_RRCRelease, rrc->RRCRelease);
+}
+
+void handle_rlf_detection(NR_UE_RRC_INST_t *rrc)
+{
+  // 5.3.10.3 in 38.331
+  bool srb2 = rrc->Srb[2] != RB_NOT_PRESENT;
+  bool any_drb = false;
+  for (int i = 0; i < MAX_DRBS_PER_UE; i++) {
+    if (rrc->status_DRBs[i] != RB_NOT_PRESENT) {
+      any_drb = true;
+      break;
+    }
+  }
+
+  if (rrc->as_security_activated && srb2 && any_drb) // initiate the connection re-establishment procedure
+    nr_rrc_initiate_rrcReestablishment(rrc, NR_ReestablishmentCause_otherFailure, 0);
+  else {
+    NR_Release_Cause_t cause = rrc->as_security_activated ? RRC_CONNECTION_FAILURE : OTHER;
+    nr_rrc_going_to_IDLE(rrc, cause, NULL);
+  }
 }
 
 void nr_rrc_going_to_IDLE(NR_UE_RRC_INST_t *rrc,

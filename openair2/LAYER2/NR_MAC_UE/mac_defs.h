@@ -185,6 +185,15 @@ typedef enum {
 #undef UE_STATE
 } NR_UE_L2_STATE_t;
 
+typedef struct {
+  pucch_format_nr_t format;
+  uint8_t startingSymbolIndex;
+  uint8_t nrofSymbols;
+  uint16_t PRB_offset;
+  uint8_t nb_CS_indexes;
+  uint8_t initial_CS_indexes[MAX_NB_CYCLIC_SHIFT];
+} initial_pucch_resource_t;
+
 typedef enum {
   GO_TO_IDLE,
   DETACH,

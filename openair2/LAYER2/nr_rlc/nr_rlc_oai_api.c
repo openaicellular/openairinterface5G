@@ -90,14 +90,19 @@ logical_chan_id_t nr_rlc_get_lcid_from_rb(int ue_id, bool is_srb, int rb_id)
   for (logical_chan_id_t id = 1; id <= 32; id++) {
     nr_rlc_rb_t *rb = &ue->lcid2rb[id - 1];
     if (is_srb) {
-      if (rb->type == NR_RLC_SRB && rb->choice.srb_id == rb_id)
+      if (rb->type == NR_RLC_SRB && rb->choice.srb_id == rb_id) {
+        nr_rlc_manager_unlock(nr_rlc_ue_manager);
         return id;
+      }
     } else {
-      if (rb->type == NR_RLC_DRB && rb->choice.drb_id == rb_id)
+      if (rb->type == NR_RLC_DRB && rb->choice.drb_id == rb_id) {
+        nr_rlc_manager_unlock(nr_rlc_ue_manager);
         return id;
+      }
     }
   }
   LOG_E(RLC, "Couldn't find LCID corresponding to %s %d\n", is_srb ? "SRB" : "DRB", rb_id);
+  nr_rlc_manager_unlock(nr_rlc_ue_manager);
   return 0;
 }
 
@@ -588,10 +593,6 @@ static void max_retx_reached(void *_ue, nr_rlc_entity_t *entity)
   int i;
   int is_srb;
   int rb_id;
-#if 0
-  MessageDef *msg;
-#endif
-  int is_enb;
 
   /* is it SRB? */
   for (i = 0; i < 2; i++) {
@@ -619,23 +620,18 @@ rb_found:
         is_srb ? "SRB" : "DRB",
         rb_id);
 
-  /* TODO: do something for DRBs? */
-  if (is_srb == 0)
-    return;
+  if (ue->rlf_handler)
+    ue->rlf_handler(ue->ue_id);
+  else
+    LOG_W(RLC, "UE %04x: RLF detected, but no callable RLF handler registered\n", ue->ue_id);
+}
 
-  is_enb = nr_rlc_manager_get_enb_flag(nr_rlc_ue_manager);
-  if (!is_enb)
-    return;
-
-#if 0
-  msg = itti_alloc_new_message(TASK_RLC_ENB, RLC_SDU_INDICATION);
-  RLC_SDU_INDICATION(msg).rnti          = ue->rnti;
-  RLC_SDU_INDICATION(msg).is_successful = 0;
-  RLC_SDU_INDICATION(msg).srb_id        = rb_id;
-  RLC_SDU_INDICATION(msg).message_id    = -1;
-  /* TODO: accept more than 1 instance? here we send to instance id 0 */
-  itti_send_msg_to_task(TASK_RRC_ENB, 0, msg);
-#endif
+void nr_rlc_set_rlf_handler(int ue_id, rlf_handler_t rlf_h)
+{
+  nr_rlc_manager_lock(nr_rlc_ue_manager);
+  nr_rlc_ue_t *ue = nr_rlc_manager_get_ue(nr_rlc_ue_manager, ue_id);
+  ue->rlf_handler = rlf_h;
+  nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
 void nr_rlc_reestablish_entity(int ue_id, int lc_id)
@@ -645,6 +641,7 @@ void nr_rlc_reestablish_entity(int ue_id, int lc_id)
 
   if (ue == NULL) {
     LOG_E(RLC, "RLC instance for the given UE was not found \n");
+    nr_rlc_manager_unlock(nr_rlc_ue_manager);
     return;
   }
   nr_rlc_entity_t *rb = get_rlc_entity_from_lcid(ue, lc_id);
@@ -919,15 +916,15 @@ static void add_drb_um(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_B
 void nr_rlc_add_drb(int ue_id, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
 {
   switch (rlc_BearerConfig->rlc_Config->present) {
-  case NR_RLC_Config_PR_am:
-    add_drb_am(ue_id, drb_id, rlc_BearerConfig);
-    break;
-  case NR_RLC_Config_PR_um_Bi_Directional:
-    add_drb_um(ue_id, drb_id, rlc_BearerConfig);
-    break;
-  default:
-    LOG_E(RLC, "Fatal: unhandled DRB type\n");
-    exit(1);
+    case NR_RLC_Config_PR_am:
+      add_drb_am(ue_id, drb_id, rlc_BearerConfig);
+      break;
+    case NR_RLC_Config_PR_um_Bi_Directional:
+      add_drb_um(ue_id, drb_id, rlc_BearerConfig);
+      break;
+    default:
+      LOG_E(RLC, "Fatal: unhandled DRB type\n");
+      exit(1);
   }
   LOG_I(RLC, "Added DRB to UE %d\n", ue_id);
 }
@@ -1074,8 +1071,18 @@ bool nr_rlc_update_id(int from_id, int to_id)
   return true;
 }
 
-/* This function is for testing purposes. At least on a COTS UE, it will
- * trigger a reestablishment. */
+/**
+ * @brief This function is for testing purposes.
+ *        Re-establishment is triggered by resetting RLC
+ *        counters of the bearer, which leads to UE
+ *        reaching maximum RLC retransmissions, RLF
+ *        detection and RRC triggering re-sync. It is
+ *        assumed that there is ongoing traffic on the bearer.
+ *        - With COTS UEs, triggers re-establishment on SRB 1,
+ *        where periodical measurement reports are sent.
+ *        - With OAI UE, triggers re-establishment on DRB 1,
+ *        assuming there is ongoing data traffic.
+ */
 void nr_rlc_test_trigger_reestablishment(int ue_id)
 {
   nr_rlc_manager_lock(nr_rlc_ue_manager);
@@ -1089,6 +1096,9 @@ void nr_rlc_test_trigger_reestablishment(int ue_id)
    * as the UE context is created. */
   nr_rlc_entity_t *ent = ue->srb[0];
   ent->reestablishment(ent);
+  /* Trigger re-establishment on OAI UE */
+  nr_rlc_entity_t *drb = ue->drb[0];
+  drb->reestablishment(drb);
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 

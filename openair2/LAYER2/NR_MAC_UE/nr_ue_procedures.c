@@ -1512,6 +1512,11 @@ void set_harq_status(NR_UE_MAC_INST_t *mac,
         current_harq->dai_cumul);
 }
 
+initial_pucch_resource_t get_initial_pucch_resource(const int idx)
+{
+  return initial_pucch_resource[idx];
+}
+
 int nr_ue_configure_pucch(NR_UE_MAC_INST_t *mac,
                            int slot,
                            frame_t frame,
@@ -1532,10 +1537,9 @@ int nr_ue_configure_pucch(NR_UE_MAC_INST_t *mac,
   LOG_D(NR_MAC, "initial_pucch_id %d, pucch_resource %p\n", pucch->initial_pucch_id, pucch->pucch_resource);
   // configure pucch from Table 9.2.1-1
   // only for ack/nack
-  if (pucch->initial_pucch_id > -1 &&
-      pucch->pucch_resource == NULL) {
+  if (pucch->initial_pucch_id > -1 && pucch->pucch_resource == NULL) {
     const int idx = *current_UL_BWP->pucch_ConfigCommon->pucch_ResourceCommon;
-    const initial_pucch_resource_t pucch_resourcecommon = initial_pucch_resource[idx];
+    const initial_pucch_resource_t pucch_resourcecommon = get_initial_pucch_resource(idx);
     pucch_pdu->format_type = pucch_resourcecommon.format;
     pucch_pdu->start_symbol_index = pucch_resourcecommon.startingSymbolIndex;
     pucch_pdu->nr_of_symbols = pucch_resourcecommon.nrofSymbols;

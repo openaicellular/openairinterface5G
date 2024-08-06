@@ -209,7 +209,7 @@ void set_harq_status(NR_UE_MAC_INST_t *mac,
                      int slot);
 
 bool get_downlink_ack(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, PUCCH_sched_t *pucch);
-
+initial_pucch_resource_t get_initial_pucch_resource(const int idx);
 void multiplex_pucch_resource(NR_UE_MAC_INST_t *mac, PUCCH_sched_t *pucch, int num_res);
 
 int16_t get_pucch_tx_power_ue(NR_UE_MAC_INST_t *mac,
