@@ -15,7 +15,7 @@ data storage. */
 #if defined RHEL_RELEASE_CODE
 #include <cblas/cblas.h>
 #else
-#include <cblas.h>
+#include <cblas-netlib.h>
 #endif
 #include <string.h>
 #include <linux/version.h>
