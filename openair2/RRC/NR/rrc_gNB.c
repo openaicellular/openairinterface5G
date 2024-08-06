@@ -2271,6 +2271,7 @@ static void rrc_CU_process_ue_context_release_complete(MessageDef *msg_p)
   if (UE->ho_context != NULL) {
     free(UE->ho_context);
     UE->ho_context = NULL;
+    LOG_A(NR_RRC, "handover for UE %d/RNTI %04x complete!\n", UE->rrc_ue_id, UE->rnti);
   } else {
     rrc_remove_ue(RC.nrrrc[0], ue_context_p);
   }
