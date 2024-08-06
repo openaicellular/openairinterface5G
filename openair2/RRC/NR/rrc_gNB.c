@@ -283,7 +283,7 @@ void nr_initiate_handover(const gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_rr
   ue->ho_context = malloc(sizeof(*ue->ho_context));
   AssertFatal(ue->ho_context != NULL, "out of memory\n");
   *ue->ho_context = *ho_ctxt;
-  LOG_A(NR_RRC, "Handover triggered for UE %u/RNTI %04x towards DU %ld\n", ue->rrc_ue_id, ue->rnti, target_du->setup_req->gNB_DU_id);
+  LOG_A(NR_RRC, "Handover triggered for UE %u/RNTI %04x towards DU %ld/assoc_id %d/PCI %d\n", ue->rrc_ue_id, ue->rnti, target_du->setup_req->gNB_DU_id, target_du->assoc_id, target_du->setup_req->cell[0].info.nr_pci);
 
   // The gNB-CU sends a UE CONTEXT SETUP REQUEST message to the target gNB-DU to create a UE context and setup
 
