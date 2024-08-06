@@ -1369,8 +1369,6 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
   cu_remove_f1_ue_data(UE->rrc_ue_id);
   cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
 
-  LOG_I(NR_RRC, "Accept Reestablishment Request UE physCellId %ld cause %s\n", physCellId, scause);
-
   rrc_gNB_generate_RRCReestablishment(ue_context_p, msg->du2cu_rrc_container, old_rnti, du);
   return;
 
