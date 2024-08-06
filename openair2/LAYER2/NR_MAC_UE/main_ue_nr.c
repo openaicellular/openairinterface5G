@@ -70,6 +70,7 @@ void nr_ue_init_mac(NR_UE_MAC_INST_t *mac)
   mac->uecap_maxMIMO_PUSCH_layers_nocb = 0;
   mac->p_Max = INT_MIN;
   mac->p_Max_alt = INT_MIN;
+  mac->n_ta_offset = -1;
   reset_mac_inst(mac);
 
   // need to inizialize because might not been setup (optional timer)
@@ -200,6 +201,7 @@ void reset_mac_inst(NR_UE_MAC_INST_t *nr_mac)
   }
   if (nr_mac->data_inactivity_timer)
     nr_timer_stop(nr_mac->data_inactivity_timer);
+  nr_timer_stop(&nr_mac->time_alignment_timer);
   nr_timer_stop(&nr_mac->ra.contention_resolution_timer);
   nr_timer_stop(&nr_mac->scheduling_info.sr_DelayTimer);
   nr_timer_stop(&nr_mac->scheduling_info.retxBSR_Timer);
@@ -207,7 +209,7 @@ void reset_mac_inst(NR_UE_MAC_INST_t *nr_mac)
     nr_timer_stop(&nr_mac->scheduling_info.sr_info[i].prohibitTimer);
 
   // consider all timeAlignmentTimers as expired and perform the corresponding actions in clause 5.2
-  // TODO
+  handle_time_alignment_timer_expired(nr_mac);
 
   // set the NDIs for all uplink HARQ processes to the value 0
   for (int k = 0; k < NR_MAX_HARQ_PROCESSES; k++)
@@ -317,6 +319,8 @@ void release_mac_configuration(NR_UE_MAC_INST_t *mac, NR_UE_MAC_reset_cause_t ca
   memset(&mac->ssb_measurements, 0, sizeof(mac->ssb_measurements));
   memset(&mac->csirs_measurements, 0, sizeof(mac->csirs_measurements));
   memset(&mac->ul_time_alignment, 0, sizeof(mac->ul_time_alignment));
+  for (int i = mac->TAG_list.count; i > 0 ; i--)
+    asn_sequence_del(&mac->TAG_list, i - 1, 1);
 }
 
 void free_rach_structures(NR_UE_MAC_INST_t *nr_mac, int bwp_id)
