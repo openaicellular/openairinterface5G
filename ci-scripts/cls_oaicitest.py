@@ -881,8 +881,8 @@ class OaiCiTest():
 	def Iperf2_Unidir(self,HTML,RAN,EPC,CONTAINERS):
 		if self.ue_ids == [] or self.svr_id == None or len(self.ue_ids) != 1:
 			raise Exception("no module names in self.ue_ids or/and self.svr_id provided, multi UE scenario not supported")
-		ue = cls_module.Module_UE(self.ue_ids[0].strip())
-		svr = cls_module.Module_UE(self.svr_id)
+		ue = cls_module.Module_UE(self.ue_ids[0].strip(),self.nodes[0].strip())
+		svr = cls_module.Module_UE(self.svr_id,self.svr_node)
 		ueIP = ue.getIP()
 		if not ueIP:
 			return (False, f"UE {ue.getName()} has no IP address")
