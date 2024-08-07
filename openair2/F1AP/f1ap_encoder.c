@@ -40,7 +40,7 @@ int f1ap_encode_pdu(F1AP_F1AP_PDU_t *pdu, uint8_t **buffer, uint32_t *length) {
     LOG_E(F1AP, "----------------- ASN1 ENCODER PRINT END----------------- \n");
   }
 
-  char errbuf[128]; /* Buffer for error message */
+  char errbuf[4096]; /* Buffer for error message */
   size_t errlen = sizeof(errbuf); /* Size of the buffer */
   int ret = asn_check_constraints(&asn_DEF_F1AP_F1AP_PDU, pdu, errbuf, &errlen);
 
