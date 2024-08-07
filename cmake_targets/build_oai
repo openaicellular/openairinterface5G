@@ -243,7 +243,7 @@ function main() {
             shift;;
       --gNB)
             gNB=1
-            TARGET_LIST="$TARGET_LIST nr-softmodem nr-cuup"
+            TARGET_LIST="$TARGET_LIST nr-softmodem"
             echo_info "Will compile gNB"
             shift;;
        --RU)
