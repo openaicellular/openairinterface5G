@@ -52,20 +52,22 @@
 #define WORD 32
 //#define SIZE_OF_POINTER sizeof (void *)
 
-int get_dl_tda(const gNB_MAC_INST *nrmac, const NR_ServingCellConfigCommon_t *scc, int slot) {
-
+int get_dl_tda(const gNB_MAC_INST *nrmac, int slot)
+{
   /* we assume that this function is mutex-protected from outside */
-  const NR_TDD_UL_DL_Pattern_t *tdd = scc->tdd_UL_DL_ConfigurationCommon ? &scc->tdd_UL_DL_ConfigurationCommon->pattern1 : NULL;
+  const bool tdd = nrmac->tdd_config.is_tdd;
   AssertFatal(tdd || nrmac->common_channels->frame_type == FDD, "Dynamic TDD not handled yet\n");
 
   // Use special TDA in case of CSI-RS
-  if(nrmac->UE_info.sched_csirs > 0)
+  if (nrmac->UE_info.sched_csirs > 0)
     return 1;
 
-  if (tdd && tdd->nrofDownlinkSymbols > 1) { // if there is a mixed slot where we can transmit DL
-    const int nr_slots_period = tdd->nrofDownlinkSlots + tdd->nrofUplinkSlots + 1;
-    if ((slot % nr_slots_period) == tdd->nrofDownlinkSlots)
-      return 2;
+  int slot_tdd_period = slot % nrmac->tdd_config.tdd_numb_slots_period;
+
+  // if there is a mixed slot where we can transmit DL
+  if (tdd && (nrmac->tdd_config.tdd_slot_bitmap[slot_tdd_period].num_dl_symbols > 1)
+      && (nrmac->tdd_config.tdd_slot_bitmap[slot_tdd_period].slot_type == TDD_NR_MIXED_SLOT)) {
+    return 2;
   }
   return 0; // if FDD or not mixed slot in TDD, for now use default TDA
 }
@@ -448,7 +450,7 @@ static bool allocate_dl_retransmission(module_id_t module_id,
   get_start_stop_allocation(nr_mac, UE, &rbStart, &rbStop);
 
   int rbSize = 0;
-  const int tda = get_dl_tda(nr_mac, scc, slot);
+  const int tda = get_dl_tda(nr_mac, slot);
   AssertFatal(tda>=0,"Unable to find PDSCH time domain allocation in list\n");
 
   /* Check first whether the old TDA can be reused
@@ -777,7 +779,7 @@ static void pf_dl(module_id_t module_id,
                        sched_ctrl->aggregation_level);
 
     /* MCS has been set above */
-    sched_pdsch->time_domain_allocation = get_dl_tda(mac, scc, slot);
+    sched_pdsch->time_domain_allocation = get_dl_tda(mac, slot);
     AssertFatal(sched_pdsch->time_domain_allocation>=0,"Unable to find PDSCH time domain allocation in list\n");
 
     const int coresetid = sched_ctrl->coreset->controlResourceSetId;
@@ -861,7 +863,7 @@ static void nr_fr1_dlsch_preprocessor(module_id_t module_id, frame_t frame, sub_
   NR_UE_info_t *UE=UE_info->list[0];
   NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
   NR_UE_DL_BWP_t *current_BWP = &UE->current_DL_BWP;
-  const int tda = get_dl_tda(RC.nrmac[module_id], scc, slot);
+  const int tda = get_dl_tda(RC.nrmac[module_id], slot);
   int startSymbolIndex, nrOfSymbols;
   const int coresetid = sched_ctrl->coreset->controlResourceSetId;
   const struct NR_PDSCH_TimeDomainResourceAllocationList *tdaList =

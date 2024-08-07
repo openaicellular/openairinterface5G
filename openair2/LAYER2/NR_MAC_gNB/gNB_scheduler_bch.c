@@ -242,10 +242,10 @@ void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, 
                 const int prb_offset = offset_pointa >> (scs-2); // reference 60kHz
                 schedule_ssb(frameP, slotP, scc, dl_req, i_ssb, ssbSubcarrierOffset, offset_pointa, mib_pdu);
                 fill_ssb_vrb_map(cc, prb_offset, ssbSubcarrierOffset >> (scs - 2), ssb_start_symbol, CC_id);
-                const NR_TDD_UL_DL_Pattern_t *tdd = &scc->tdd_UL_DL_ConfigurationCommon->pattern1;
+                const bool tdd = gNB->tdd_config.is_tdd;
                 const int n_slots_frame = nr_slots_per_frame[*scc->ssbSubcarrierSpacing];
                 // FR2 is only TDD, to be fixed for flexible TDD
-                const int nr_slots_period = tdd ? n_slots_frame/get_nb_periods_per_frame(scc->tdd_UL_DL_ConfigurationCommon->pattern1.dl_UL_TransmissionPeriodicity) : n_slots_frame;
+                const int nr_slots_period = tdd ? gNB->tdd_config.tdd_numb_slots_period : n_slots_frame;
                 num_tdd_period = rel_slot/nr_slots_period;
                 gNB->tdd_beam_association[num_tdd_period]=i_ssb;
                 num_ssb++;

@@ -276,7 +276,7 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
   nfapi_nr_ul_tti_request_t *UL_tti_req = &RC.nrmac[module_idP]->UL_tti_req_ahead[0][index];
   nfapi_nr_config_request_scf_t *cfg = &RC.nrmac[module_idP]->config[0];
 
-  if (is_nr_UL_slot(scc->tdd_UL_DL_ConfigurationCommon, slotP, cc->frame_type)) {
+  if (is_xlsch_in_slot(gNB->ulsch_slot_bitmap[slotP / 64], slotP)) {
     const NR_RACH_ConfigGeneric_t *rach_ConfigGeneric = &rach_ConfigCommon->rach_ConfigGeneric;
     uint8_t config_index = rach_ConfigGeneric->prach_ConfigurationIndex;
     uint8_t N_dur, N_t_slot, start_symbol = 0, N_RA_slot;
@@ -551,16 +551,16 @@ static void start_ra_contention_resolution_timer(NR_RA_t *ra, const long ra_Cont
         ra->contention_resolution_timer);
 }
 
-static bool beam_is_active(const NR_TDD_UL_DL_Pattern_t *tdd, int mu, const int16_t *tdd_beam_association, int slot, int16_t ra_beam)
+static bool beam_is_active(int mu, gNB_MAC_INST *nrmac, int slot, int16_t ra_beam)
 {
-  if (tdd_beam_association == NULL) // no beams configured
+  if (nrmac->tdd_beam_association == NULL) // no beams configured
     return true;
-  DevAssert(tdd != NULL);
+  DevAssert(nrmac->tdd_config.is_tdd != false);
 
   const int n_slots_frame = nr_slots_per_frame[mu];
-  uint8_t tdd_period_slot = n_slots_frame/get_nb_periods_per_frame(tdd->dl_UL_TransmissionPeriodicity);
+  uint8_t tdd_period_slot = n_slots_frame / nrmac->tdd_config.tdd_numb_period_frame;
   int num_tdd_period = slot / tdd_period_slot;
-  int16_t current_beam = tdd_beam_association[num_tdd_period];
+  int16_t current_beam = nrmac->tdd_beam_association[num_tdd_period];
   return current_beam == -1 /* no beams */
          || current_beam == ra_beam;
 }
@@ -588,8 +588,7 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     // beam association for FR2
     if (*scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.array[0] >= 257) {
       // FR2
-      const NR_TDD_UL_DL_Pattern_t *tdd = scc->tdd_UL_DL_ConfigurationCommon ? &scc->tdd_UL_DL_ConfigurationCommon->pattern1 : NULL;
-      if (!beam_is_active(tdd, mu, nr_mac->tdd_beam_association, sched_slot, ra->beam_id))
+      if (!beam_is_active(mu, nr_mac, sched_slot, ra->beam_id))
         return;
     }
 
@@ -753,7 +752,7 @@ static int get_feasible_msg3_tda(frame_type_t frame_type,
                                  const NR_PUSCH_TimeDomainResourceAllocationList_t *tda_list,
                                  int slots_per_frame,
                                  int slot,
-                                 const NR_TDD_UL_DL_Pattern_t *tdd)
+                                 tdd_config_t *tdd_config)
 {
   DevAssert(tda_list != NULL);
 
@@ -765,8 +764,8 @@ static int get_feasible_msg3_tda(frame_type_t frame_type,
   const int NTN_gNB_Koffset = get_NTN_Koffset(scc);
 
   // TDD
-  DevAssert(tdd != NULL);
-  uint8_t tdd_period_slot = slots_per_frame / get_nb_periods_per_frame(tdd->dl_UL_TransmissionPeriodicity);
+  DevAssert(frame_type == TDD);
+  uint8_t tdd_period_slot = tdd_config->tdd_numb_slots_period;
   for (int i = 0; i < tda_list->list.count; i++) {
     // check if it is UL
     long k2 = *tda_list->list.array[i]->k2 + NTN_gNB_Koffset;
@@ -775,18 +774,30 @@ static int get_feasible_msg3_tda(frame_type_t frame_type,
       continue;
 
     // check if enough symbols in case of mixed slot
-    bool has_mixed = tdd->nrofUplinkSymbols != 0 || tdd->nrofDownlinkSymbols != 0;
-    bool is_mixed = has_mixed && ((temp_slot % tdd_period_slot) == tdd->nrofDownlinkSlots);
+    bool is_mixed = tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].slot_type == TDD_NR_MIXED_SLOT;
+    // bool has_mixed = tdd_config->tdd_slot_bitmap[temp_slot%tdd_period_slot].num_ul_symbols  != 0 ||
+    // tdd_config->tdd_slot_bitmap[temp_slot%tdd_period_slot].num_dl_symbols != 0;
+    // bool is_mixed = has_mixed && ((temp_slot % tdd_period_slot) == tdd->nrofDownlinkSlots);
     // if the mixed slot has not enough symbols, skip
-    if (is_mixed && tdd->nrofUplinkSymbols < 3)
+    if (is_mixed && tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols < 3)
       continue;
 
-    uint16_t slot_mask = is_mixed ? SL_to_bitmap(14 - tdd->nrofUplinkSymbols, tdd->nrofUplinkSymbols) : 0x3fff;
+    uint16_t slot_mask = is_mixed ? SL_to_bitmap(14 - tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols,
+                                                 tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols)
+                                  : 0x3fff;
     long startSymbolAndLength = tda_list->list.array[i]->startSymbolAndLength;
     int start, nr;
     SLIV2SL(startSymbolAndLength, &start, &nr);
     uint16_t msg3_mask = SL_to_bitmap(start, nr);
-    LOG_D(NR_MAC, "Check Msg3 TDA %d for slot %d: k2 %ld, S %d L %d\n", i, temp_slot, k2, start, nr);
+    LOG_I(NR_MAC,
+          "Check Msg3 TDA %d for slot %d: k2 %ld, S %d L %d, slot_mask %d, msg3_mask %d\n",
+          i,
+          temp_slot,
+          k2,
+          start,
+          nr,
+          slot_mask,
+          msg3_mask);
     /* if this start and length of this TDA cannot be fulfilled, skip */
     if ((slot_mask & msg3_mask) != msg3_mask)
       continue;
@@ -1220,8 +1231,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
     return;
   }
   const NR_UE_UL_BWP_t *ul_bwp = &ra->UL_BWP;
-  const NR_TDD_UL_DL_Pattern_t *tdd = scc->tdd_UL_DL_ConfigurationCommon ? &scc->tdd_UL_DL_ConfigurationCommon->pattern1 : NULL;
-  if (!beam_is_active(tdd, ul_bwp->scs, nr_mac->tdd_beam_association, slotP, ra->beam_id)) {
+  if (!beam_is_active(ul_bwp->scs, nr_mac, slotP, ra->beam_id)) {
     LOG_I(NR_MAC, "UE RA-RNTI %04x TC-RNTI %04x: beam %d inactive\n", ra->RA_rnti, ra->rnti, ra->beam_id);
     return;
   }
@@ -1233,7 +1243,8 @@ static void nr_generate_Msg2(module_id_t module_idP,
                                           ul_bwp->tdaList_Common,
                                           nr_slots_per_frame[ul_bwp->scs],
                                           slotP,
-                                          tdd);
+                                          &nr_mac->tdd_config);
+  LOG_I(NR_MAC, "msg3_tda %d ", ra->Msg3_tda_id);
   if (ra->Msg3_tda_id < 0 || ra->Msg3_tda_id > 15) {
     LOG_D(NR_MAC, "UE RNTI %04x %d.%d: infeasible Msg3 TDA\n", ra->rnti, frameP, slotP);
     return;
@@ -1261,7 +1272,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
   AssertFatal(coreset, "Coreset cannot be null for RA-Msg2\n");
   const int coresetid = coreset->controlResourceSetId;
   // Calculate number of symbols
-  int time_domain_assignment = get_dl_tda(nr_mac, scc, slotP);
+  int time_domain_assignment = get_dl_tda(nr_mac, slotP);
   int mux_pattern = type0_PDCCH_CSS_config ? type0_PDCCH_CSS_config->type0_pdcch_ss_mux_pattern : 1;
   NR_tda_info_t tda_info = get_dl_tda_info(dl_bwp,
                                            ss->searchSpaceType->present,
@@ -1331,7 +1342,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
   pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].pm_idx = 0;
   pdsch_pdu_rel15->precodingAndBeamforming.prgs_list[0].dig_bf_interface_list[0].beam_idx = 0;
 
-  LOG_A(NR_MAC,
+  LOG_D(NR_MAC,
         "UE %04x: %d.%d Generating RA-Msg2 DCI, RA RNTI 0x%x, state %d, CoreSetType %d, RAPID %d\n",
         ra->rnti,
         frameP,
@@ -1796,7 +1807,7 @@ static void nr_generate_Msg4(module_id_t module_idP,
       return;
     }
 
-    uint8_t time_domain_assignment = get_dl_tda(nr_mac, scc, slotP);
+    uint8_t time_domain_assignment = get_dl_tda(nr_mac, slotP);
     int mux_pattern = type0_PDCCH_CSS_config ? type0_PDCCH_CSS_config->type0_pdcch_ss_mux_pattern : 1;
     NR_tda_info_t msg4_tda = get_dl_tda_info(dl_bwp,
                                              ss->searchSpaceType->present,
@@ -2013,7 +2024,7 @@ static void nr_check_Msg4_Ack(module_id_t module_id, int CC_id, frame_t frame, s
   if (harq->is_waiting == 0) {
     if (harq->round == 0) {
       if (UE->Msg4_ACKed) {
-        LOG_A(NR_MAC, "(UE RNTI 0x%04x) Received Ack of RA-Msg4. CBRA procedure succeeded!\n", ra->rnti);
+        LOG_D(NR_MAC, "(UE RNTI 0x%04x) Received Ack of RA-Msg4. CBRA procedure succeeded!\n", ra->rnti);
       } else {
         LOG_I(NR_MAC, "%4d.%2d UE %04x: RA Procedure failed at Msg4!\n", frame, slot, ra->rnti);
         nr_mac_trigger_ul_failure(sched_ctrl, UE->current_DL_BWP.scs);

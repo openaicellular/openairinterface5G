@@ -66,19 +66,21 @@ static rnti_t lcid_crnti_lookahead(uint8_t *pdu, uint32_t pdu_len)
   return 0;
 }
 
-int get_ul_tda(gNB_MAC_INST *nrmac, const NR_ServingCellConfigCommon_t *scc, int frame, int slot)
+int get_ul_tda(gNB_MAC_INST *nrmac, int frame, int slot)
 {
   /* we assume that this function is mutex-protected from outside */
   NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
 
   /* there is a mixed slot only when in TDD */
-  const NR_TDD_UL_DL_Pattern_t *tdd = scc->tdd_UL_DL_ConfigurationCommon ? &scc->tdd_UL_DL_ConfigurationCommon->pattern1 : NULL;
+  const bool tdd = nrmac->tdd_config.is_tdd;
+  ;
   AssertFatal(tdd || nrmac->common_channels->frame_type == FDD, "Dynamic TDD not handled yet\n");
 
-  if (tdd && tdd->nrofUplinkSymbols > 1) { // if there is uplink symbols in mixed slot
-    const int nr_slots_period = tdd->nrofDownlinkSlots + tdd->nrofUplinkSlots + 1;
-    if ((slot % nr_slots_period) == tdd->nrofDownlinkSlots)
-      return 2;
+  // if there is uplink symbols in mixed slot
+  int slot_tdd_period = slot % nrmac->tdd_config.tdd_numb_slots_period;
+  if (tdd && (nrmac->tdd_config.tdd_slot_bitmap[slot_tdd_period].num_ul_symbols > 1)
+      && (nrmac->tdd_config.tdd_slot_bitmap[slot_tdd_period].slot_type == TDD_NR_MIXED_SLOT)) {
+    return 2;
   }
 
   // Avoid slots with the SRS
@@ -1478,23 +1480,25 @@ long get_K2(NR_PUSCH_TimeDomainResourceAllocationList_t *tdaList,
     return 3 + NTN_gNB_Koffset;
 }
 
-static bool nr_UE_is_to_be_scheduled(const NR_ServingCellConfigCommon_t *scc, int CC_id,  NR_UE_info_t* UE, frame_t frame, sub_frame_t slot, uint32_t ulsch_max_frame_inactivity)
+static bool nr_UE_is_to_be_scheduled(uint8_t last_ul_slot,
+                                     const tdd_config_t *tdd_config,
+                                     int CC_id,
+                                     NR_UE_info_t *UE,
+                                     frame_t frame,
+                                     sub_frame_t slot,
+                                     uint32_t ulsch_max_frame_inactivity)
 {
-  const int n = nr_slots_per_frame[*scc->ssbSubcarrierSpacing];
+  const int n = tdd_config->tdd_numb_slots_frame;
   const int now = frame * n + slot;
 
   const NR_UE_sched_ctrl_t *sched_ctrl =&UE->UE_sched_ctrl;
 
-  const NR_TDD_UL_DL_Pattern_t *tdd =
-      scc->tdd_UL_DL_ConfigurationCommon ? &scc->tdd_UL_DL_ConfigurationCommon->pattern1 : NULL;
+  const bool tdd = tdd_config->is_tdd;
   int num_slots_per_period;
-  int last_ul_slot;
   if (tdd) { // Force the default transmission in a full slot as early as possible in the UL portion of TDD period (last_ul_slot)
-    num_slots_per_period =  n / get_nb_periods_per_frame(tdd->dl_UL_TransmissionPeriodicity);
-    last_ul_slot = 1 + tdd->nrofDownlinkSlots;
+    num_slots_per_period = tdd_config->tdd_numb_slots_period;
   } else {
     num_slots_per_period = n;
-    last_ul_slot = sched_ctrl->last_ul_slot;
   }
 
   const int last_ul_sched = sched_ctrl->last_ul_frame * n + last_ul_slot;
@@ -1753,6 +1757,18 @@ typedef struct UEsched_s {
 static int comparator(const void *p, const void *q) {
   return ((UEsched_t*)p)->coef < ((UEsched_t*)q)->coef;
 }
+static int get_first_ul_slot_new(const struct NR_TDD_UL_DL_ConfigCommon *tdd, bool pattern)
+{
+  const NR_TDD_UL_DL_Pattern_t *p1 = &tdd->pattern1;
+  const NR_TDD_UL_DL_Pattern_t *p2 = tdd->pattern2;
+
+  if (pattern == false) {
+    return (p1->nrofDownlinkSlots + (p1->nrofDownlinkSymbols != 0 && p1->nrofUplinkSymbols == 0));
+  } else {
+    return (p1->nrofDownlinkSlots + (p1->nrofDownlinkSymbols != 0 || p1->nrofUplinkSlots != 0) + p1->nrofUplinkSlots
+            + p2->nrofDownlinkSlots + (p2->nrofDownlinkSymbols != 0 && p2->nrofUplinkSlots == 0));
+  }
+}
 
 static void pf_ul(module_id_t module_id,
                   frame_t frame,
@@ -1802,7 +1818,7 @@ static void pf_ul(module_id_t module_id,
     LOG_D(NR_MAC,"pf_ul: UE %04x harq_pid %d\n",UE->rnti,sched_pusch->ul_harq_pid);
     if (sched_pusch->ul_harq_pid >= 0) {
       /* Allocate retransmission*/
-      const int tda = get_ul_tda(nrmac, scc, sched_pusch->frame, sched_pusch->slot);
+      const int tda = get_ul_tda(nrmac, sched_pusch->frame, sched_pusch->slot);
       bool r = allocate_ul_retransmission(nrmac, frame, slot, rballoc_mask, &n_rb_sched, UE, sched_pusch->ul_harq_pid, scc, tda);
       if (!r) {
         LOG_D(NR_MAC, "[UE %04x][%4d.%2d] UL retransmission could not be allocated\n",
@@ -1831,7 +1847,24 @@ static void pf_ul(module_id_t module_id,
 
     const int B = max(0, sched_ctrl->estimated_ul_buffer - sched_ctrl->sched_ul_bytes);
     /* preprocessor computed sched_frame/sched_slot */
-    const bool do_sched = nr_UE_is_to_be_scheduled(scc, 0, UE, sched_pusch->frame, sched_pusch->slot, nrmac->ulsch_max_frame_inactivity);
+    int8_t last_ul_slot = 0;
+    if (nrmac->tdd_config.is_tdd) { // Force the default transmission in a full slot as early as possible in the UL portion of TDD
+                                    // period (last_sched_ul_slot)
+      if (scc->tdd_UL_DL_ConfigurationCommon->pattern1.nrofUplinkSlots != 0)
+        last_ul_slot = get_first_ul_slot_new(scc->tdd_UL_DL_ConfigurationCommon, 0);
+      else if (scc->tdd_UL_DL_ConfigurationCommon->pattern2 != NULL)
+        last_ul_slot = get_first_ul_slot_new(scc->tdd_UL_DL_ConfigurationCommon, 1);
+
+    } else {
+      last_ul_slot = sched_ctrl->last_ul_slot;
+    }
+    const bool do_sched = nr_UE_is_to_be_scheduled(last_ul_slot,
+                                                   &nrmac->tdd_config,
+                                                   0,
+                                                   UE,
+                                                   sched_pusch->frame,
+                                                   sched_pusch->slot,
+                                                   nrmac->ulsch_max_frame_inactivity);
 
     LOG_D(NR_MAC,"pf_ul: do_sched UE %04x => %s\n",UE->rnti,do_sched ? "yes" : "no");
     if ((B == 0 && !do_sched) || (sched_ctrl->rrc_processing_timer > 0)) {
@@ -1868,7 +1901,7 @@ static void pf_ul(module_id_t module_id,
       }
 
       sched_pusch->nrOfLayers = sched_ctrl->srs_feedback.ul_ri + 1;
-      sched_pusch->time_domain_allocation = get_ul_tda(nrmac, scc, sched_pusch->frame, sched_pusch->slot);
+      sched_pusch->time_domain_allocation = get_ul_tda(nrmac, sched_pusch->frame, sched_pusch->slot);
       sched_pusch->tda_info = get_ul_tda_info(current_BWP,
                                               sched_ctrl->coreset->controlResourceSetId,
                                               sched_ctrl->search_space->searchSpaceType->present,
@@ -1992,7 +2025,7 @@ static void pf_ul(module_id_t module_id,
     NR_sched_pusch_t *sched_pusch = &sched_ctrl->sched_pusch;
 
     sched_pusch->nrOfLayers = sched_ctrl->srs_feedback.ul_ri + 1;
-    sched_pusch->time_domain_allocation = get_ul_tda(nrmac, scc, sched_pusch->frame, sched_pusch->slot);
+    sched_pusch->time_domain_allocation = get_ul_tda(nrmac, sched_pusch->frame, sched_pusch->slot);
     sched_pusch->tda_info = get_ul_tda_info(current_BWP,
                                             sched_ctrl->coreset->controlResourceSetId,
                                             sched_ctrl->search_space->searchSpaceType->present,
@@ -2113,7 +2146,7 @@ static bool nr_fr1_ulsch_preprocessor(module_id_t module_id, frame_t frame, sub_
   NR_UE_sched_ctrl_t *sched_ctrl = &nr_mac->UE_info.list[0]->UE_sched_ctrl;
   NR_UE_UL_BWP_t *current_BWP = &nr_mac->UE_info.list[0]->current_UL_BWP;
   int mu = current_BWP->scs;
-  const int temp_tda = get_ul_tda(nr_mac, scc, frame, slot);
+  const int temp_tda = get_ul_tda(nr_mac, frame, slot);
   NR_PUSCH_TimeDomainResourceAllocationList_t *tdaList = get_ul_tdalist(current_BWP,
                                                                         sched_ctrl->coreset->controlResourceSetId,
                                                                         sched_ctrl->search_space->searchSpaceType->present,
@@ -2121,7 +2154,7 @@ static bool nr_fr1_ulsch_preprocessor(module_id_t module_id, frame_t frame, sub_
   int K2 = get_K2(tdaList, temp_tda, mu, scc);
   const int sched_frame = (frame + (slot + K2) / nr_slots_per_frame[mu]) % MAX_FRAME_NUMBER;
   const int sched_slot = (slot + K2) % nr_slots_per_frame[mu];
-  const int tda = get_ul_tda(nr_mac, scc, sched_frame, sched_slot);
+  const int tda = get_ul_tda(nr_mac, sched_frame, sched_slot);
   if (tda < 0)
     return false;
   DevAssert(K2 == get_K2(tdaList, tda, mu, scc));

@@ -756,8 +756,8 @@ static int8_t nr_rrc_ue_decode_NR_BCCH_DL_SCH_Message(NR_UE_RRC_INST_t *rrc,
         if(!SI_info->sib1)
           SI_info->sib1 = calloc(1, sizeof(*SI_info->sib1));
         memcpy(SI_info->sib1, sib1, sizeof(NR_SIB1_t));
-        if(g_log->log_component[NR_RRC].level >= OAILOG_DEBUG)
-          xer_fprint(stdout, &asn_DEF_NR_SIB1, (const void *) SI_info->sib1);
+        // if(g_log->log_component[NR_RRC].level >= OAILOG_DEBUG)
+        xer_fprint(stdout, &asn_DEF_NR_SIB1, (const void *)SI_info->sib1);
         LOG_A(NR_RRC, "SIB1 decoded\n");
         nr_timer_start(&SI_info->sib1_timer);
         if (rrc->nrRrcState == RRC_STATE_IDLE_NR) {

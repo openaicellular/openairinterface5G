@@ -755,6 +755,22 @@ typedef struct f1_config_t {
   uint32_t gnb_id; // associated gNB's ID, not used in DU itself
 } f1_config_t;
 
+enum slot_type { TDD_NR_DOWNLINK_SLOT, TDD_NR_UPLINK_SLOT, TDD_NR_MIXED_SLOT };
+typedef struct tdd_bitmap {
+  enum slot_type slot_type;
+  uint8_t num_dl_symbols;
+  uint8_t num_ul_symbols;
+} tdd_bitmap_t;
+typedef struct tdd_config_t {
+  tdd_bitmap_t tdd_slot_bitmap[80];
+  int8_t tdd_numb_slots_frame;
+  int8_t tdd_numb_slots_period;
+  int8_t tdd_numb_period_frame;
+  uint8_t num_dl_slots;
+  uint8_t num_ul_slots;
+  bool is_tdd;
+} tdd_config_t;
+
 /*! \brief top level eNB MAC structure */
 typedef struct gNB_MAC_INST_s {
   /// Ethernet parameters for northbound midhaul interface
@@ -846,9 +862,10 @@ typedef struct gNB_MAC_INST_s {
   uint64_t dlsch_slot_bitmap[3];
   /// bitmap of ULSCH slots, can hold up to 160 slots
   uint64_t ulsch_slot_bitmap[3];
-
   /// maximum number of slots before a UE will be scheduled ULSCH automatically
   uint32_t ulsch_max_frame_inactivity;
+  /// instance of the TDD configuration
+  tdd_config_t tdd_config;
 
   /// DL preprocessor for differentiated scheduling
   nr_pp_impl_dl pre_processor_dl;

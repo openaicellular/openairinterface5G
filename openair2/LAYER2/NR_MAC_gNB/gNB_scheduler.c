@@ -150,6 +150,20 @@ bool is_xlsch_in_slot(uint64_t bitmap, sub_frame_t slot) {
   return (bitmap >> (slot % 64)) & 0x01;
 }
 
+bool is_ul_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp)
+{
+  return ((tdd_bmp[slot].slot_type == TDD_NR_MIXED_SLOT) || (tdd_bmp[slot].slot_type == TDD_NR_UPLINK_SLOT));
+}
+bool is_dl_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp)
+{
+  return ((tdd_bmp[slot].slot_type == TDD_NR_MIXED_SLOT) || (tdd_bmp[slot].slot_type == TDD_NR_DOWNLINK_SLOT));
+}
+
+bool is_mixed_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp)
+{
+  return ((tdd_bmp[slot].slot_type == TDD_NR_MIXED_SLOT));
+}
+
 /* the structure nfapi_nr_ul_tti_request_t is very big, let's copy only what is necessary */
 static void copy_ul_tti_req(nfapi_nr_ul_tti_request_t *to, nfapi_nr_ul_tti_request_t *from)
 {
@@ -201,9 +215,9 @@ void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, frame_t frame, sub_frame_
 
   if (slot==0 && (*scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.array[0]>=257)) {
     //FR2
-    const NR_TDD_UL_DL_Pattern_t *tdd = &scc->tdd_UL_DL_ConfigurationCommon->pattern1;
+    const bool tdd = gNB->tdd_config.is_tdd;
     AssertFatal(tdd,"Dynamic TDD not handled yet\n");
-    const int nb_periods_per_frame = get_nb_periods_per_frame(tdd->dl_UL_TransmissionPeriodicity);
+    const int nb_periods_per_frame = gNB->tdd_config.tdd_numb_period_frame;
     // re-initialization of tdd_beam_association at beginning of frame
     for (int i=0; i<nb_periods_per_frame; i++)
       gNB->tdd_beam_association[i] = -1;

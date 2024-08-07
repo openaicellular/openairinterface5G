@@ -327,6 +327,9 @@ int nr_write_ce_dlsch_pdu(module_id_t module_idP,
 int binomial(int n, int k);
 
 bool is_xlsch_in_slot(uint64_t bitmap, sub_frame_t slot);
+bool is_ul_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp);
+bool is_dl_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp);
+bool is_mixed_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp);
 
 /* \brief Function to indicate a received SDU on ULSCH.
 @param Mod_id Instance ID of gNB
@@ -385,11 +388,12 @@ uint8_t get_dl_nrOfLayers(const NR_UE_sched_ctrl_t *sched_ctrl, const nr_dci_for
 
 void set_sched_pucch_list(NR_UE_sched_ctrl_t *sched_ctrl,
                           const NR_UE_UL_BWP_t *ul_bwp,
-                          const NR_ServingCellConfigCommon_t *scc);
+                          const NR_ServingCellConfigCommon_t *scc,
+                          const tdd_config_t *tdd_cfg);
 void free_sched_pucch_list(NR_UE_sched_ctrl_t *sched_ctrl);
 
-int get_dl_tda(const gNB_MAC_INST *nrmac, const NR_ServingCellConfigCommon_t *scc, int slot);
-int get_ul_tda(gNB_MAC_INST *nrmac, const NR_ServingCellConfigCommon_t *scc, int frame, int slot);
+int get_dl_tda(const gNB_MAC_INST *nrmac, int slot);
+int get_ul_tda(gNB_MAC_INST *nrmac, int frame, int slot);
 
 int get_cce_index(const gNB_MAC_INST *nrmac,
                   const int CC_id,

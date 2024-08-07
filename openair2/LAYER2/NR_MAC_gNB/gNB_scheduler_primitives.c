@@ -2408,7 +2408,7 @@ void configure_UE_BWP(gNB_MAC_INST *nr_mac,
                          NR_UL_DCI_FORMAT_0_0;
 
     set_max_fb_time(UL_BWP, DL_BWP);
-    set_sched_pucch_list(sched_ctrl, UL_BWP, scc);
+    set_sched_pucch_list(sched_ctrl, UL_BWP, scc, &nr_mac->tdd_config);
   }
 
   if(ra) {
@@ -2549,16 +2549,20 @@ NR_UE_info_t *add_new_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rntiP, NR_CellGroupConf
 
 void set_sched_pucch_list(NR_UE_sched_ctrl_t *sched_ctrl,
                           const NR_UE_UL_BWP_t *ul_bwp,
-                          const NR_ServingCellConfigCommon_t *scc)
+                          const NR_ServingCellConfigCommon_t *scc,
+                          const tdd_config_t *tdd_cfg)
 {
   const int NTN_gNB_Koffset = get_NTN_Koffset(scc);
-  const NR_TDD_UL_DL_Pattern_t *tdd = scc->tdd_UL_DL_ConfigurationCommon ? &scc->tdd_UL_DL_ConfigurationCommon->pattern1 : NULL;
-  const int n_slots_frame = nr_slots_per_frame[ul_bwp->scs];
-  const int nr_slots_period = tdd ? n_slots_frame / get_nb_periods_per_frame(tdd->dl_UL_TransmissionPeriodicity) : n_slots_frame;
-  const int n_ul_slots_period = tdd ? tdd->nrofUplinkSlots + (tdd->nrofUplinkSymbols > 0 ? 1 : 0) : n_slots_frame;
+  const int nr_slots_period = tdd_cfg->tdd_numb_slots_period;
+  const int n_ul_slots_period = tdd_cfg->num_ul_slots;
+
   // PUCCH list size is given by the number of UL slots in the PUCCH period
   // the length PUCCH period is determined by max_fb_time since we may need to prepare PUCCH for ACK/NACK max_fb_time slots ahead
-  const int list_size = n_ul_slots_period << (int)ceil(log2((ul_bwp->max_fb_time + NTN_gNB_Koffset) / nr_slots_period + 1));
+  int list_size = n_ul_slots_period << (ul_bwp->max_fb_time / nr_slots_period);
+
+  if (NTN_gNB_Koffset)
+    list_size = n_ul_slots_period << (int)ceil(log2((ul_bwp->max_fb_time + NTN_gNB_Koffset) / nr_slots_period + 1));
+
   if(!sched_ctrl->sched_pucch) {
     sched_ctrl->sched_pucch = calloc(list_size, sizeof(*sched_ctrl->sched_pucch));
     sched_ctrl->sched_pucch_size = list_size;
