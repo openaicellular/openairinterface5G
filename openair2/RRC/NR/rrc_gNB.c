@@ -1306,6 +1306,13 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
     return;
   }
 
+  // 3GPP TS 38.321 version 15.13.0 Section 7.1 Table 7.1-1: RNTI values
+  if (req->ue_Identity.c_RNTI < 0x1 || req->ue_Identity.c_RNTI > 0xffef) {
+    /* c_RNTI range error should not happen */
+    LOG_E(NR_RRC, "NR_RRCReestablishmentRequest c_RNTI %04lx range error, fallback to RRC setup\n", req->ue_Identity.c_RNTI);
+    goto fallback_rrc_setup;
+  }
+
   if (du->mib == NULL || du->sib1 == NULL) {
     /* we don't have MIB/SIB1 of the DU, and therefore cannot generate the
      * Reestablishment (as we would need the SSB's ARFCN, which we cannot
@@ -1314,16 +1321,55 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
     goto fallback_rrc_setup;
   }
 
-  rnti_t old_rnti = req->ue_Identity.c_RNTI;
-  ue_context_p = rrc_gNB_get_ue_context_by_rnti(rrc, assoc_id, old_rnti);
-  if (ue_context_p == NULL) {
-    /* TODO what if the UE comes back with the old C-RNTI after handover? */
-    LOG_E(NR_RRC, "NR_RRCReestablishmentRequest without UE context, fallback to RRC setup\n");
+  if (du->mtc == NULL) {
+    // some UEs don't send MeasurementTimingConfiguration, so we don't know the
+    // SSB ARFCN and can't do reestablishment. handle it gracefully by doing
+    // RRC setup procedure instead
+    LOG_E(NR_RRC, "no MeasurementTimingConfiguration for this cell, cannot perform reestablishment\n");
+    ngap_cause = NGAP_CAUSE_RADIO_NETWORK_RELEASE_DUE_TO_NGRAN_GENERATED_REASON;
     goto fallback_rrc_setup;
   }
 
+  rnti_t old_rnti = req->ue_Identity.c_RNTI;
+  ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(rrc, old_rnti);
+  if (ue_context_p == NULL) {
+    LOG_E(NR_RRC, "NR_RRCReestablishmentRequest without UE context, fallback to RRC setup\n");
+    goto fallback_rrc_setup;
+  }
+  gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
+
   const f1ap_served_cell_info_t *cell_info = &du->setup_req->cell[0].info;
-  if (physCellId != cell_info->nr_pci) {
+  if (UE->ho_context != NULL && assoc_id == UE->ho_context->data.intra_cu.source_du) {
+    /* the UE came back on the source DU while doing handover, release at
+     * target and DU association might have been different during handover (we expected
+     * the UE to come through the target cell, so update the association to the
+     * initial one, and trigger release on the target DU */
+    DevAssert(assoc_id != UE->ho_context->data.intra_cu.target_secondary_ue);
+    f1ap_ue_context_release_cmd_t ue_context_release_cmd = {
+        .gNB_CU_ue_id = UE->rrc_ue_id,
+        .gNB_DU_ue_id = UE->ho_context->data.intra_cu.target_secondary_ue,
+        .cause = F1AP_CAUSE_RADIO_NETWORK, // better
+        .cause_value = 5, // 5 = F1AP_CauseRadioNetwork_interaction_with_other_procedure
+        .srb_id = DCCH,
+    };
+    rrc->mac_rrc.ue_context_release_command(UE->ho_context->data.intra_cu.source_du, &ue_context_release_cmd);
+
+    /* UE->ho_context will be freed after the release message */
+
+    /*
+    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
+    ue_data.du_assoc_id = assoc_id;
+    cu_remove_f1_ue_data(UE->rrc_ue_id);
+    cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
+    */
+  } else if (UE->ho_context != NULL && assoc_id == UE->ho_context->data.intra_cu.target_du) {
+    /* the UE came back on the target DU while doing handover, release at the
+     * source and consider the handover completed */
+    AssertFatal(false, "not implemented\n");
+  } else if (UE->ho_context != NULL) {
+    /* the UE came back on neither target nor source CU */
+    AssertFatal(false, "not implemented: release on both source & target DUs\n");
+  } else if (physCellId != cell_info->nr_pci) {
     /* UE was moving from previous cell so quickly that RRCReestablishment for previous cell was received in this cell */
     LOG_I(NR_RRC,
           "RRC Reestablishment Request from different physCellId (%ld) than current physCellId (%d), fallback to RRC setup\n",
@@ -1337,50 +1383,11 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
     goto fallback_rrc_setup;
   }
 
-  gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
-  // 3GPP TS 38.321 version 15.13.0 Section 7.1 Table 7.1-1: RNTI values
-  if (req->ue_Identity.c_RNTI < 0x1 || req->ue_Identity.c_RNTI > 0xffef) {
-    /* c_RNTI range error should not happen */
-    LOG_E(NR_RRC, "NR_RRCReestablishmentRequest c_RNTI %04lx range error, fallback to RRC setup\n", req->ue_Identity.c_RNTI);
-    goto fallback_rrc_setup;
-  }
-
   if (!UE->as_security_active) {
     /* no active security context, need to restart entire connection */
     LOG_E(NR_RRC, "UE requested Reestablishment without activated AS security\n");
     ngap_cause = NGAP_CAUSE_RADIO_NETWORK_RELEASE_DUE_TO_NGRAN_GENERATED_REASON;
     goto fallback_rrc_setup;
-  }
-
-  if (du->mtc == NULL) {
-    // some UEs don't send MeasurementTimingConfiguration, so we don't know the
-    // SSB ARFCN and can't do reestablishment. handle it gracefully by doing
-    // RRC setup procedure instead
-    LOG_E(NR_RRC, "no MeasurementTimingConfiguration for this cell, cannot perform reestablishment\n");
-    ngap_cause = NGAP_CAUSE_RADIO_NETWORK_RELEASE_DUE_TO_NGRAN_GENERATED_REASON;
-    goto fallback_rrc_setup;
-  }
-
-  if (UE->ho_context != NULL) {
-    /* DU association might have been different during handover (we expected
-     * the UE to come through the target cell, so update the association to the
-     * initial one, and trigger release on the target DU */
-    DevAssert(assoc_id != UE->ho_context->data.intra_cu.target_secondary_ue);
-    f1ap_ue_context_release_cmd_t ue_context_release_cmd = {
-        .gNB_CU_ue_id = UE->rrc_ue_id,
-        .gNB_DU_ue_id = UE->ho_context->data.intra_cu.target_secondary_ue,
-        .cause = F1AP_CAUSE_RADIO_NETWORK, // better
-        .cause_value = 5, // 5 = F1AP_CauseRadioNetwork_interaction_with_other_procedure
-        .srb_id = DCCH,
-    };
-    rrc->mac_rrc.ue_context_release_command(UE->ho_context->data.intra_cu.source_du, &ue_context_release_cmd);
-
-    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
-    ue_data.du_assoc_id = assoc_id;
-    cu_remove_f1_ue_data(UE->rrc_ue_id);
-    cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
-
-    /* UE->ho_context will be freed after the release message */
   }
 
   /* TODO: start timer in ITTI and drop UE if it does not come back */
