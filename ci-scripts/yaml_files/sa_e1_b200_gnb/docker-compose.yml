@@ -1,6 +1,6 @@
 services:
     gnb_cucp:
-        image: oai-gnb:latest
+        image: oaisoftwarealliance/oai-gnb:develop
         container_name: sa-cucp-gnb
         cap_drop:
             - ALL
@@ -25,7 +25,7 @@ services:
             retries: 5
 
     gnb_cuup:
-        image: oai-nr-cuup:latest
+        image: oaisoftwarealliance/oai-nr-cuup:develop
         container_name: sa-cuup-gnb
         cap_drop:
             - ALL
@@ -52,7 +52,7 @@ services:
             retries: 5
 
     gnb_du_tdd:
-        image: oai-gnb:latest
+        image: oaisoftwarealliance/oai-gnb:develop
         container_name: sa-du-b200-gnb
         cap_drop:
             - ALL

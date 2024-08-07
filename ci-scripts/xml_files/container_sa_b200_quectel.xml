@@ -29,6 +29,7 @@
     100000
     111111
     010000
+    800813
     030101
     010001
     050000
@@ -95,7 +96,12 @@
     <desc>Detach UE</desc>
     <id>idefix</id>
   </testCase>
-
+  <testCase id="800813">
+      <class>Create_Workspace</class>
+      <desc>Creating new Workspace for server 0</desc>
+      <eNB_instance>0</eNB_instance>
+      <eNB_serverId>0</eNB_serverId>
+  </testCase>
   <testCase id="030101">
     <class>Deploy_Object</class>
     <desc>Deploy gNB (TDD/Band78/40MHz/B200) in a container</desc>

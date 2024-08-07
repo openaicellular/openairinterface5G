@@ -30,6 +30,7 @@ Replaces xml_files/enb_usrp210_band40_test_05mhz_tm2.xml
 100000
 111110
 040101
+800813
 030105
 040301 040502 040606 040608 040646 040648 040401 040201
 030205
@@ -55,6 +56,12 @@ Replaces xml_files/enb_usrp210_band40_test_05mhz_tm2.xml
             <node>starsky</node>
             <command>sudo cpupower idle-set -E</command>
     </testCase>
+    <testCase id="800813">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace for server 0</desc>
+        <eNB_instance>0</eNB_instance>
+        <eNB_serverId>0</eNB_serverId>
+    </testCase>  
     <testCase id="030105">
         <class>Deploy_Object</class>
         <desc>Deploy eNB (TDD/Band40/5MHz/B200) in a container</desc>

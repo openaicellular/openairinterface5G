@@ -30,6 +30,7 @@ Replaces xml_files/enb_usrp210_band7_test_10mhz_tm1.xml
 100000
 111110
 040101
+800813
 030121
 000001
 040301 040521 040623 040624 040625 040662 040401 040201
@@ -56,7 +57,12 @@ Replaces xml_files/enb_usrp210_band7_test_10mhz_tm1.xml
             <node>hutch</node>
             <command>sudo cpupower idle-set -E</command>
     </testCase>
-
+    <testCase id="800813">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace for server 0</desc>
+        <eNB_instance>0</eNB_instance>
+        <eNB_serverId>0</eNB_serverId>
+    </testCase>
     <testCase id="030121">
         <class>Deploy_Object</class>
         <desc>Deploy eNB (FDD/Band7/20MHz/B200) in a container</desc>

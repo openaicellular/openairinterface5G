@@ -28,7 +28,10 @@
 300000
 100000
 111110
-030134 030135
+800813
+030134
+800814
+030135
 040301 040532 040631 040632 040634 040635 040681 040682 040684 040685 040401 040201
 030231
 040101
@@ -62,7 +65,12 @@
     <node>starsky</node>
     <command>sudo -S b2xx_fx3_utils --reset-device</command>
     </testCase>
-
+    <testCase id="800813">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace for server 0</desc>
+        <eNB_instance>0</eNB_instance>
+        <eNB_serverId>0</eNB_serverId>
+    </testCase>
     <testCase id="030134">
         <class>Deploy_Object</class>
         <desc>Deploy RRU (TDD/Band40/5MHz/B200) in a container</desc>
@@ -71,7 +79,12 @@
         <eNB_instance>0</eNB_instance>
         <eNB_serverId>0</eNB_serverId>
     </testCase>
-
+    <testCase id="800814">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace for server 0</desc>
+        <eNB_instance>0</eNB_instance>
+        <eNB_serverId>0</eNB_serverId>
+    </testCase>
     <testCase id="030135">
         <class>Deploy_Object</class>
         <desc>Deploy RCC (TDD/Band40/5MHz) in a container</desc>

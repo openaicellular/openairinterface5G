@@ -41,14 +41,18 @@ import cls_cmd
 
 class Module_UE:
 
-	def __init__(self, module_name, filename="ci_infra.yaml"):
+	def __init__(self, module_name, node=None, filename="ci_infra.yaml"):
 		with open(filename, 'r') as f:
 			all_ues = yaml.load(f, Loader=yaml.FullLoader)
 			m = all_ues.get(module_name)
 			if m is None:
 				raise Exception(f'no such module name "{module_name}" in "{filename}"')
 			self.module_name = module_name
-			self.host = m['Host']
+			self.host = m['Host'] if m['Host'] != "%%current_host%%" else None
+			if node is None and self.host is None:
+				raise Exception(f'node not provided when needed')
+			elif node is not None and self.host is None:
+				self.host = node
 			self.cmd_dict = {
 				"attach": m.get('AttachScript'),
 				"detach": m.get('DetachScript'),

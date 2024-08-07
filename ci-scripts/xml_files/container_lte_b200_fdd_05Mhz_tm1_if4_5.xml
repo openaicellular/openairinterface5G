@@ -29,7 +29,10 @@
 111110
 300000
 040101
-030131 030132
+800813
+030131
+800814
+030132
 040301 040531 040633 040634 040636 040671 040672 040673 040401 040201
 030231
 200000
@@ -61,7 +64,12 @@
         <node>hutch</node>
         <command>sudo -S b2xx_fx3_utils --reset-device</command>
     </testCase>
-
+    <testCase id="800813">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace for server 0</desc>
+        <eNB_instance>0</eNB_instance>
+        <eNB_serverId>0</eNB_serverId>
+    </testCase>
     <testCase id="030131">
         <class>Deploy_Object</class>
         <desc>Deploy RRU (FDD/Band7/5MHz/B200) in a container</desc>
@@ -70,7 +78,12 @@
         <eNB_instance>0</eNB_instance>
         <eNB_serverId>0</eNB_serverId>
     </testCase>
-
+    <testCase id="800814">
+        <class>Create_Workspace</class>
+        <desc>Creating new Workspace for server 0</desc>
+        <eNB_instance>0</eNB_instance>
+        <eNB_serverId>0</eNB_serverId>
+    </testCase>
     <testCase id="030132">
         <class>Deploy_Object</class>
         <desc>Deploy RCC (FDD/Band7/5MHz) in a container</desc>

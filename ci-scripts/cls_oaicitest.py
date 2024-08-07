@@ -280,6 +280,8 @@ class OaiCiTest():
 		self.clean_repository = True
 		self.air_interface=''
 		self.ue_ids = []
+		self.nodes = []
+		self.svr_node = None
 		self.svr_id = None
 		self.cmd_prefix = '' # prefix before {lte,nr}-uesoftmodem
 
@@ -606,7 +608,10 @@ class OaiCiTest():
 			self.AutoTerminateUEandeNB(HTML,RAN,EPC,CONTAINERS)
 
 	def AttachUE(self, HTML, RAN, EPC, CONTAINERS):
-		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
+		if len(self.ue_ids) == len(self.nodes):
+			ues = [cls_module.Module_UE(ue_id, server_name) for ue_id, server_name in zip(self.ue_ids, self.nodes)]
+		else:
+			ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		with concurrent.futures.ThreadPoolExecutor() as executor:
 			futures = [executor.submit(ue.attach) for ue in ues]
 			attached = [f.result() for f in futures]
@@ -621,7 +626,10 @@ class OaiCiTest():
 			self.AutoTerminateUEandeNB(HTML, RAN, EPC, CONTAINERS)
 
 	def DetachUE(self, HTML):
-		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
+		if len(self.ue_ids) == len(self.nodes):
+			ues = [cls_module.Module_UE(ue_id, server_name) for ue_id, server_name in zip(self.ue_ids, self.nodes)]
+		else:
+			ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		with concurrent.futures.ThreadPoolExecutor() as executor:
 			futures = [executor.submit(ue.detach) for ue in ues]
 			[f.result() for f in futures]
@@ -662,7 +670,7 @@ class OaiCiTest():
 			messages = [f.result() for f in futures]
 		HTML.CreateHtmlTestRowQueue('NA', 'OK', messages)
 
-	def Ping_common(self, EPC, ue, RAN, printLock):
+	def Ping_common(self, EPC, ue, RAN, CONTAINERS, printLock):
 		# Launch ping on the EPC side (true for ltebox and old open-air-cn)
 		ping_status = 0
 		ueIP = ue.getIP()
@@ -670,7 +678,11 @@ class OaiCiTest():
 			return (False, f"UE {ue.getName()} has no IP address")
 		ping_log_file = f'ping_{self.testCase_id}_{ue.getName()}.log'
 		ping_time = re.findall("-c *(\d+)",str(self.ping_args))
-		local_ping_log_file = f'{os.getcwd()}/{ping_log_file}'
+		# Creating destination log folder if needed on the python executor workspace
+		ymlPath = CONTAINERS.yamlPath[0].split('/')
+		logPath = f'../cmake_targets/log/{ymlPath[2]}'
+		os.system(f'mkdir -p {logPath}')
+		local_ping_log_file = f'{logPath}/{ping_log_file}'
 		# if has pattern %cn_ip%, replace with core IP address, else we assume the IP is present
 		if re.search('%cn_ip%', self.ping_args):
 			#target address is different depending on EPC type
@@ -757,12 +769,14 @@ class OaiCiTest():
 
 		if self.ue_ids == []:
 			raise Exception("no module names in self.ue_ids provided")
-
-		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
+		if len(self.ue_ids) == len(self.nodes):
+			ues = [cls_module.Module_UE(ue_id, server_name) for ue_id, server_name in zip(self.ue_ids, self.nodes)]
+		else:
+			ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
 		logging.debug(ues)
 		pingLock = Lock()
 		with concurrent.futures.ThreadPoolExecutor() as executor:
-			futures = [executor.submit(self.Ping_common, EPC, ue, RAN, pingLock) for ue in ues]
+			futures = [executor.submit(self.Ping_common, EPC, ue, RAN, CONTAINERS, pingLock) for ue in ues]
 			results = [f.result() for f in futures]
 			# each result in results is a tuple, first member goes to successes, second to messages
 			successes, messages = map(list, zip(*results))
@@ -788,7 +802,9 @@ class OaiCiTest():
 		bidirIperf = re.search('--bidir', iperf_opt) is not None
 		client_filename = f'iperf_client_{self.testCase_id}_{ue.getName()}.log'
 		ymlPath = CONTAINERS.yamlPath[0].split('/')
-		logPath = f'../cmake_targets/log/{ymlPath[1]}'
+		logPath = f'../cmake_targets/log/{ymlPath[2]}'
+		# Creating destination log folder if needed on the python executor workspace
+		os.system(f'mkdir -p {logPath}')
 		if udpIperf:
 			target_bitrate, iperf_opt = Iperf_ComputeModifiedBW(idx, ue_num, self.iperf_profile, self.iperf_args)
 			# note: for UDP testing we don't want to use json report - reports 0 Mbps received bitrate
@@ -845,9 +861,11 @@ class OaiCiTest():
 
 		if self.ue_ids == [] or self.svr_id == None:
 			raise Exception("no module names in self.ue_ids or/and self.svr_id provided")
-
-		ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
-		svr = cls_module.Module_UE(self.svr_id)
+		if len(self.ue_ids) == len(self.nodes):
+			ues = [cls_module.Module_UE(ue_id, server_name) for ue_id, server_name in zip(self.ue_ids, self.nodes)]
+		else:
+			ues = [cls_module.Module_UE(n.strip()) for n in self.ue_ids]
+		svr = cls_module.Module_UE(self.svr_id,self.svr_node)
 		logging.debug(ues)
 		with concurrent.futures.ThreadPoolExecutor() as executor:
 			futures = [executor.submit(self.Iperf_Module, EPC, ue, svr, RAN, i, len(ues), CONTAINERS) for i, ue in enumerate(ues)]
@@ -863,8 +881,8 @@ class OaiCiTest():
 	def Iperf2_Unidir(self,HTML,RAN,EPC,CONTAINERS):
 		if self.ue_ids == [] or self.svr_id == None or len(self.ue_ids) != 1:
 			raise Exception("no module names in self.ue_ids or/and self.svr_id provided, multi UE scenario not supported")
-		ue = cls_module.Module_UE(self.ue_ids[0].strip())
-		svr = cls_module.Module_UE(self.svr_id)
+		ue = cls_module.Module_UE(self.ue_ids[0].strip(),self.nodes[0].strip())
+		svr = cls_module.Module_UE(self.svr_id,self.svr_node)
 		ueIP = ue.getIP()
 		if not ueIP:
 			return (False, f"UE {ue.getName()} has no IP address")
@@ -901,9 +919,9 @@ class OaiCiTest():
 			self.AutoTerminateUEandeNB(HTML,RAN,EPC,CONTAINERS)
 
 	def AnalyzeLogFile_UE(self, UElogFile,HTML,RAN):
-		if (not os.path.isfile(f'./{UElogFile}')):
+		if (not os.path.isfile(f'{UElogFile}')):
 			return -1
-		ue_log_file = open(f'./{UElogFile}', 'r')
+		ue_log_file = open(f'{UElogFile}', 'r')
 		exitSignalReceived = False
 		foundAssertion = False
 		msgAssertion = ''

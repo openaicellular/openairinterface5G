@@ -29,7 +29,9 @@
                 111111
                 000222
                 001111
+                800813
                 002222
+                800814
                 002223
                 000111
                 100000
@@ -54,7 +56,12 @@
                 <desc>Initialize Quectel</desc>
                 <id>sphex_quectel</id>
         </testCase>
-
+        <testCase id="800813">
+                <class>Create_Workspace</class>
+                <desc>Creating new Workspace for server 0</desc>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
+        </testCase>
         <testCase id="002222">
                 <class>Deploy_Object</class>
                 <desc>Deploy PNF/Nvidia CUBB in a container</desc>
@@ -63,7 +70,12 @@
                 <eNB_instance>0</eNB_instance>
                 <eNB_serverId>0</eNB_serverId>
         </testCase>
-
+        <testCase id="800814">
+                <class>Create_Workspace</class>
+                <desc>Creating new Workspace for server 0</desc>
+                <eNB_instance>0</eNB_instance>
+                <eNB_serverId>0</eNB_serverId>
+        </testCase>
         <testCase id="002223">
                 <class>Deploy_Object</class>
                 <desc>Deploy VNF in a container</desc>
